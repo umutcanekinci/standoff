@@ -1,5 +1,5 @@
 import socket
-from scripts.settings import *
+from settings import *
 import threading
 import pickle
 import struct  # Import the struct module for packing/unpacking data
@@ -8,7 +8,7 @@ class Client:
 
     def __init__(self, game):
 
-        self.connected = False
+        self.isConnected = False
         self.game = game
 
     def Start(self):
@@ -30,9 +30,9 @@ class Client:
             self.game.DebugLog("[CLIENT] => An error occured while connecting to the server.")
             return
 
-        self.connected = True
+        self.isConnected = True
 
-        self.game.DebugLog("[CLIENT] => Connected to server.")
+        self.game.DebugLog("[CLIENT] => isConnected to server.")
         self.SendMessage({'command' : '!GET_PLAYER_ID'})
 
         self.recieveThread = threading.Thread(target=self.RecieveMessage)
@@ -40,14 +40,16 @@ class Client:
                 
     def RecieveMessage(self):
 
-        packedLength = self.client.recv(HEADER)
-        dataLength = struct.unpack('!I', packedLength)[0]
-        serializedData = self.client.recv(dataLength)
-        self.game.GetMessage(pickle.loads(serializedData))
+        while self.isConnected:
+
+            packedLength = self.client.recv(HEADER)
+            dataLength = struct.unpack('!I', packedLength)[0]
+            serializedData = self.client.recv(dataLength)
+            self.game.GetMessage(pickle.loads(serializedData))
 
     def SendMessage(self, dataToSend):
 
-        if self.connected:
+        if self.isConnected:
             
             serializedData = pickle.dumps(dataToSend)
             dataLength = len(serializedData)
@@ -57,4 +59,4 @@ class Client:
     def DisconnectFromServer(self):
 
         self.SendMessage({'command' : "!DISCONNECT"})
-        self.connected = False
+        self.isConnected = False

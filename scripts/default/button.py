@@ -1,7 +1,7 @@
 #-# Importing Packages #-#
 import pygame
-from scripts.default.object import *
-from scripts.default.text import *
+from default.object import *
+from default.text import *
 
 #-# Button Class #-#
 class Button(Object):

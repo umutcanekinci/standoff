@@ -1,6 +1,6 @@
 import pygame
-from scripts.default.image import *
-from scripts.default.object import *
+from default.image import *
+from default.object import *
 
 class Buttonxx(Object):
 

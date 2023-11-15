@@ -1,11 +1,24 @@
-import pygame
-from sys import exit
-from scripts.level import *
-from scripts.settings import *
-from pygame.math import Vector2 as Vec
-from scripts.client import Client
-from scripts.default.application import Application
-from scripts.default.text import Text
+#region Import Packages
+
+try:
+
+    import pygame
+    from pygame.math import Vector2 as Vec
+
+    from default.application import Application
+    from default.text import Text
+    from default.object import Object
+    from default.inputBox import InputBox
+    from default.
+    from settings import *
+    from level import *
+    from client import Client
+
+except ImportError as e:
+
+    print("An error occured while importing packages:  " + str(e))
+
+#endregion
 
 class Camera():
 
@@ -217,9 +230,10 @@ class Player():
 
         surface.blit(self.surface, self.rect)
 
+
 class Game(Application):
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         super().__init__(WINDOW_TITLE, WINDOW_SIZE)
 
@@ -228,18 +242,33 @@ class Game(Application):
         self.CreateMainPlayer()
 
         self.playerCountText = Text((500, 0), " ", 20, isCentered=False, backgroundColor=Black, color=Yellow)
+
+
+        #Lobby
+        lobbyPanel = Object((0, 0), WINDOW_SIZE)
+        lobbyPanel.AddSurface("Normal", pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA))
+        lobbyPanel["Normal"].fill((*Gray, 100))
+
+        playerNameEntry = InputBox(100, 100, 150, 60, '')
+
+        
+        self.AddObject("lobby", "panel", lobbyPanel)
+        self.AddObject("lobby", "player_name", playerNameEntry)
+        self.AddObject("lobby", "menu", Menu)
+
+
         self.AddObject("game", "player count text", self.playerCountText)
 
-        self.OpenTab("game")
+        self.OpenTab("lobby")
         self.StartClient()
 
-    def StartClient(self):
+    def StartClient(self) -> None:
 
         self.client = Client(self)
         self.client.Start()
         self.previousMessage = None
 
-    def GetMessage(self, message):
+    def GetMessage(self, message) -> None:
         print(message)
         if message:
 
@@ -264,11 +293,11 @@ class Game(Application):
                 print("AAAAAAA")
                 self.players[message['playerID']].rect.topleft = message['data'].topleft
                 
-    def CreateCamera(self):
+    def CreateCamera(self) -> None:
 
         self.camera = Camera()
 
-    def CreateMap(self):
+    def CreateMap(self) -> None:
 
         self.map = TileMap(self.camera)
         self.map.LoadLevel(level1, TILE_SIZE, BORDER_WIDTH)
@@ -276,19 +305,19 @@ class Game(Application):
 
         self.AddObject("game", "map", self.map)
 
-    def CreateMainPlayer(self):
+    def CreateMainPlayer(self) -> None:
 
         self.players = {}
         self.player = Player(TILE_SIZE, self.map.spawnPoints[1], Yellow)
         #self.players[1] = self.player
         self.AddObject("game", "player", self.player)
 
-    def CreatePlayer(self, playerID):
+    def CreatePlayer(self, playerID) -> None:
 
         player = Player(TILE_SIZE, (0, 0), Red)
         self.players[playerID] = player
 
-    def Draw(self):
+    def Draw(self) -> None:
 
         if hasattr(self.player, "ID"):
 

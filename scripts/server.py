@@ -1,7 +1,7 @@
 import socket
 import threading
 import pickle
-from settings import *
+from server_settings import *
 import struct
 
 class Server:

@@ -12,7 +12,7 @@ class InputBox:
 		self.txt_surface = pygame.font.Font(None, 32).render(text, True, self.color)
 		self.active = True # False
 
-	def HandleEvents(self, event, mousePosition):
+	def HandleEvents(self, event, mousePosition, keys):
 
 		if event.type == pygame.MOUSEBUTTONDOWN:
 
@@ -50,8 +50,9 @@ class InputBox:
 		if self.rect.w < width:        
 			self.rect.w = width
 
-	def Draw(self, screen):
+	def Draw(self, surface):
+
 		# Blit the text.
-		screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+		surface.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
 		# Blit the rect.
-		pygame.draw.rect(screen, self.color, self.rect, 2)
+		pygame.draw.rect(surface, self.color, self.rect, 2)

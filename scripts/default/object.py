@@ -1,8 +1,8 @@
 #-# Importing Packages #-#
 import pygame
-from scripts.default.path import *
-from scripts.default.image import *
-from scripts.default.color import *
+from default.path import *
+from default.image import *
+from default.color import *
 
 #-# Object Class #-#
 class Object(dict[str : pygame.Surface]):

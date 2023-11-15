@@ -5,11 +5,12 @@ try:
     import pygame, sys, os
     from pygame import mixer
 
-    from scripts.default.buttonxx import *
-    from scripts.default.color import *
-    from scripts.default.text import *
-    from scripts.default.object import *
-
+    from default.buttonxx import *
+    from default.color import *
+    from default.text import *
+    from default.object import *
+    from default.path import *
+    
 except Exception as error:
 
 	print("An error occured during importing packages:", error)

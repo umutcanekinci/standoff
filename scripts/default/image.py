@@ -1,6 +1,6 @@
 #-# Importing Packages #-#
 import pygame
-from scripts.default.path import *
+from default.path import *
 
 #-# Image Function #-#
 def GetImage(path: ImagePath, Size=[0, 0], ReturnSize=False):

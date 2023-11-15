@@ -1,7 +1,7 @@
 import pygame
-from scripts.default.color import White
-from scripts.default.object import *
-from scripts.default.color import *
+from default.color import White
+from default.object import *
+from default.color import *
 
 class Text(Object):
 
