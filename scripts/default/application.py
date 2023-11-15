@@ -37,6 +37,7 @@ class Application(dict[str : pygame.Surface]):
         
         #-# Starting App #-#
         self.isRunning = True
+        self.isDebugLogVisible = False
 
         #-# Main Loop #-#
         while self.isRunning:
@@ -64,6 +65,10 @@ class Application(dict[str : pygame.Surface]):
             self.Draw()
 
     def HandleEvents(self, event: pygame.event.Event) -> None:
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
+
+            self.isDebugLogVisible = not self.isDebugLogVisible
 
         if self.tab in self:
             
@@ -204,7 +209,7 @@ class Application(dict[str : pygame.Surface]):
 
             self.cursor.Draw(self.window)    
 
-        if "debugLog" in self:
+        if "debugLog" in self and self.isDebugLogVisible:
 
             self["debugLog"].Draw(self.window)
 

@@ -1,12 +1,14 @@
 #-# Import Packages #-#
 import pygame
+from default.object import Object
 
 #-# Input Box Class #-#
-class InputBox:
+class InputBox(Object):
 
-	def __init__(self, x, y, w, h, text=''):
+	def __init__(self, position, size, surfaceRect, text=''):
 
-		self.rect = pygame.Rect(x, y, w, h)
+		super().__init__(position, size, surfaceRect=surfaceRect)
+		
 		self.color = pygame.Color('dodgerblue2') # ('lightskyblue3')
 		self.text = text
 		self.txt_surface = pygame.font.Font(None, 32).render(text, True, self.color)
@@ -17,7 +19,7 @@ class InputBox:
 		if event.type == pygame.MOUSEBUTTONDOWN:
 
 			# If the user clicked on the input_box rect.
-			if self.rect.collidepoint(mousePosition):
+			if self.screenRect.collidepoint(mousePosition):
 
 				# Toggle the active variable.
 				self.active = True #not self.active
@@ -53,6 +55,10 @@ class InputBox:
 	def Draw(self, surface):
 
 		# Blit the text.
+		
 		surface.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
 		# Blit the rect.
 		pygame.draw.rect(surface, self.color, self.rect, 2)
+		self.AddSurface("Normal", self.txt_surface)
+		print(self.rect)
+		super().Draw(surface)

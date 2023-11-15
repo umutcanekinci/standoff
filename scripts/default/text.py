@@ -5,13 +5,13 @@ from default.color import *
 
 class Text(Object):
 
-    def __init__(self, position, text, textSize, antialias=True, color=White, backgroundColor=None, fontPath = None, isCentered=True, status="Normal", show=True) -> None:
+    def __init__(self, position, text, textSize, antialias=True, color=White, backgroundColor=None, fontPath = None, isCentered=True, status="Normal", show=True, surfaceRect=pygame.Rect(0, 0, 0, 0)) -> None:
         
         self.position = position
         self.isCentered = isCentered
         self.textArgs = {}
         
-        super().__init__(position, show=show)
+        super().__init__(position, surfaceRect=surfaceRect, show=show)
 
         self.AddText(status, text, textSize, antialias, color, backgroundColor, fontPath)
 
@@ -29,12 +29,10 @@ class Text(Object):
 
         self.AddText(status, self.textArgs[status][0], size, *self.textArgs[status][2:])
 
-    def SetStatus(self, status: str, surfacePosition = (0, 0), surfaceSize = (0, 0)):
+    def SetStatus(self, status: str):
         
         super().SetStatus(status)
 
         if self.isCentered and status in self:
             
-            rect = self[status].get_rect(center=(surfacePosition[0] + surfaceSize[0]/2, surfacePosition[1] + surfaceSize[1]/2))
-
-            self.SetPosition(rect.topleft)
+            self.SetPosition(("CENTER", "CENTER"), self.screenRect)

@@ -8,8 +8,7 @@ class Server:
 
     def Start(self):
 
-        self.players = {}
-        self.messages = ""
+        self.players = {} # {client : [playerID, playerName]}
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,7 +26,7 @@ class Server:
 
         except socket.error as error:
 
-            print("[SERVER] => An error occured during connecting to server: " + error)
+            print("[SERVER] => An error occured during connecting to server: " + str(error))
 
         else:
 
@@ -51,14 +50,14 @@ class Server:
             thread = threading.Thread(target=self.HandleClient, args=(clientSocket, addr))
             thread.start()
 
-    def RecieveMessage(self, clientSocket):
+    def RecieveData(self, clientSocket):
 
         packedLength = clientSocket.recv(HEADER)
         dataLength = struct.unpack('!I', packedLength)[0]
         serializedData = clientSocket.recv(dataLength)
         return pickle.loads(serializedData)
 
-    def SendMessage(self, clientSockets, dataToSend):
+    def SendData(self, clientSockets, dataToSend):
 
         for clientSocket in clientSockets:
             
@@ -67,7 +66,7 @@ class Server:
             packedLength = struct.pack('!I', dataLength)
             clientSocket.sendall(packedLength + serializedData)
 
-    def SendMessageToAllClients(self, message, exceptions=[]):
+    def SendDataToAllClients(self, data, exceptions=[]):
 
         clientSockets = list(self.players.keys())
 
@@ -75,7 +74,7 @@ class Server:
 
             clientSockets.remove(exception)
 
-        self.SendMessage(clientSockets, message)
+        self.SendData(clientSockets, data)
 
     def HandleClient(self, clientSocket: socket.socket, addr):
 
@@ -84,33 +83,37 @@ class Server:
         connected = True
         while connected:
             
-            message = self.RecieveMessage(clientSocket)
+            data = self.RecieveData(clientSocket)
 
-            if message:
+            if data:
 
-                if message['command'] == '!PLAYER_RECT':
-                    
-                    self.SendMessageToAllClients(message, [clientSocket])
-                
-                elif message['command'] == '!GET_PLAYER_ID':
+                if data['command'] == '!GET_PLAYERS': # new player entered to main menu
+
+                    self.SendData([clientSocket], {'command' : "!PLAYERS", 'value' : list(self.players.values())})
+
+                if data['command'] == '!GET_PLAYER_ID': # new player came to game
 
                     playerID = len(self.players) + 1
-                    self.players[clientSocket] = "Player " + str(playerID)
+                    playerName = data['value']
+
+                    self.players[clientSocket] = [playerID, playerName]
 
                     #printing player count and player name
-                    print(f"[SERVER] => {self.players[clientSocket]} ({ip}) is entered to game from PORT = {port}.")
+                    print(f"[SERVER] => {self.players[clientSocket][1]} ({ip}) is entered to game from PORT = {port}.")
                     print(f"[SERVER] => Player count is now {str(playerID)}.")
                     
+                    self.SendData([clientSocket], {'command' : "!PLAYER_ID", 'value' : playerID})
+                    self.SendDataToAllClients({'command' : "!NEW_PLAYER", 'value' : [playerID, playerName]}, [clientSocket])        
                     
-                    self.SendMessageToAllClients({'command' : "!NEW_PLAYER", 'data' : playerID})
-                    self.SendMessage([clientSocket], {'command' : "!PLAYER_IDs", 'data' : list(self.players.values())})
+                elif data['command'] == '!PLAYER_RECT':
+
+                    self.SendDataToAllClients(data, [clientSocket])
                     
-                
-                elif message['command'] == '!DISCONNECT':
+                elif data['command'] == '!DISCONNECT':
 
-                        print(f"[SERVER] => {self.players[clientSocket]} ({ip}) is dissconnected.")
+                        print(f"[SERVER] => {self.players[clientSocket][1]} ({ip}) is dissconnected.")
 
-                        self.SendMessageToAllClients({'command' : "!DISCONNECT", 'data' : self.players[clientSocket]})
+                        self.SendDataToAllClients({'command' : "!DISCONNECT", 'value' : self.players[clientSocket]})
                         self.players.pop(clientSocket)
                         
                         print(f"[SERVER] => Player count is now {str(len(self.players))}.")

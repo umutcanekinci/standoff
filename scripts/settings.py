@@ -1,3 +1,5 @@
+import pygame
+
 #-# Colors #-#
 Black = (0,0,0)
 White = (255,255,255)
@@ -20,6 +22,8 @@ CustomBlue = (72, 218, 233)
 #-# Settings #-#
 WINDOW_TITLE = "CHOOSE YOUR WAY"
 WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
+WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
+
 PLAYER_SPAWNPOINT = 0, 0
 TILE_SIZE = 64
 BORDER_WIDTH = 2

@@ -9,7 +9,8 @@ try:
     from default.text import Text
     from default.object import Object
     from default.inputBox import InputBox
-    from default.
+    from default.button import Button
+
     from settings import *
     from level import *
     from client import Client
@@ -230,69 +231,96 @@ class Player():
 
         surface.blit(self.surface, self.rect)
 
+class MainMenu():
+
+    def __init__(self) -> None:
+
+        self.panel = Object(("CENTER", "CENTER"), (400, 800), surfaceRect=WINDOW_RECT)
+        self.panel.AddSurface("Normal", pygame.Surface((400, 800), pygame.SRCALPHA))
+        self.panel["Normal"].fill((*Gray, 100))
+        
+        self.playerNameEntry = InputBox(("CENTER", "CENTER"), (150, 60), self.panel.rect, 'asdas')
+        
+        self.playButton = Button(("CENTER", "CENTER"), (350, 100), text="PLAY", textSize=35, surfaceRect=WINDOW_RECT)
+        self.playButton.AddSurface("Normal", pygame.Surface(self.playButton.rect.size))
+        self.playButton.AddSurface("Mouse Over", pygame.Surface(self.playButton.rect.size))
+
+        self.playButton["Normal"].fill(Black)
+        self.playButton["Mouse Over"].fill(Gray)
+
+        self.playerCountText = Text((150, 750), " ", 20, isCentered=False, backgroundColor=Black, color=Yellow)
+
+    def HandleEvents(self, event, mousePosition, keys):
+
+        self.playerNameEntry.HandleEvents(event, mousePosition, keys)
+        self.playButton.HandleEvents(event, mousePosition, keys)
+
+    def Draw(self, surface):
+
+        self.playerCountText.Draw(self.panel["Normal"])
+
+        self.panel.Draw(surface)
+
+        self.playerNameEntry.Draw(surface)
+        self.playButton.Draw(surface)
+        
 
 class Game(Application):
 
     def __init__(self) -> None:
 
-        super().__init__(WINDOW_TITLE, WINDOW_SIZE)
-
-        self.CreateCamera()
-        self.CreateMap()
-        self.CreateMainPlayer()
-
-        self.playerCountText = Text((500, 0), " ", 20, isCentered=False, backgroundColor=Black, color=Yellow)
-
-
-        #Lobby
-        lobbyPanel = Object((0, 0), WINDOW_SIZE)
-        lobbyPanel.AddSurface("Normal", pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA))
-        lobbyPanel["Normal"].fill((*Gray, 100))
-
-        playerNameEntry = InputBox(100, 100, 150, 60, '')
-
+        super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue})
         
-        self.AddObject("lobby", "panel", lobbyPanel)
-        self.AddObject("lobby", "player_name", playerNameEntry)
-        self.AddObject("lobby", "menu", Menu)
-
-
-        self.AddObject("game", "player count text", self.playerCountText)
-
-        self.OpenTab("lobby")
+        self.AddObject("mainMenu", "menu", MainMenu())
         self.StartClient()
+        
+        self.OpenTab("mainMenu")
 
     def StartClient(self) -> None:
 
         self.client = Client(self)
         self.client.Start()
-        self.previousMessage = None
+        self.client.SendData({'command' : '!GET_PLAYERS'})
 
-    def GetMessage(self, message) -> None:
-        print(message)
-        if message:
+    def Start(self):
+        
+        self.CreateCamera()
+        self.CreateMap()
+        self.CreateMainPlayer()
+        self.client.SendData({'command' : "!GET_PLAYER_ID", 'value' : self["mainMenu"]["menu"].playerNameEntry.text})
+        self.OpenTab("game")
 
-            if message['command'] == "!NEW_PLAYER":
+    def GetData(self, data) -> None:
+
+        if data:
+
+            if data['command'] == "!PLAYERS":
                 
-                if hasattr(self.player, "ID"):
+                self.players = []
 
-                    self.CreatePlayer(message['data'])
+                for playerID, playerName in data['value']:
 
-                else:
+                    self.CreatePlayer(playerID, playerName)
 
-                    self.player.ID = message['data']
+                self["mainMenu"]["menu"].playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
 
-            elif message['command'] == "!PLAYER_IDs":
+            elif data['command'] == "!PLAYER_ID":
 
-                for ID in message['data']:
+                self.player.ID = data['value']
 
-                    self.CreatePlayer(ID)
-
-            elif message['command'] == "!PLAYER_RECT":
-
-                print("AAAAAAA")
-                self.players[message['playerID']].rect.topleft = message['data'].topleft
+            elif data['command'] == "!NEW_PLAYER":
                 
+                self.CreatePlayer(*data['value'])
+
+            elif data['command'] == "!PLAYER_RECT":
+
+                for player in self.players:
+
+                    if player.ID == data['playerID']:
+                        
+                        player.rect.topleft = data['value'].topleft
+                        break
+
     def CreateCamera(self) -> None:
 
         self.camera = Camera()
@@ -307,29 +335,41 @@ class Game(Application):
 
     def CreateMainPlayer(self) -> None:
 
-        self.players = {}
         self.player = Player(TILE_SIZE, self.map.spawnPoints[1], Yellow)
-        #self.players[1] = self.player
         self.AddObject("game", "player", self.player)
 
-    def CreatePlayer(self, playerID) -> None:
+    def CreatePlayer(self, playerID, playerName) -> None:
 
         player = Player(TILE_SIZE, (0, 0), Red)
-        self.players[playerID] = player
+        player.ID = playerID
+        player.name = playerName
+        self.players.append(player)
+
+    def HandleEvents(self, event: pygame.event.Event) -> None:
+        
+        if self["mainMenu"]["menu"].playButton.isMouseClick(event, self.mousePosition):
+
+            self.Start()
+            
+        return super().HandleEvents(event)
 
     def Draw(self) -> None:
 
-        if hasattr(self.player, "ID"):
+        if self.tab == "game":
 
-            self.player.Move(self.deltaTime)
-            self.camera.Move(self.player.position, WINDOW_SIZE, self.map.rect.size)
-            self.client.SendMessage({'command' : "!PLAYER_RECT", 'playerID' : self.player.ID, 'data' : self.player.rect})
+            if hasattr(self.player, "ID"):
+
+                self.player.Move(self.deltaTime)
+                self.camera.Move(self.player.position, WINDOW_SIZE, self.map.rect.size)
+                self.client.SendData({'command' : "!PLAYER_RECT", 'playerID' : self.player.ID, 'value' : self.player.rect})
 
         super().Draw()
 
-        for player in self.players.values():
+        if self.tab == "game":
 
-            player.Draw(self.window)
+            for player in self.players:
+
+                player.Draw(self.window)
 
     def Exit(self) -> None:
 

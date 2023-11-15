@@ -6,9 +6,9 @@ from default.text import *
 #-# Button Class #-#
 class Button(Object):
 
-    def __init__(self, position: tuple = ..., size: tuple = ..., imagePaths=..., text: str = "", selectedText: str = "", textSize: int = 20, textColor: tuple = White, selectedTextColor: tuple = White, textFontPath: pygame.font.Font = None, surfaceSize: tuple = None, screenPosition: tuple = None, show=True):
+    def __init__(self, position: tuple = ..., size: tuple = ..., imagePaths={}, text: str = "", selectedText: str = "", textSize: int = 20, textColor: tuple = White, selectedTextColor: tuple = White, textFontPath: pygame.font.Font = None, surfaceRect: pygame.Rect = None, show=True):
 
-        super().__init__(position, size, imagePaths, surfaceSize, screenPosition, show)
+        super().__init__(position, size, imagePaths, surfaceRect, show)
 
         if text:
 
@@ -23,7 +23,7 @@ class Button(Object):
 
         if not hasattr(self, "text"):
 
-            self.text = Text((0, 0), text, textSize, True, color, backgroundColor, fontPath, True, status)
+            self.text = Text(("CENTER", "CENTER"), text, textSize, True, color, backgroundColor, fontPath, True, status, surfaceRect=self.screenRect)
 
         else:
             
@@ -35,8 +35,7 @@ class Button(Object):
 
         if hasattr(self, "text") and self.show:
             
-            self.text.SetStatus(self.status, self.position, self.size)
-            
+            self.text.SetStatus(self.status)
             self.text.Draw(surface)
 
 #-# Menu Button Class #-#

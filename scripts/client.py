@@ -32,22 +32,21 @@ class Client:
 
         self.isConnected = True
 
-        self.game.DebugLog("[CLIENT] => isConnected to server.")
-        self.SendMessage({'command' : '!GET_PLAYER_ID'})
+        self.game.DebugLog("[CLIENT] => Connected to server.")
 
-        self.recieveThread = threading.Thread(target=self.RecieveMessage)
+        self.recieveThread = threading.Thread(target=self.RecieveData)
         self.recieveThread.start()
                 
-    def RecieveMessage(self):
+    def RecieveData(self):
 
         while self.isConnected:
 
             packedLength = self.client.recv(HEADER)
             dataLength = struct.unpack('!I', packedLength)[0]
             serializedData = self.client.recv(dataLength)
-            self.game.GetMessage(pickle.loads(serializedData))
+            self.game.GetData(pickle.loads(serializedData))
 
-    def SendMessage(self, dataToSend):
+    def SendData(self, dataToSend):
 
         if self.isConnected:
             
@@ -58,5 +57,5 @@ class Client:
 
     def DisconnectFromServer(self):
 
-        self.SendMessage({'command' : "!DISCONNECT"})
+        self.SendData({'command' : "!DISCONNECT"})
         self.isConnected = False
