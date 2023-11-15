@@ -10,7 +10,7 @@ try:
     from default.text import *
     from default.object import *
     from default.path import *
-    
+
 except Exception as error:
 
 	print("An error occured during importing packages:", error)
