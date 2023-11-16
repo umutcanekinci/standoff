@@ -135,7 +135,10 @@ class TileMap(list[Tile]):
 
 class Player():
 
-    def __init__(self, size, position, color) -> None:
+    def __init__(self, name, size, position, color) -> None:
+
+        self.name = name
+        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=color)
 
         # Physics
 
@@ -228,27 +231,31 @@ class Player():
         self.rect.topleft = self.position
 
     def Draw(self, surface: pygame.Surface):
-
+        
         surface.blit(self.surface, self.rect)
+        
+        self.nameText.rect.topleft = (self.rect.x + self.nameText.rect.w/2, self.rect.y - self.nameText.rect.h - 5)
+        self.nameText.Draw(surface)
 
 class MainMenu():
 
     def __init__(self) -> None:
 
-        self.panel = Object(("CENTER", "CENTER"), (400, 800), surfaceRect=WINDOW_RECT)
-        self.panel.AddSurface("Normal", pygame.Surface((400, 800), pygame.SRCALPHA))
+        self.panel = Object(("CENTER", "CENTER"), WINDOW_RECT, (400, 400))
+        self.panel.AddSurface("Normal", pygame.Surface((400, 400), pygame.SRCALPHA))
         self.panel["Normal"].fill((*Gray, 100))
         
-        self.playerNameEntry = InputBox(("CENTER", "CENTER"), (150, 60), self.panel.rect, 'asdas')
-        
-        self.playButton = Button(("CENTER", "CENTER"), (350, 100), text="PLAY", textSize=35, surfaceRect=WINDOW_RECT)
+        self.playerNameText = Text(("CENTER", 50), self.panel.screenRect, "PLAYER NAME", 40)
+        self.playerNameEntry = InputBox(("CENTER", 100), self.panel.screenRect, (200, 60), '')
+
+        self.playButton = Button(("CENTER", 200), self.panel.screenRect, (300, 75), text="PLAY", textSize=45)
         self.playButton.AddSurface("Normal", pygame.Surface(self.playButton.rect.size))
         self.playButton.AddSurface("Mouse Over", pygame.Surface(self.playButton.rect.size))
 
         self.playButton["Normal"].fill(Black)
         self.playButton["Mouse Over"].fill(Gray)
-
-        self.playerCountText = Text((150, 750), " ", 20, isCentered=False, backgroundColor=Black, color=Yellow)
+        
+        self.playerCountText = Text(("CENTER", 350), self.panel.screenRect, "0 Players are Online", 20, backgroundColor=Black, color=Yellow)
 
     def HandleEvents(self, event, mousePosition, keys):
 
@@ -257,13 +264,11 @@ class MainMenu():
 
     def Draw(self, surface):
 
+        self.playerNameText.Draw(self.panel["Normal"])
+        self.playerNameEntry.Draw(self.panel["Normal"])
+        self.playButton.Draw(self.panel["Normal"])
         self.playerCountText.Draw(self.panel["Normal"])
-
         self.panel.Draw(surface)
-
-        self.playerNameEntry.Draw(surface)
-        self.playButton.Draw(surface)
-        
 
 class Game(Application):
 
@@ -271,6 +276,7 @@ class Game(Application):
 
         super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue})
         
+        self.AddObject("mainMenu", "title", Text(("CENTER", 250), WINDOW_RECT, self.title, 60, color=Red))
         self.AddObject("mainMenu", "menu", MainMenu())
         self.StartClient()
         
@@ -286,8 +292,9 @@ class Game(Application):
         
         self.CreateCamera()
         self.CreateMap()
-        self.CreateMainPlayer()
-        self.client.SendData({'command' : "!GET_PLAYER_ID", 'value' : self["mainMenu"]["menu"].playerNameEntry.text})
+        playerName = self["mainMenu"]["menu"].playerNameEntry.text
+        self.CreateMainPlayer(playerName)
+        self.client.SendData({'command' : "!GET_PLAYER_ID", 'value' : playerName})
         self.OpenTab("game")
 
     def GetData(self, data) -> None:
@@ -333,24 +340,24 @@ class Game(Application):
 
         self.AddObject("game", "map", self.map)
 
-    def CreateMainPlayer(self) -> None:
+    def CreateMainPlayer(self, playerName) -> None:
 
-        self.player = Player(TILE_SIZE, self.map.spawnPoints[1], Yellow)
+        self.player = Player(playerName, TILE_SIZE, self.map.spawnPoints[1], Yellow)
         self.AddObject("game", "player", self.player)
 
     def CreatePlayer(self, playerID, playerName) -> None:
 
-        player = Player(TILE_SIZE, (0, 0), Red)
+        player = Player(playerName, TILE_SIZE, (0, 0), Red)
         player.ID = playerID
         player.name = playerName
         self.players.append(player)
 
     def HandleEvents(self, event: pygame.event.Event) -> None:
-        
+
         if self["mainMenu"]["menu"].playButton.isMouseClick(event, self.mousePosition):
 
             self.Start()
-            
+
         return super().HandleEvents(event)
 
     def Draw(self) -> None:
@@ -367,9 +374,11 @@ class Game(Application):
 
         if self.tab == "game":
 
-            for player in self.players:
+            if hasattr(self.player, "ID"):
 
-                player.Draw(self.window)
+                for player in self.players:
+
+                    player.Draw(self.window)
 
     def Exit(self) -> None:
 

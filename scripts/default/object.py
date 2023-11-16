@@ -7,14 +7,14 @@ from default.color import *
 #-# Object Class #-#
 class Object(dict[str : pygame.Surface]):
 
-	def __init__(self, position: tuple = ("CENTER", "CENTER"), size: tuple = (0, 0), imagePaths = {}, surfaceRect: tuple = None, show = True):
+	def __init__(self, position: tuple = ("CENTER", "CENTER"), surfaceRect: pygame.Rect = pygame.Rect(0, 0, 0, 0), size: tuple = (0, 0), imagePaths = {}, visible = True):
 		
 		super().__init__()
 		self.SetStatus(None)
 		
 		self.imagePaths = imagePaths
-		self.show = show
 
+		self.SetVisible(visible)
 		self.SetSize(size)
 		self.SetPosition(position, surfaceRect)
 
@@ -74,6 +74,9 @@ class Object(dict[str : pygame.Surface]):
 			
 	def SetPosition(self, position: tuple, surfaceRect: tuple) -> None:
 
+		self.position = position
+		self.surfaceRect = surfaceRect
+
 		self.SetX(position[0], surfaceRect)
 		self.SetY(position[1], surfaceRect)
 
@@ -112,7 +115,7 @@ class Object(dict[str : pygame.Surface]):
 
 	def isMouseOver(self, mousePosition: tuple) -> bool:
 		
-		if mousePosition != None and self.rect.collidepoint(mousePosition) and self.show:
+		if mousePosition != None and self.screenRect.collidepoint(mousePosition) and self.visible:
 
 			return True
 		
@@ -126,13 +129,9 @@ class Object(dict[str : pygame.Surface]):
 		
 		return False
 
-	def Show(self):
+	def SetVisible(self, value):
 		
-		self.show = True
-
-	def Hide(self):
-
-		self.show = False
+		self.visible = value
 
 	def HandleEvents(self, event, mousePosition, keys):
 		
@@ -170,7 +169,7 @@ class Object(dict[str : pygame.Surface]):
 
 		self.__Move()
 
-		if self.show and self.status in self:
+		if self.visible and self.status in self:
 				
 			surface.blit(self[self.status], self.rect)
 

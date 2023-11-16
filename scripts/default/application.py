@@ -10,6 +10,7 @@ try:
     from default.text import *
     from default.object import *
     from default.path import *
+    from settings import *
 
 except Exception as error:
 
@@ -188,7 +189,7 @@ class Application(dict[str : pygame.Surface]):
 
         else:
 
-            self["debugLog"] = Text((0, 0), text, 25, backgroundColor=Black, isCentered=False)
+            self["debugLog"] = Text((0, 0), WINDOW_RECT, text, 25, backgroundColor=Black)
 
     def Draw(self) -> None:
 

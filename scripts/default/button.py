@@ -6,9 +6,9 @@ from default.text import *
 #-# Button Class #-#
 class Button(Object):
 
-    def __init__(self, position: tuple = ..., size: tuple = ..., imagePaths={}, text: str = "", selectedText: str = "", textSize: int = 20, textColor: tuple = White, selectedTextColor: tuple = White, textFontPath: pygame.font.Font = None, surfaceRect: pygame.Rect = None, show=True):
+    def __init__(self, position: tuple = ..., surfaceRect: pygame.Rect = None, size: tuple = ..., imagePaths={}, text: str = "", selectedText: str = "", textSize: int = 20, textColor: tuple = White, selectedTextColor: tuple = White, textFontPath: pygame.font.Font = None, visible=True):
 
-        super().__init__(position, size, imagePaths, surfaceRect, show)
+        super().__init__(position, surfaceRect, size, imagePaths, visible)
 
         if text:
 
@@ -23,20 +23,29 @@ class Button(Object):
 
         if not hasattr(self, "text"):
 
-            self.text = Text(("CENTER", "CENTER"), text, textSize, True, color, backgroundColor, fontPath, True, status, surfaceRect=self.screenRect)
+            self.text = Text(("CENTER", "CENTER"), self.screenRect, text, textSize, True, color, backgroundColor, fontPath, "Normal", status)
 
         else:
             
             self.text.AddText(status, text, textSize, antialias, color, backgroundColor, fontPath)
-         
+        
+    def HandleEvents(self, event, mousePosition, keys):
+
+        super().HandleEvents(event, mousePosition, keys)
+        
+        if hasattr(self, "text") and self.visible:
+            
+            self.text.SetStatus(self.status)
+
     def Draw(self, surface):
+
+        if hasattr(self, "text") and self.visible:
+            
+            self.text.Draw(self[self.status])
 
         super().Draw(surface)
 
-        if hasattr(self, "text") and self.show:
-            
-            self.text.SetStatus(self.status)
-            self.text.Draw(surface)
+
 
 #-# Menu Button Class #-#
 class MenuButton(Button):

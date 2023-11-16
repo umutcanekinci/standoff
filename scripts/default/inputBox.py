@@ -5,9 +5,9 @@ from default.object import Object
 #-# Input Box Class #-#
 class InputBox(Object):
 
-	def __init__(self, position, size, surfaceRect, text=''):
+	def __init__(self, position, surfaceRect, size, text=''):
 
-		super().__init__(position, size, surfaceRect=surfaceRect)
+		super().__init__(position, surfaceRect, size)
 		
 		self.color = pygame.Color('dodgerblue2') # ('lightskyblue3')
 		self.text = text
@@ -54,11 +54,7 @@ class InputBox(Object):
 
 	def Draw(self, surface):
 
-		# Blit the text.
-		
-		surface.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
-		# Blit the rect.
 		pygame.draw.rect(surface, self.color, self.rect, 2)
 		self.AddSurface("Normal", self.txt_surface)
-		print(self.rect)
+
 		super().Draw(surface)

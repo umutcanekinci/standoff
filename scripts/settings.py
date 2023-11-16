@@ -28,7 +28,6 @@ PLAYER_SPAWNPOINT = 0, 0
 TILE_SIZE = 64
 BORDER_WIDTH = 2
 
-
 #-# Socket #-#
 IP = "localhost" #"5.tcp.eu.ngrok.io"
 PORT = 5050
