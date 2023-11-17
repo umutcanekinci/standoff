@@ -185,11 +185,11 @@ class Application(dict[str : pygame.Surface]):
 
         if "debugLog" in self:
 
-            self["debugLog"].UpdateText("Normal", text)
+            self["debugLog"].UpdateText("Normal", str(text))
 
         else:
 
-            self["debugLog"] = Text((0, 0), WINDOW_RECT, text, 25, backgroundColor=Black)
+            self["debugLog"] = Text((0, 0), WINDOW_RECT, str(text), 25, backgroundColor=Black)
 
     def Draw(self) -> None:
 
