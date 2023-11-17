@@ -126,7 +126,7 @@ class Application(dict[str : pygame.Surface]):
 
     def OpenWindow(self) -> None:
 
-        self.window = pygame.display.set_mode(self.size)
+        self.window = pygame.display.set_mode(self.rect.size)
 
     def CenterWindow(self) -> None:
 
@@ -143,7 +143,7 @@ class Application(dict[str : pygame.Surface]):
 
     def SetSize(self, size: tuple) -> None:
 
-        self.size = self.width, self.height = size
+        self.rect = pygame.Rect((0, 0), size)
 
     def SetBackgorundColor(self, colors: list = {}) -> None:
 

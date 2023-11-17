@@ -23,22 +23,22 @@ except ImportError as e:
 
 class Camera():
 
-    def __init__(self):
-
-        self.x, self.y = 0, 0
-
+    def __init__(self, size, map):
+        
+        self.rect = pygame.Rect((0, 0), size)
+        self.map = map
+        self.map.camera = self
+        
     def Apply(self, rect: pygame.Rect):
 
-        return (self.x + rect.x, self.y + rect.y)
+        return (self.rect.x + rect.x, self.rect.y + rect.y)
 
-    def Move(self, position, windowSize, mapSize):
+    def Follow(self, target):
         
-        self.x, self.y = -position.x + (windowSize[0] / 2), -position.y + (windowSize[1] / 2)
-
-        self.x = min(0, self.x)
-        self.x = max(windowSize[0] - mapSize[0], self.x)
-        self.y = min(0, self.y)
-        self.y = max(windowSize[1] - mapSize[1], self.y)
+        self.rect.x, self.rect.y = -target.x + (self.rect.width / 2), -target.y + (self.rect.height / 2)
+        
+        self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
+        self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
 
     def Draw(self, surface, objectSurface, rect):
 
@@ -58,15 +58,17 @@ class Tile():
 
         surface.blit(self.surface, self.rect)
 
+class Wall(Tile):
+
+    def __init__(self, size, rowNumber, columnNumber, color) -> None:
+        
+        super().__init__(size, rowNumber, columnNumber, color)
+
 class TileMap(list[Tile]):
 
-    def __init__(self, camera):
-        
-        self.camera = camera
-        self.spawnPoints = {}
-        super().__init__()
-
     def LoadLevel(self, level, tileSize, borderWidth):
+
+        #region control level
 
         if not level or len(level) == 0:
 
@@ -80,6 +82,8 @@ class TileMap(list[Tile]):
                 print("This level is not suitable for rendering!")
                 return ImportError
         
+        #endregion
+
         self.level = level
         self.borderWidth = borderWidth
         self.rowCount = len(self.level)
@@ -92,42 +96,65 @@ class TileMap(list[Tile]):
 
     def CreateTiles(self):
 
-        for rowNumber, row in enumerate(self.level):
+        if hasattr(self, "level") and self.level:
 
-            self.append([])
+            self.walls = []
+            self.spawnPoints = {}
 
-            for columnNumber, tile in enumerate(row):
+            for rowNumber, row in enumerate(self.level):
 
-                self[rowNumber].append(Tile(self.tileSize, rowNumber, columnNumber, Black))
-                
-                if type(tile) is str and "P" in tile:
-
-                    self.spawnPoints[int(tile[1:])] = self.tileSize*columnNumber, self.tileSize*rowNumber
-
-    def Render(self):
-
-        if self.level:
-
-            # Draw tiles
-            for rowNumber, row in enumerate(self):
+                self.append([])
 
                 for columnNumber, tile in enumerate(row):
 
-                    tile.Draw(self.surface)
+                    if tile == 1:
 
-            # Draw column lines
-            for columnNumber in range(self.columnCount+1):
+                        self[rowNumber].append(Tile(self.tileSize, rowNumber, columnNumber, Blue))
+                        self.walls.append(Wall(self.tileSize, rowNumber, columnNumber, Blue))
 
-                pygame.draw.line(self.surface, Gray, (columnNumber*self.tileSize, 0), (columnNumber*self.tileSize, self.rect.height), self.borderWidth)
+                    else:
 
-            # Draw row lines
-            for rowNumber in range(self.rowCount+1):
+                        self[rowNumber].append(Tile(self.tileSize, rowNumber, columnNumber, Black))
+                    
+                    if type(tile) is str and "P" in tile:
 
-                pygame.draw.line(self.surface, Gray, (0, rowNumber*self.tileSize), (self.rect.width, rowNumber*self.tileSize), self.borderWidth)
+                        self.spawnPoints[int(tile[1:])] = self.tileSize*columnNumber, self.tileSize*rowNumber
 
         else:
 
             print("Please load a level before rendering!")
+
+    def Render(self):
+
+        if hasattr(self, "level") and self.level:
+
+            self.DrawTiles()
+            self.DrawGrid()
+
+        else:
+
+            print("Please load a level before rendering!")
+
+    def DrawTiles(self):
+
+        # Draw tiles
+        for row in self:
+
+            for tile in row:
+
+                tile.Draw(self.surface)
+
+    def DrawGrid(self):
+
+        # Draw column lines
+        for columnNumber in range(self.columnCount+1):
+
+            pygame.draw.line(self.surface, Gray, (columnNumber*self.tileSize, 0), (columnNumber*self.tileSize, self.rect.height), self.borderWidth)
+
+        # Draw row lines
+        for rowNumber in range(self.rowCount+1):
+
+            pygame.draw.line(self.surface, Gray, (0, rowNumber*self.tileSize), (self.rect.width, rowNumber*self.tileSize), self.borderWidth)
 
     def Draw(self, surface: pygame.Surface):
 
@@ -135,46 +162,47 @@ class TileMap(list[Tile]):
 
 class Player():
 
-    def __init__(self, ID, name, size, position, color, camera) -> None:
+    def __init__(self, ID, name, size, position, color, map) -> None:
 
         self.name = name
-        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=color)
         self.ID = ID
-        self.camera = camera
-
-        # Physics
-        # Weight (Kilogram)
-        self.weight = 10
+        self.color = color
+        self.map = map
+        self.camera = map.camera
+        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=color)
+        
+        #region Physical Variables
 
         # Force (Newton)
         self.force = Vec(3, 3)
-        self.frictionalForce = Vec(-.12, -.12)
+        self.frictionalForce = Vec(-1., -1.)
         self.netForce = Vec()
-        
+
+        # Acceleration (m/s**2)
+        self.acceleration = Vec()
+        self.maxAcceleration = 5
+
         # Velocity / Speed (m/s*2)
         self.velocity = Vec()
         self.maxMovSpeed = 5
 
-        # Acceleration (m/s**2)
-        self.acceleration = Vec()
-
-        # Position (m)
-        self.position = Vec()
-
         # Rotation
         self.forceRotation = Vec()
-        self.movementRotation = Vec()
 
+        # Surface and Rect
         self.surface = pygame.Surface((size, size))
         self.rect = self.surface.get_rect()
+        pygame.draw.rect(self.surface, self.color, self.rect)
         self.rect.topleft = position
-        self.color = color
+        
+        # Weight (Kilogram)
+        self.density = 25 # d (kg/piksel**2)
+        self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
 
-        pygame.draw.rect(self.surface, self.color, pygame.Rect(0, 0, self.rect.width, self.rect.height))
+        #endregion
 
     def Move(self, keys, deltaTime):
-        
-        """
+         
         #region Get the rotation of force
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -208,113 +236,83 @@ class Player():
         
             self.forceRotation.normalize()
 
-        # Normalize frictional force
-        if self.frictionalForce.length() != 0:
+        # Calculate net force
+        self.netForce = self.force.elementwise() * self.forceRotation
 
-            self.frictionalForce.normalize()
-        
-        self.acceleration = Vec()
-        self.netForce = Vec()
-        
-        self.netForce.x += self.force.x * self.forceRotation.x
-        self.netForce.y += self.force.y * self.forceRotation.y
-
+        # apply frictional force
         if self.velocity.length() != 0:
 
-            self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x
-            self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y
+            if abs(self.netForce.x) > self.frictionalForce.x:
 
-        if self.netForce.length() != 0:
+                self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * deltaTime
 
-            self.acceleration += self.netForce / self.weight
+            if abs(self.netForce.y) > self.frictionalForce.y:
+
+                self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * deltaTime
             
-            # Limit acceleration to a maximum value
-            max_acceleration = 5
-            self.acceleration.x = max(-max_acceleration, min(max_acceleration, self.acceleration.x))
-            self.acceleration.y = max(-max_acceleration, min(max_acceleration, self.acceleration.y))
-
-        if self.acceleration.length() != 0:
-            
-            self.velocity += self.acceleration * deltaTime
-
-        # Apply friction to slow down the player
-        #self.velocity.x *= (1 - friction)
-        #self.velocity.y *= (1 - friction)
-
-        # Limit velocity to a maximum speed
-        if self.velocity.length() > self.maxMovSpeed:
-            
-            self.velocity.scale_to_length(min(self.maxMovSpeed, self.velocity.length()))
-
-        self.position.xy = self.rect.topleft
-        self.position += (self.velocity * deltaTime) + (0.5 * self.acceleration * deltaTime * deltaTime)
-        self.rect.topleft = self.position
-        self.nameText.rect.topleft = (self.rect.x + self.nameText.rect.w/2, self.rect.y - self.nameText.rect.h - 5)
-        """
-
-            # Get the rotation of force
-            
-        rotation = Vec(0, 0)
-
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            rotation.x = -1
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            rotation.x = 1
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            rotation.y = -1
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            rotation.y = 1
-
-        # Normalize force rotation
-        if rotation.length() != 0:
-            rotation.normalize()
-
-        # Calculate net force
-        self.netForce = self.force.elementwise() * rotation
-
-        # Apply friction to slow down the player
-        friction = 0.1
-        self.velocity -= self.velocity * friction * deltaTime
-
         # Calculate acceleration
         self.acceleration = self.netForce / self.weight
 
         # Clamp acceleration
-        max_acceleration = 5
-        self.acceleration.x = max(-max_acceleration, min(max_acceleration, self.acceleration.x))
-        self.acceleration.y = max(-max_acceleration, min(max_acceleration, self.acceleration.y))
-
+        self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
+        self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
 
         # Update velocity
         self.velocity += self.acceleration * deltaTime
 
+        # Apply friction to slow down the player
+        #friction = 0.1
+        #self.velocity -= self.velocity * friction * deltaTime
+
         # Limit velocity to a maximum speed
         if self.velocity.length() > self.maxMovSpeed:
+
             self.velocity.scale_to_length(self.maxMovSpeed)
+
         if abs(self.velocity.x) < 0.01:
+
             self.velocity.x = 0
+
         if abs(self.velocity.y) < 0.01:
+            
             self.velocity.y = 0
         
-        self.UpdatePosition(self.rect.topleft + (self.velocity * deltaTime) + (0.5 * self.acceleration * deltaTime * deltaTime))
+        newPosition = self.rect.copy()
+        newPosition.topleft = newPosition.topleft + (self.velocity * deltaTime) + (0.5 * self.acceleration * deltaTime * deltaTime)
+
+        for wall in self.map.walls:
+
+            if pygame.Rect(newPosition.x, self.rect.y, self.rect.width, self.rect.height).colliderect(wall.rect):
+
+                if newPosition.x > self.rect.x:
+
+                    newPosition.right = wall.rect.left
+                
+                else:
+
+                    newPosition.left = wall.rect.right
+
+            if pygame.Rect(self.rect.x, newPosition.y, self.rect.width, self.rect.height).colliderect(wall.rect):
+
+                if newPosition.y > self.rect.y:
+
+                    newPosition.bottom = wall.rect.top
+                
+                else:
+
+                    newPosition.top = wall.rect.bottom
+
+        self.UpdatePosition(newPosition.topleft)
 
     def UpdatePosition(self, position):
 
         self.rect.topleft = position
-        self.nameText.rect.topleft = (self.rect.x + self.nameText.rect.w / 2, self.rect.y - self.nameText.rect.h - 5)
+        self.nameText.rect.center = (self.rect.centerx, self.rect.top - 15)
     
     def Draw(self, surface: pygame.Surface):
 
-        if self.camera:
-
-            self.camera.Draw(surface, self.surface, self.rect)
-            self.camera.Draw(surface, self.nameText["Normal"], self.nameText.rect)
-
-        else:
-
-            surface.blit(self.surface, self.rect)
-            self.nameText.Draw(surface)
+        self.camera.Draw(surface, self.surface, self.rect)
+        self.camera.Draw(surface, self.nameText["Normal"], self.nameText.rect)
 
 class Players(list[Player]):
 
@@ -322,9 +320,9 @@ class Players(list[Player]):
         
         super().__init__()
 
-    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red, camera=None):
+    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red, map=None):
         
-        player = Player(playerID, playerName, playerSize, playerPosition, playerColor, camera)
+        player = Player(playerID, playerName, playerSize, playerPosition, playerColor, map)
         self.append(player)
         return player
 
@@ -373,7 +371,7 @@ class Game(Application):
 
         super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue})
         
-        self.AddObject("mainMenu", "title", Text(("CENTER", 250), WINDOW_RECT, self.title, 60, color=Red))
+        self.AddObject("mainMenu", "title", Text(("CENTER", 250), self.rect, self.title, 60, color=Red))
         self.AddObject("mainMenu", "menu", MainMenu())
         
         self.StartClient()
@@ -383,9 +381,9 @@ class Game(Application):
 
         self.client = Client(self)
         self.client.Start()
-
-        self.CreateCamera()
+        
         self.CreateMap()
+        self.CreateCamera()
         self.CreatePlayers()
 
     def Start(self):
@@ -403,17 +401,17 @@ class Game(Application):
 
                 for playerID, playerName in data['value']:
 
-                    self.players.Add(playerID, playerName, camera=self.camera)
+                    self.players.Add(playerID, playerName, map=self.map)
 
                 self["mainMenu"]["menu"].playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
 
             elif data['command'] == "!PLAYER_ID":
                 
-                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow)
+                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow, self.map)
 
             elif data['command'] == "!NEW_PLAYER":
                 
-                self.players.Add(*data['value'], camera=self.camera)
+                self.players.Add(*data['value'], map=self.map)
 
             elif data['command'] == "!PLAYER_RECT":
 
@@ -435,11 +433,11 @@ class Game(Application):
 
     def CreateCamera(self) -> None:
 
-        self.camera = Camera()
+        self.camera = Camera(self.rect.size, self.map)
 
     def CreateMap(self) -> None:
 
-        self.map = TileMap(self.camera)
+        self.map = TileMap()
         self.map.LoadLevel(level1, TILE_SIZE, BORDER_WIDTH)
         self.map.Render()
 
@@ -479,9 +477,8 @@ class Game(Application):
                 #""")
 
                 self.player.Move(self.keys, self.deltaTime)
-                self.camera.Move(self.player.rect, WINDOW_SIZE, self.map.rect.size)
+                self.camera.Follow(self.player.rect)
                 self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
-                self.DebugLog((self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y))
 
         super().Draw()
 
