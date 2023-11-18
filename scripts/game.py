@@ -1,5 +1,11 @@
 #region Import Packages
 
+from typing import Any, Iterable, Union
+
+
+from pygame.sprite import AbstractGroup
+
+
 try:
 
     import pygame
@@ -24,23 +30,498 @@ except ImportError as e:
 
 #endregion
 
-class Tile(Object):
+def CollideHitRect(one, two):
+    return one.hitRect.colliderect(two.rect)
+
+class Tile(pygame.sprite.Sprite):
     
-    def __init__(self, size, rowNumber, columnNumber, color) -> None:
+    def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
 
-        super().__init__((size*columnNumber, size*rowNumber), WINDOW_RECT, (size, size))
-
-        self.AddSurface("Normal", pygame.Surface((size, size)))
-        self.color = color
-        pygame.draw.rect(self["Normal"], self.color, pygame.Rect(0, 0, self.rect.width, self.rect.height))
+        self.surface = GetImage(ImagePath("tile_" + str(tileType), "tiles"))
+        self.rect = self.surface.get_rect()
+        self.rect.topleft = self.rect.width*columnNumber, self.rect.height*rowNumber
+        super().__init__(spriteGroups)
 
 class Wall(Tile):
 
-    def __init__(self, size, rowNumber, columnNumber, color) -> None:
+    def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
         
-        super().__init__(size, rowNumber, columnNumber, color)
+        super().__init__(tileType, rowNumber, columnNumber, spriteGroups)
+        self.surface = GetImage(ImagePath("tile_383", "tiles"))
 
-class TileMap(list[Tile]):
+class Tree(Tile):
+
+    def __init__(self, rowNumber, columnNumber, spriteGroups) -> None:
+        
+        super().__init__(rowNumber, columnNumber, spriteGroups)
+        self.HP = 100
+
+    def LoseHP(self, value):
+
+        self.HP -= value
+
+        if self.HP <= 0:
+
+            self.kill()
+
+class Bullet(pygame.sprite.Sprite):
+
+    def __init__(self, position, screenPosition, targetPosition, game) -> None:
+
+        super().__init__(game.bullets, game.allSprites)
+
+        self.surface = pygame.Surface((10, 5))
+        self.rect = self.surface.get_rect(center=position)
+
+        self.surface.fill(White)
+        self.velocity = (Vec(targetPosition) - Vec(screenPosition.center)).normalize()
+
+    def Rotate(self, angle):
+
+        self.surface = pygame.transform.rotate(self.surface, angle)
+        self.rect = self.surface.get_rect(center=self.rect.center)
+
+    def Move(self):
+
+        self.rect.topleft += self.velocity
+
+    def update(self) -> None:
+        
+        self.Move()
+
+class Player(pygame.sprite.Sprite):
+
+    def __init__(self, ID, name, size, position, game) -> None:
+
+        super().__init__(game.players, game.allSprites)
+
+        self.name = name
+        self.ID = ID
+        self.HP = 100
+        self.game = game
+
+        self.map = game.map
+        self.camera = game.camera
+        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=Yellow)
+        
+        # Player graphic
+        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        self.rect = self.surface.get_rect()
+
+        self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
+        self.surface.blit(self.originalImage, self.rect)
+
+        self.rect.topleft = position
+        self.hitRect = PLAYER_HIT_RECT
+        self.hitRect.center = self.rect.center
+
+        #region Physical Variables
+
+        # Force (Newton)
+        self.force = Vec(3, 3)
+        self.frictionalForce = Vec(-1., -1.)
+        self.netForce = Vec()
+
+        # Acceleration (m/s**2)
+        self.acceleration = Vec()
+        self.maxAcceleration = 5
+
+        # Velocity / Speed (m/s*2)
+        self.velocity = Vec()
+        self.maxMovSpeed = 5
+
+        # Rotation
+        self.forceRotation = Vec()
+
+        # Weight (Kilogram)
+        self.density = 25 # d (kg/piksel**2)
+        self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
+
+        #endregion
+
+    def LoseHP(self, value):
+
+        self.HP -= value
+
+        if self.HP <= 0:
+
+            self.kill()
+
+    def Rotate(self):
+
+        distanceX = self.game.mousePosition[0] - self.game.camera.Apply(self.rect)[0]
+        distanceY = self.game.mousePosition[1] - self.game.camera.Apply(self.rect)[1]
+
+        self.angle = math.atan2(-distanceY, distanceX)
+        self.angle = math.degrees(self.angle)  # Convert radians to degrees
+
+        self.surface = pygame.transform.rotate(self.originalImage, self.angle)
+        
+        self.rect = self.surface.get_rect(center=self.rect.center)
+
+    def Move(self):
+
+        #region Get the rotation of force
+
+        if self.game.keys[pygame.K_LEFT] or self.game.keys[pygame.K_a]:
+
+            self.forceRotation.x = -1
+
+        elif self.game.keys[pygame.K_RIGHT] or self.game.keys[pygame.K_d]:
+            
+            self.forceRotation.x = 1
+
+        else:
+
+            self.forceRotation.x = 0
+
+        if self.game.keys[pygame.K_UP] or self.game.keys[pygame.K_w]:
+            
+            self.forceRotation.y = -1
+
+        elif self.game.keys[pygame.K_DOWN] or self.game.keys[pygame.K_s]:
+            
+            self.forceRotation.y = 1
+
+        else:
+
+            self.forceRotation.y = 0
+
+        #endregion
+
+        # Normalize force rotation
+        if self.forceRotation.length() != 0:
+        
+            self.forceRotation.normalize()
+
+        # Calculate net force
+        self.netForce = self.force.elementwise() * self.forceRotation
+
+        # apply frictional force
+        if self.velocity.length() != 0:
+
+            if abs(self.netForce.x) > self.frictionalForce.x:
+
+                self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * self.game.deltaTime
+
+            if abs(self.netForce.y) > self.frictionalForce.y:
+
+                self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * self.game.deltaTime
+            
+        # Calculate acceleration
+        self.acceleration = self.netForce / self.weight
+
+        # Clamp acceleration
+        self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
+        self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
+
+        # Update velocity
+        self.velocity += self.acceleration * self.game.deltaTime
+
+        # Limit velocity to a maximum speed
+        if self.velocity.length() > self.maxMovSpeed:
+
+            self.velocity.scale_to_length(self.maxMovSpeed)
+
+        if abs(self.velocity.x) < 0.01:
+
+            self.velocity.x = 0
+
+        if abs(self.velocity.y) < 0.01:
+            
+            self.velocity.y = 0
+        
+        self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
+
+        self.hitRect.centerx += self.delta.x
+        self.CollideWithWalls('x')
+        self.hitRect.centery += self.delta.y
+        self.CollideWithWalls('y')
+
+        """
+        for wall in self.game.walls:
+
+            if self.hitRect.colliderect(wall.rect):
+
+                if self.delta.x > 0:
+
+                    self.hitRect.centerx = wall.rect.left - self.hitRect.width / 2 - 5
+                
+                elif self.delta.x < 0:
+
+                    self.hitRect.centerx = wall.rect.right + self.hitRect.width / 2 + 5
+
+                self.delta.x = 0
+                self.velocity.x = 0
+                self.acceleration.x = 0
+
+        self.hitRect.centery += self.delta.y
+
+        for wall in self.map.walls:
+
+            if self.hitRect.colliderect(wall.rect):
+
+                if self.delta.y > 0:
+
+                    self.hitRect.centery = wall.rect.top - self.hitRect.height / 2 - 5
+                
+                elif self.delta.y < 0:
+
+                    self.hitRect.centery = wall.rect.bottom + self.hitRect.height / 2 + 5
+
+                self.delta.y = 0
+                self.velocity.y = 0
+                self.acceleration.y = 0
+        """
+                
+        self.UpdatePosition(self.hitRect.center)
+
+    def CollideWithWalls(self, dir):
+
+        if dir == 'x':
+
+            hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
+            
+            if hits:
+
+                if self.velocity.x > 0:
+
+                    self.hitRect.x = hits[0].rect.left - self.hitRect.width / 2.0
+
+                if self.velocity.x < 0:
+
+                    self.hitRect.x = hits[0].rect.right + self.hitRect.width / 2.0
+
+                self.velocity.x = 0
+
+                self.hitRect.centerx = self.hitRect.x
+
+        if dir == 'y':
+
+            hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
+
+            if hits:
+
+                if self.velocity.y > 0:
+
+                    self.hitRect.y = hits[0].rect.top - self.hitRect.height / 2.0
+
+                if self.velocity.y < 0:
+
+                    self.hitRect.y = hits[0].rect.bottom + self.hitRect.height / 2.0
+
+                self.velocity.y = 0
+                self.hitRect.centery = self.hitRect.y
+
+    def Fire(self):
+        
+        time = pygame.time.get_ticks() / 1000
+        fireRate = .1
+
+        if not hasattr(self, "lastFireTime"):
+
+            self.lastFireTime = 0
+
+        if time - self.lastFireTime > fireRate:
+
+            bullet = Bullet(self.rect.center, self.camera.Apply(self.rect), self.game.mousePosition, self.game)
+            bullet.Rotate(self.angle)
+            self.game.bullets.add(bullet)
+            self.lastFireTime = time
+
+    def UpdatePosition(self, position):
+
+        self.hitRect.center = self.rect.center = position
+        self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
+    
+    def update(self):
+        
+        self.Rotate()
+        self.Move()
+
+class Zombie(pygame.sprite.Sprite):
+
+    def __init__(self, target, size, position, game) -> None:
+
+        super().__init__(game.allSprites, game.zombies)
+
+        self.target = target
+        self.HP = 100
+        self.game = game
+        self.map = game.map
+        self.camera = game.camera
+        self.name = "Zombie"
+        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=Yellow)
+        
+        # Player graphic
+        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        self.rect = self.surface.get_rect()
+
+        self.originalImage = GetImage(ImagePath("idle", "characters/zombie"))
+        self.surface.blit(self.originalImage, self.rect)
+
+        self.rect.topleft = position
+        self.hitRect = PLAYER_HIT_RECT
+        self.hitRect.center = self.rect.center
+
+        #region Physical Variables
+
+        # Force (Newton)
+        self.force = Vec(3, 3)
+        self.frictionalForce = Vec(-1., -1.)
+        self.netForce = Vec()
+
+        # Acceleration (m/s**2)
+        self.acceleration = Vec()
+        self.maxAcceleration = 5
+
+        # Velocity / Speed (m/s*2)
+        self.velocity = Vec()
+        self.maxMovSpeed = 5
+
+        # Rotation
+        self.forceRotation = Vec()
+
+        # Weight (Kilogram)
+        self.density = 25 # d (kg/piksel**2)
+        self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
+
+        #endregion
+
+    def LoseHP(self, value):
+
+        self.HP -= value
+
+        if self.HP <= 0:
+
+            self.kill()
+
+    def Rotate(self):
+
+        distanceX = self.target.rect.x - self.game.camera.Apply(self.rect)[0]
+        distanceY = self.target.rect.y - self.game.camera.Apply(self.rect)[1]
+
+        self.angle = math.atan2(-distanceY, distanceX)
+        self.angle = math.degrees(self.angle)  # Convert radians to degrees
+
+        self.surface = pygame.transform.rotate(self.originalImage, self.angle)
+
+        self.rect = self.surface.get_rect(center=self.rect.center)
+
+    def Move(self):
+        
+        self.forceRotation = Vec(Vec(self.target.rect.center) - Vec(self.rect.center))
+
+        # Normalize force rotation
+        if self.forceRotation.length() != 0:
+        
+            self.forceRotation.normalize()
+
+        # Calculate net force
+        self.netForce = self.force.elementwise() * self.forceRotation
+
+        # apply frictional force
+        if self.velocity.length() != 0:
+
+            if abs(self.netForce.x) > self.frictionalForce.x:
+
+                self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * self.game.deltaTime
+
+            if abs(self.netForce.y) > self.frictionalForce.y:
+
+                self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * self.game.deltaTime
+            
+        # Calculate acceleration
+        self.acceleration = self.netForce / self.weight
+
+        # Clamp acceleration
+        self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
+        self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
+
+        # Update velocity
+        self.velocity += self.acceleration * self.game.deltaTime
+
+        # Limit velocity to a maximum speed
+        if self.velocity.length() > self.maxMovSpeed:
+
+            self.velocity.scale_to_length(self.maxMovSpeed)
+
+        if abs(self.velocity.x) < 0.01:
+
+            self.velocity.x = 0
+
+        if abs(self.velocity.y) < 0.01:
+            
+            self.velocity.y = 0
+        
+        self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
+
+        self.hitRect.centerx += self.delta.x
+        self.CollideWithWalls('x')
+        self.hitRect.centery += self.delta.y
+        self.CollideWithWalls('y')
+
+        self.UpdatePosition(self.hitRect.center)
+
+    def CollideWithWalls(self, dir):
+
+        if dir == 'x':
+
+            hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
+            
+            if hits:
+
+                if self.velocity.x > 0:
+
+                    self.hitRect.x = hits[0].rect.left - self.hitRect.width / 2.0
+
+                if self.velocity.x < 0:
+
+                    self.hitRect.x = hits[0].rect.right + self.hitRect.width / 2.0
+
+                self.velocity.x = 0
+
+                self.hitRect.centerx = self.hitRect.x
+
+        if dir == 'y':
+
+            hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
+
+            if hits:
+
+                if self.velocity.y > 0:
+
+                    self.hitRect.y = hits[0].rect.top - self.hitRect.height / 2.0
+
+                if self.velocity.y < 0:
+
+                    self.hitRect.y = hits[0].rect.bottom + self.hitRect.height / 2.0
+
+                self.velocity.y = 0
+                self.hitRect.centery = self.hitRect.y
+
+    def UpdatePosition(self, position):
+
+        self.hitRect.center = self.rect.center = position
+        self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
+    
+    def update(self):
+        pass
+        #self.Rotate()
+        #self.Move()
+
+class MainPlayer(Player):
+
+    def __init__(self, ID, name, size, position, game) -> None:
+        
+        super().__init__(ID, name, size, position, game)
+
+class TileMap(pygame.sprite.Group):
+
+    def __init__(self, game):
+
+        self.game = game
+        super().__init__()
 
     def LoadLevel(self, level, tileSize, borderWidth):
 
@@ -74,27 +555,22 @@ class TileMap(list[Tile]):
 
         if hasattr(self, "level") and self.level:
 
-            self.walls = []
             self.spawnPoints = {}
 
             for rowNumber, row in enumerate(self.level):
 
-                self.append([])
-
-                for columnNumber, tile in enumerate(row):
-
-                    if tile == 1:
-
-                        self[rowNumber].append(Tile(self.tileSize, rowNumber, columnNumber, Blue))
-                        self.walls.append(Wall(self.tileSize, rowNumber, columnNumber, Blue))
-
-                    else:
-
-                        self[rowNumber].append(Tile(self.tileSize, rowNumber, columnNumber, Black))
+                for columnNumber, tileType in enumerate(row):
                     
-                    if type(tile) is str and "P" in tile:
+                    if "P" in tileType:
 
-                        self.spawnPoints[int(tile[1:])] = self.tileSize*columnNumber, self.tileSize*rowNumber
+                        self.spawnPoints[int(tileType[1:])] = self.tileSize*columnNumber, self.tileSize*rowNumber
+                        tileType = "01"
+
+                    elif tileType not in MOVABLE_TILES:
+                    
+                        Wall(tileType, rowNumber, columnNumber, (self.game.walls, self.game.allSprites))
+
+                    self.add(Tile(tileType, rowNumber, columnNumber, (self.game.map, self.game.allSprites)))
 
         else:
 
@@ -114,11 +590,9 @@ class TileMap(list[Tile]):
     def DrawTiles(self):
 
         # Draw tiles
-        for row in self:
-
-            for tile in row:
-
-                tile.Draw(self.surface)
+        for tile in self:
+                
+            self.surface.blit(tile.surface, tile.rect)
 
     def DrawGrid(self):
 
@@ -136,6 +610,47 @@ class TileMap(list[Tile]):
 
         self.camera.Draw(surface, self.surface, self.rect)
 
+class Bullets(pygame.sprite.Group):
+
+    def __init__(self, game):
+
+        super().__init__()
+        self.game = game
+        self.camera = self.game.camera
+
+    def Draw(self, surface):
+
+        for bullet in self:
+
+            for wall in self.game.walls:
+
+                if bullet.rect.colliderect(wall.rect):
+
+                    if bullet in self:
+                        
+                        self.remove(bullet)
+
+            bullet.Move()
+            self.camera.Draw(surface, bullet.surface, bullet.rect)
+
+class Players(pygame.sprite.Group):
+
+    def __init__(self, game) -> None:
+        
+        super().__init__()
+        self.game = game
+
+    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red):
+        
+        player = Player(playerID, playerName, playerSize, playerPosition, self.game)
+        return player
+
+    def HandleEvents(self, event, mousePosition, keys):
+
+        if hasattr(self.game, "player"):
+
+            self.game.player.HandleEvents(event, mousePosition, keys)
+
 class Camera():
 
     def __init__(self, size: tuple, map: TileMap):
@@ -144,263 +659,22 @@ class Camera():
         self.map = map
         self.map.camera = self
         
-    def Follow(self, target):
+    def Follow(self, targetRect):
         
-        self.rect.x, self.rect.y = -target.x + (self.rect.width / 2), -target.y + (self.rect.height / 2)
+        self.rect.x, self.rect.y = -targetRect.centerx + (self.rect.width / 2), -targetRect.centery + (self.rect.height / 2)
         
         self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
         self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
 
     def Apply(self, rect: pygame.Rect):
-
-        return (self.rect.x + rect.x, self.rect.y + rect.y)
-
-    def Draw(self, surface, objectSurface, rect):
-
-        surface.blit(objectSurface, self.Apply(rect))
-
-class Bullet(Object):
-
-    def __init__(self, position, targetPosition) -> None:
-
-        super.__init__(position, WINDOW_RECT, (10, 5))
-        self.AddSurface("Normal", pygame.Surface((self.rect.size)))
-        self["Normal"].fill(Black)
-        self.SetVelocity(Vec(targetPosition - self.rect.topleft).normalize())
-
-    #def Move(self):
-
-    #    self.rect.topleft += self.velocity
-
-class Bullets(list[Bullet]):
-
-    def __init__(self):
-
-        pass
-
-    def Draw(self, surface):
-
-        for bullet in self:
-
-            bullet.Draw(surface)
-
-class Player():
-
-    def __init__(self, ID, name, size, position, color, game) -> None:
-
-        self.name = name
-        self.ID = ID
-        self.color = color
-        self.game = game
-        self.map = game.map
-        self.camera = game.camera
-        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=color)
         
-        # Player graphic
-        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
-        self.rect = self.surface.get_rect()
+        return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
 
-        self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
-        self.surface.blit(self.originalImage, self.rect)
+    def Draw(self, surface, objects):
 
-        self.collisionSurface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-        pygame.draw.rect(self.collisionSurface, self.color, self.rect, 2)
-
-        self.rect.topleft = position
-
-        #region Physical Variables
-
-        # Force (Newton)
-        self.force = Vec(3, 3)
-        self.frictionalForce = Vec(-1., -1.)
-        self.netForce = Vec()
-
-        # Acceleration (m/s**2)
-        self.acceleration = Vec()
-        self.maxAcceleration = 5
-
-        # Velocity / Speed (m/s*2)
-        self.velocity = Vec()
-        self.maxMovSpeed = 5
-
-        # Rotation
-        self.forceRotation = Vec()
-
-        # Weight (Kilogram)
-        self.density = 25 # d (kg/piksel**2)
-        self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
-
-        #endregion
-
-    def Move(self, keys, deltaTime):
-         
-        #region Get the rotation of force
-
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-
-            self.forceRotation.x = -1
-
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        for object in objects:
             
-            self.forceRotation.x = 1
-
-        else:
-
-            self.forceRotation.x = 0
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            
-            self.forceRotation.y = -1
-
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            
-            self.forceRotation.y = 1
-
-        else:
-
-            self.forceRotation.y = 0
-
-        #endregion
-
-        # Normalize force rotation
-        if self.forceRotation.length() != 0:
-        
-            self.forceRotation.normalize()
-
-        # Calculate net force
-        self.netForce = self.force.elementwise() * self.forceRotation
-
-        # apply frictional force
-        if self.velocity.length() != 0:
-
-            if abs(self.netForce.x) > self.frictionalForce.x:
-
-                self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * deltaTime
-
-            if abs(self.netForce.y) > self.frictionalForce.y:
-
-                self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * deltaTime
-            
-        # Calculate acceleration
-        self.acceleration = self.netForce / self.weight
-
-        # Clamp acceleration
-        self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
-        self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
-
-        # Update velocity
-        self.velocity += self.acceleration * deltaTime
-
-        # Apply friction to slow down the player
-        #friction = 0.1
-        #self.velocity -= self.velocity * friction * deltaTime
-
-        # Limit velocity to a maximum speed
-        if self.velocity.length() > self.maxMovSpeed:
-
-            self.velocity.scale_to_length(self.maxMovSpeed)
-
-        if abs(self.velocity.x) < 0.01:
-
-            self.velocity.x = 0
-
-        if abs(self.velocity.y) < 0.01:
-            
-            self.velocity.y = 0
-        
-        newPosition = self.rect.copy()
-        newPosition.topleft = newPosition.topleft + (self.velocity * deltaTime) + (0.5 * self.acceleration * deltaTime * deltaTime)
-
-        for wall in self.map.walls:
-
-            if pygame.Rect(newPosition.x, self.rect.y, self.rect.width, self.rect.height).colliderect(wall.rect):
-
-                if newPosition.x > self.rect.x:
-
-                    newPosition.right = wall.rect.left
-                
-                else:
-
-                    newPosition.left = wall.rect.right
-
-            if pygame.Rect(self.rect.x, newPosition.y, self.rect.width, self.rect.height).colliderect(wall.rect):
-
-                if newPosition.y > self.rect.y:
-
-                    newPosition.bottom = wall.rect.top
-                
-                else:
-
-                    newPosition.top = wall.rect.bottom
-
-        self.UpdatePosition(newPosition.topleft)
-
-    def HandleEvents(self, event, mousePosition, keys):
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-
-            self.Fire(mousePosition)
-
-    def Fire(self, targerPosition):
-
-        time = pygame.time.get_ticks() / 1000
-        fireRate = 1
-
-        if not hasattr(self, "lastFireTime"):
-
-            self.lastFireTime = 0
-
-        if time - self.lastFireTime > fireRate:
-
-            self.game.bullets.append(Bullet(self.rect.topleft, targerPosition))
-
-            self.lastFireTime = time
-
-    def Rotate(self, mousePosition, deltaTime):
-
-        return
-    
-        angle = math.atan2(mousePosition[1] - self.rect.centery, mousePosition[0] - self.rect.centerx)
-        angle = math.degrees(angle)  # Convert radians to degrees
-        self.surface = pygame.transform.rotate(self.originalImage, -angle)
-        self.rect = self.surface.get_rect(center=self.rect.center)
-
-    def UpdatePosition(self, position):
-
-        self.rect.topleft = position
-        self.nameText.rect.center = (self.rect.centerx, self.rect.top - 15)
-    
-    def Draw(self, surface: pygame.Surface):
-        
-        self.camera.Draw(surface, self.surface, self.rect)
-        self.camera.Draw(surface, self.nameText["Normal"], self.nameText.rect)
-
-        if self.game.developMode:
-            
-            self.camera.Draw(surface, self.collisionSurface, self.rect)
-
-class Zombie():
-
-    def __init__(self) -> None:
-        pass
-
-class Players(list[Player]):
-
-    def __init__(self) -> None:
-        
-        super().__init__()
-
-    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red, game=None):
-        
-        player = Player(playerID, playerName, playerSize, playerPosition, playerColor, game)
-        self.append(player)
-        return player
-
-    def Draw(self, surface):
-
-        for i in range(len(self)):
-
-            self[i].Draw(surface)
+            surface.blit(object.surface, self.Apply(object.rect))
 
 class MainMenu():
 
@@ -439,32 +713,48 @@ class Game(Application):
 
     def __init__(self) -> None:
 
-        self.bullets = Bullets()
-
         super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue}, developMode=DEVELOP_MODE)
-        
+
         self.AddObject("mainMenu", "title", Text(("CENTER", 250), self.rect, self.title, 60, color=Red))
         self.AddObject("mainMenu", "menu", MainMenu())
         
+        self.allSprites = pygame.sprite.Group()
+        self.walls = pygame.sprite.Group()
+        self.zombies = pygame.sprite.Group()
+        self.map = TileMap(self)
+        self.map.LoadLevel(level1, TILE_SIZE, BORDER_WIDTH)
+        self.map.Render()
+        self.players = Players(self)
+        self.camera = Camera(self.rect.size, self.map)
+        self.bullets = Bullets(self)
+        self.players = Players(self)
+
         self.StartClient()
         self.OpenTab("mainMenu")
-
+        
     def StartClient(self) -> None:
 
         self.client = Client(self)
         self.client.Start()
-        
-        self.CreateMap()
-        self.CreateCamera()
-        self.CreatePlayers()
+        self.client.SendData({'command' : '!GET_PLAYERS'})
 
-    def Start(self):
+    def StartGame(self) -> None:
         
+        playerName = self["mainMenu"]["menu"].playerNameEntry.text
+
         if self.client.isConnected:
 
-            self.OpenTab("game")
-            self.CreateMainPlayer()
+            self.client.SendData({'command' : "!GET_PLAYER_ID", 'value' : playerName})
 
+        else:
+
+            self.player = self.players.Add(1, playerName, TILE_SIZE, self.map.spawnPoints[1], Yellow)
+            self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
+
+        self.OpenTab("game")
+
+        
+   
     def GetData(self, data) -> None:
 
         if data:
@@ -473,17 +763,17 @@ class Game(Application):
 
                 for playerID, playerName in data['value']:
 
-                    self.players.Add(playerID, playerName, game=self)
+                    self.players.Add(playerID, playerName)
 
                 self["mainMenu"]["menu"].playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
 
             elif data['command'] == "!PLAYER_ID":
                 
-                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow, self)
-
+                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow)
+                self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
             elif data['command'] == "!NEW_PLAYER":
                 
-                self.players.Add(*data['value'], game=self)
+                self.players.Add(*data['value'])
 
             elif data['command'] == "!PLAYER_RECT":
 
@@ -503,56 +793,50 @@ class Game(Application):
                         self.players.remove(player)
                         break
 
-    def CreateCamera(self) -> None:
-
-        self.camera = Camera(self.rect.size, self.map)
-
-    def CreateMap(self) -> None:
-
-        self.map = TileMap()
-        self.map.LoadLevel(level1, TILE_SIZE, BORDER_WIDTH)
-        self.map.Render()
-
-        self.AddObject("game", "map", self.map)
-
-    def CreatePlayers(self) -> None:
-
-        self.players = Players()
-        self.AddObject("game", "players", self.players)
-        self.client.SendData({'command' : '!GET_PLAYERS'})
-
-    def CreateMainPlayer(self):
-
-        playerName = self["mainMenu"]["menu"].playerNameEntry.text
-        self.client.SendData({'command' : "!GET_PLAYER_ID", 'value' : playerName})
-
     def HandleEvents(self, event: pygame.event.Event) -> None:
 
-        if self["mainMenu"]["menu"].playButton.isMouseClick(event, self.mousePosition):
+        if self.tab == "mainMenu":
+            
+            if self[self.tab]["menu"].playButton.isMouseClick(event, self.mousePosition):
 
-            self.Start()
+                self.StartGame()
+
+        
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            if hasattr(self, "player"):
+                
+                self.player.Fire()
 
         return super().HandleEvents(event)
 
-    def Draw(self) -> None:
-        
+    def Update(self) -> None:
+
+        self.allSprites.update()
+
         if self.tab == "game":
 
             if hasattr(self, "player"):
 
-                #self.DebugLog(f"""
-                #    Velocity => {self.player.velocity}
-                #    Acceleration => {self.player.acceleration}
-                #    Position => {self.player.rect.topleft}              
-                #    Force => {self.player.force}
-                #    NetForce => {self.player.netForce}
-                #""")
-
-                self.player.Move(self.keys, self.deltaTime)
-                self.player.Rotate(self.mousePosition, self.deltaTime)
                 self.camera.Follow(self.player.rect)
-                self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
 
+                if self.client.isConnected:
+
+                    self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
+
+    def Draw(self) -> None:
+
+        self.camera.Draw(self.window, self.allSprites)
+        
+        for player in self.players:
+
+            self.window.blit(player.nameText["Normal"], self.camera.Apply(player.nameText.rect))
+
+            if self.developMode:
+                
+                pygame.draw.rect(player.surface, Red, self.camera.Apply(player.rect), 2)
+                pygame.draw.rect(player.surface, Blue, self.camera.Apply(player.hitRect), 2)
+                
         super().Draw()
 
     def Exit(self) -> None:

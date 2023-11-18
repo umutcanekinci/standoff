@@ -157,7 +157,7 @@ class Object(dict[str : pygame.Surface]):
 
 	def Move(self, velocity: tuple):
 		
-		self.SetPosition((self.rect.topleft + pygame.math.Vector2(velocity)))
+		self.SetPosition((self.rect.topleft + pygame.math.Vector2(velocity)), self.surfaceRect)
 
 	def __Move(self):
 

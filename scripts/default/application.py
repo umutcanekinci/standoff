@@ -58,15 +58,21 @@ class Application(dict[str : pygame.Surface]):
 
                 self.HandleEvents(event)
 
-            #-# Set Cursor Position #-#
-            if hasattr(self, "cursor"):
+            self.Update()
 
-                self.cursor.SetPosition(self.mousePosition)    
-            
             #-# Draw Objects #-#
             self.Draw()
 
+    def Update(self):
+
+        pass
+
     def HandleEvents(self, event: pygame.event.Event) -> None:
+        
+        #-# Set Cursor Position #-#
+        if hasattr(self, "cursor"):
+
+            self.cursor.SetPosition(self.mousePosition)   
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
 
