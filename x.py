@@ -1,6 +1,9 @@
-import pygame
+"""
+        distanceX, distanceY = mousePosition[0] - self.rect.x, mousePosition[1] - self.rect.y
+        angle = (180 / math.pi) * -math.atan2(distanceY, distanceX)
 
-v1 = pygame.Rect(100, 100, 100, 100)
-v2 = pygame.Rect(100, 100, 100, 100)
+        self.surface = pygame.transform.rotate(self.originalImage, int(angle))
+        self.rect = self.surface.get_rect(center=self.rect.center)
+        """
 
-print(v1.topleft + pygame.math.Vector2(10, 5))
+        #rotation = mousePosition - self.rect

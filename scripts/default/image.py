@@ -23,3 +23,17 @@ def GetImage(path: ImagePath, Size=[0, 0], ReturnSize=False):
 		return [pygame.transform.scale(pygame.image.load(path).convert_alpha(), Size), Size]
 
 	return pygame.transform.scale(pygame.image.load(path).convert_alpha(), Size)
+
+class Spritesheet():
+
+    def __init__(self, imagePath) -> None:
+        
+        self.sheet = pygame.image.load(imagePath).convert()
+        self.rect = self.sheet.get_rect()
+
+    def GetSprite(self, rect):
+
+        sprite = pygame.Surface(rect.size)
+        sprite.blit(self.sheet, (0, 0), rect)
+        sprite.set_colorkey(Black)
+        return sprite

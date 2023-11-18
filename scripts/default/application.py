@@ -21,7 +21,7 @@ except Exception as error:
 #-# Application Class #-#
 class Application(dict[str : pygame.Surface]):
     
-    def __init__(self, title: str = "Game", size: tuple = (640, 480), backgroundColors: list = {}, FPS: int = 60) -> None:
+    def __init__(self, title: str = "Game", size: tuple = (640, 480), backgroundColors: list = {}, FPS: int = 60, developMode=False) -> None:
         
         super().__init__()
         self.InitPygame()
@@ -29,6 +29,7 @@ class Application(dict[str : pygame.Surface]):
         self.InitMixer()
         self.SetTitle(title)
         self.SetSize(size)
+        self.SetDevelopMode(developMode)
         self.OpenWindow()
         self.SetFPS(FPS)
         self.SetBackgorundColor(backgroundColors)
@@ -69,7 +70,7 @@ class Application(dict[str : pygame.Surface]):
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
 
-            self.isDebugLogVisible = not self.isDebugLogVisible
+            self.SetDevelopMode(not self.developMode)
 
         if self.tab in self:
             
@@ -149,6 +150,10 @@ class Application(dict[str : pygame.Surface]):
 
         self.backgroundColors = colors
 
+    def SetDevelopMode(self, value: bool):
+
+        self.developMode = value
+
     def AddObject(self, tab: str, name: str, object: Object) -> None:
         
         #-# Create Tab If not exist #-#
@@ -210,7 +215,7 @@ class Application(dict[str : pygame.Surface]):
 
             self.cursor.Draw(self.window)    
 
-        if "debugLog" in self and self.isDebugLogVisible:
+        if self.developMode and "debugLog" in self:
 
             self["debugLog"].Draw(self.window)
 

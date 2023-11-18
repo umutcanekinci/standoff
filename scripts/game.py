@@ -4,59 +4,35 @@ try:
 
     import pygame
     from pygame.math import Vector2 as Vec
+    import math
 
     from default.application import Application
     from default.text import Text
     from default.object import Object
     from default.inputBox import InputBox
     from default.button import Button
+    from default.image import GetImage
+    from default.path import *
 
     from settings import *
     from level import *
     from client import Client
-
+    
 except ImportError as e:
 
     print("An error occured while importing packages:  " + str(e))
 
 #endregion
 
-class Camera():
-
-    def __init__(self, size, map):
-        
-        self.rect = pygame.Rect((0, 0), size)
-        self.map = map
-        self.map.camera = self
-        
-    def Apply(self, rect: pygame.Rect):
-
-        return (self.rect.x + rect.x, self.rect.y + rect.y)
-
-    def Follow(self, target):
-        
-        self.rect.x, self.rect.y = -target.x + (self.rect.width / 2), -target.y + (self.rect.height / 2)
-        
-        self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
-        self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
-
-    def Draw(self, surface, objectSurface, rect):
-
-        surface.blit(objectSurface, self.Apply(rect))
-
-class Tile():
+class Tile(Object):
     
     def __init__(self, size, rowNumber, columnNumber, color) -> None:
 
-        self.surface = pygame.Surface((size, size))
-        self.rect = self.surface.get_rect()
-        self.rect.topleft = size*columnNumber, size*rowNumber
+        super().__init__((size*columnNumber, size*rowNumber), WINDOW_RECT, (size, size))
+
+        self.AddSurface("Normal", pygame.Surface((size, size)))
         self.color = color
-        pygame.draw.rect(self.surface, self.color, pygame.Rect(0, 0, self.rect.width, self.rect.height))
-
-    def Draw(self, surface: pygame.Surface):
-
-        surface.blit(self.surface, self.rect)
+        pygame.draw.rect(self["Normal"], self.color, pygame.Rect(0, 0, self.rect.width, self.rect.height))
 
 class Wall(Tile):
 
@@ -91,7 +67,7 @@ class TileMap(list[Tile]):
         self.tileSize = tileSize
         self.surface = pygame.Surface((self.columnCount*self.tileSize + borderWidth/2, self.rowCount*self.tileSize + borderWidth/2))
         self.rect = self.surface.get_rect()
-        
+
         self.CreateTiles()
 
     def CreateTiles(self):
@@ -160,17 +136,53 @@ class TileMap(list[Tile]):
 
         self.camera.Draw(surface, self.surface, self.rect)
 
+class Camera():
+
+    def __init__(self, size: tuple, map: TileMap):
+        
+        self.rect = pygame.Rect((0, 0), size)
+        self.map = map
+        self.map.camera = self
+        
+    def Follow(self, target):
+        
+        self.rect.x, self.rect.y = -target.x + (self.rect.width / 2), -target.y + (self.rect.height / 2)
+        
+        self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
+        self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
+
+    def Apply(self, rect: pygame.Rect):
+
+        return (self.rect.x + rect.x, self.rect.y + rect.y)
+
+    def Draw(self, surface, objectSurface, rect):
+
+        surface.blit(objectSurface, self.Apply(rect))
+
 class Player():
 
-    def __init__(self, ID, name, size, position, color, map) -> None:
+    def __init__(self, ID, name, size, position, color, game) -> None:
 
         self.name = name
         self.ID = ID
         self.color = color
-        self.map = map
-        self.camera = map.camera
+        self.game = game
+        self.map = game.map
+        self.camera = game.camera
         self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=color)
         
+        # Player graphic
+        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        self.rect = self.surface.get_rect()
+
+        self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
+        self.surface.blit(self.originalImage, self.rect)
+
+        self.collisionSurface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(self.collisionSurface, self.color, self.rect, 2)
+
+        self.rect.topleft = position
+
         #region Physical Variables
 
         # Force (Newton)
@@ -189,12 +201,6 @@ class Player():
         # Rotation
         self.forceRotation = Vec()
 
-        # Surface and Rect
-        self.surface = pygame.Surface((size, size))
-        self.rect = self.surface.get_rect()
-        pygame.draw.rect(self.surface, self.color, self.rect)
-        self.rect.topleft = position
-        
         # Weight (Kilogram)
         self.density = 25 # d (kg/piksel**2)
         self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
@@ -304,15 +310,50 @@ class Player():
 
         self.UpdatePosition(newPosition.topleft)
 
+    def HandleEvents(self, event, mousePosition, keys):
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            self.Fire()
+
+    def Fire(self):
+
+        time = pygame.time.get_ticks() / 1000
+        fireRate = 1
+
+        if time - self.lastFireTime > fireRate:
+
+            pass
+
+            self.lastFireTime = time
+
+    def Rotate(self, mousePosition, deltaTime):
+
+        return
+    
+        angle = math.atan2(mousePosition[1] - self.rect.centery, mousePosition[0] - self.rect.centerx)
+        angle = math.degrees(angle)  # Convert radians to degrees
+        self.surface = pygame.transform.rotate(self.originalImage, -angle)
+        self.rect = self.surface.get_rect(center=self.rect.center)
+
     def UpdatePosition(self, position):
 
         self.rect.topleft = position
         self.nameText.rect.center = (self.rect.centerx, self.rect.top - 15)
     
     def Draw(self, surface: pygame.Surface):
-
+        
         self.camera.Draw(surface, self.surface, self.rect)
         self.camera.Draw(surface, self.nameText["Normal"], self.nameText.rect)
+
+        if self.game.developMode:
+            
+            self.camera.Draw(surface, self.collisionSurface, self.rect)
+
+class Zombie():
+
+    def __init__(self) -> None:
+        pass
 
 class Players(list[Player]):
 
@@ -320,9 +361,9 @@ class Players(list[Player]):
         
         super().__init__()
 
-    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red, map=None):
+    def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0), playerColor=Red, game=None):
         
-        player = Player(playerID, playerName, playerSize, playerPosition, playerColor, map)
+        player = Player(playerID, playerName, playerSize, playerPosition, playerColor, game)
         self.append(player)
         return player
 
@@ -369,7 +410,7 @@ class Game(Application):
 
     def __init__(self) -> None:
 
-        super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue})
+        super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue}, developMode=DEVELOP_MODE)
         
         self.AddObject("mainMenu", "title", Text(("CENTER", 250), self.rect, self.title, 60, color=Red))
         self.AddObject("mainMenu", "menu", MainMenu())
@@ -401,17 +442,17 @@ class Game(Application):
 
                 for playerID, playerName in data['value']:
 
-                    self.players.Add(playerID, playerName, map=self.map)
+                    self.players.Add(playerID, playerName, game=self)
 
                 self["mainMenu"]["menu"].playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
 
             elif data['command'] == "!PLAYER_ID":
                 
-                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow, self.map)
+                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow, self)
 
             elif data['command'] == "!NEW_PLAYER":
                 
-                self.players.Add(*data['value'], map=self.map)
+                self.players.Add(*data['value'], game=self)
 
             elif data['command'] == "!PLAYER_RECT":
 
@@ -477,6 +518,7 @@ class Game(Application):
                 #""")
 
                 self.player.Move(self.keys, self.deltaTime)
+                self.player.Rotate(self.mousePosition, self.deltaTime)
                 self.camera.Follow(self.player.rect)
                 self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
 
