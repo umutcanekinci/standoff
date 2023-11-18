@@ -159,6 +159,31 @@ class Camera():
 
         surface.blit(objectSurface, self.Apply(rect))
 
+class Bullet(Object):
+
+    def __init__(self, position, targetPosition) -> None:
+
+        super.__init__(position, WINDOW_RECT, (10, 5))
+        self.AddSurface("Normal", pygame.Surface((self.rect.size)))
+        self["Normal"].fill(Black)
+        self.SetVelocity(Vec(targetPosition - self.rect.topleft).normalize())
+
+    #def Move(self):
+
+    #    self.rect.topleft += self.velocity
+
+class Bullets(list[Bullet]):
+
+    def __init__(self):
+
+        pass
+
+    def Draw(self, surface):
+
+        for bullet in self:
+
+            bullet.Draw(surface)
+
 class Player():
 
     def __init__(self, ID, name, size, position, color, game) -> None:
@@ -314,16 +339,20 @@ class Player():
 
         if event.type == pygame.MOUSEBUTTONDOWN:
 
-            self.Fire()
+            self.Fire(mousePosition)
 
-    def Fire(self):
+    def Fire(self, targerPosition):
 
         time = pygame.time.get_ticks() / 1000
         fireRate = 1
 
+        if not hasattr(self, "lastFireTime"):
+
+            self.lastFireTime = 0
+
         if time - self.lastFireTime > fireRate:
 
-            pass
+            self.game.bullets.append(Bullet(self.rect.topleft, targerPosition))
 
             self.lastFireTime = time
 
@@ -409,6 +438,8 @@ class MainMenu():
 class Game(Application):
 
     def __init__(self) -> None:
+
+        self.bullets = Bullets()
 
         super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue}, developMode=DEVELOP_MODE)
         
