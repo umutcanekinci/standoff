@@ -32,6 +32,7 @@ CHARACTER_SIZE = 48, 48
 BORDER_WIDTH = 2
 PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
 MOVABLE_TILES = ["01", "55", "56", "57", "60", "61"]
+
 #-# Socket #-#
 IP = "localhost" #"5.tcp.eu.ngrok.io"
 PORT = 5050

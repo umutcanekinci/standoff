@@ -35,71 +35,6 @@ class Application(dict[str : pygame.Surface]):
         self.SetBackgorundColor(BACKGROUND_COLORS)
         self.tab = ""
 
-    def Run(self) -> None:
-        
-        #-# Starting App #-#
-        self.isRunning = True
-        self.isDebugLogVisible = False
-
-        #-# Main Loop #-#
-        while self.isRunning:
-
-            #-# FPS #-#
-            self.deltaTime = self.clock.tick(self.FPS) * .001 * self.FPS
-
-            #-# Getting Mouse Position #-#
-            self.mousePosition = pygame.mouse.get_pos()
-
-            #-# Getting Pressed Keys #-#
-            self.keys = pygame.key.get_pressed()
-
-            #-# Handling Events #-#
-            for event in pygame.event.get():
-
-                self.HandleEvents(event)
-
-            self.Update()
-
-            #-# Draw Objects #-#
-            self.Draw()
-
-    def Update(self):
-
-        pass
-
-    def HandleEvents(self, event: pygame.event.Event) -> None:
-        
-        #-# Set Cursor Position #-#
-        if hasattr(self, "cursor"):
-
-            self.cursor.SetPosition(self.mousePosition)   
-
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
-
-            self.SetDevelopMode(not self.developMode)
-
-        if self.tab in self:
-            
-            for object in self[self.tab].values():
-                
-                if hasattr(object, "HandleEvents"):
-
-                    object.HandleEvents(event, self.mousePosition, self.keys)
-
-        self.HandleExitEvents(event)
-
-    def HandleExitEvents(self, event: pygame.event.Event) -> None:
-
-        if event.type == pygame.QUIT:
-
-            self.Exit()
-
-        elif event.type == pygame.KEYDOWN:
-
-            if event.key == pygame.K_ESCAPE:
-
-                self.Exit()
-
     def InitPygame(self) -> None:
         
         pygame.init()
@@ -202,12 +137,89 @@ class Application(dict[str : pygame.Surface]):
 
             self["debugLog"] = Text((0, 0), WINDOW_RECT, str(text), 25, backgroundColor=Black)
 
-    def Draw(self) -> None:
+    def Run(self) -> None:
+        
+        #-# Starting App #-#
+        self.isRunning = True
+        self.isDebugLogVisible = False
 
-        #-# Fill Background #-#
-        if self.tab in self.backgroundColors:
+        #-# Main Loop #-#
+        while self.isRunning:
 
-            self.window.fill(self.backgroundColors[self.tab])
+            #-# FPS #-#
+            self.deltaTime = self.clock.tick(self.FPS) * .001 * self.FPS
+
+            #-# Getting Mouse Position #-#
+            self.mousePosition = pygame.mouse.get_pos()
+
+            #-# Getting Pressed Keys #-#
+            self.keys = pygame.key.get_pressed()
+
+            #-# Handling Events #-#
+            for event in pygame.event.get():
+
+                self.HandleEvents(event)
+
+            self.Update()
+
+            #-# Fill Background #-#
+            if self.tab in self.backgroundColors:
+
+                self.window.fill(self.backgroundColors[self.tab])
+
+            #-# Draw Objects #-#
+            self.Draw()
+
+            #-# Draw Cursor #-#
+            if hasattr(self, "cursor"):
+
+                self.cursor.Draw(self.window)    
+
+            #-# Draw debug log #-#
+            if self.developMode and "debugLog" in self:
+
+                self["debugLog"].Draw(self.window)
+    
+            pygame.display.update()
+
+    def HandleEvents(self, event: pygame.event.Event) -> None:
+        
+        #-# Set Cursor Position #-#
+        if hasattr(self, "cursor"):
+
+            self.cursor.SetPosition(self.mousePosition)   
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
+
+            self.SetDevelopMode(not self.developMode)
+
+        if self.tab in self:
+            
+            for object in self[self.tab].values():
+                
+                if hasattr(object, "HandleEvents"):
+
+                    object.HandleEvents(event, self.mousePosition, self.keys)
+
+        self.HandleExitEvents(event)
+
+    def HandleExitEvents(self, event: pygame.event.Event) -> None:
+
+        if event.type == pygame.QUIT:
+
+            self.Exit()
+
+        elif event.type == pygame.KEYDOWN:
+
+            if event.key == pygame.K_ESCAPE:
+
+                self.Exit()
+    
+    def Update(self):
+
+        pass
+
+    def Draw(self):
 
         #-# Draw Objects #-#
         if self.tab in self:
@@ -215,14 +227,3 @@ class Application(dict[str : pygame.Surface]):
             for object in self[self.tab].values():
                     
                 object.Draw(self.window)
-
-        #-# Draw Cursor #-#
-        if hasattr(self, "cursor"):
-
-            self.cursor.Draw(self.window)    
-
-        if self.developMode and "debugLog" in self:
-
-            self["debugLog"].Draw(self.window)
-
-        pygame.display.update()

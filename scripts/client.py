@@ -41,10 +41,17 @@ class Client:
 
         while self.isConnected:
 
-            packedLength = self.client.recv(HEADER)
-            dataLength = struct.unpack('!I', packedLength)[0]
-            serializedData = self.client.recv(dataLength)
-            self.game.GetData(pickle.loads(serializedData))
+            try:
+
+                packedLength = self.client.recv(HEADER)
+                dataLength = struct.unpack('!I', packedLength)[0]
+                serializedData = self.client.recv(dataLength)
+                self.game.GetData(pickle.loads(serializedData))
+            
+            except(socket.error, ConnectionResetError, struct.error):
+
+                self.isConnected = False
+                break
 
     def SendData(self, dataToSend):
 
