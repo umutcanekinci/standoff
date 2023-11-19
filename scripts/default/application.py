@@ -21,18 +21,18 @@ except Exception as error:
 #-# Application Class #-#
 class Application(dict[str : pygame.Surface]):
     
-    def __init__(self, title: str = "Game", size: tuple = (640, 480), backgroundColors: list = {}, FPS: int = 60, developMode=False) -> None:
+    def __init__(self, developMode=False) -> None:
         
         super().__init__()
         self.InitPygame()
         self.InitClock()
         self.InitMixer()
-        self.SetTitle(title)
-        self.SetSize(size)
+        self.SetTitle(WINDOW_TITLE)
+        self.SetSize(WINDOW_SIZE)
         self.SetDevelopMode(developMode)
         self.OpenWindow()
         self.SetFPS(FPS)
-        self.SetBackgorundColor(backgroundColors)
+        self.SetBackgorundColor(BACKGROUND_COLORS)
         self.tab = ""
 
     def Run(self) -> None:

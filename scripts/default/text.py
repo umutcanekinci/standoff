@@ -1,5 +1,4 @@
 import pygame
-from default.color import White
 from default.object import *
 from default.color import *
 

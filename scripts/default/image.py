@@ -1,6 +1,7 @@
 #-# Importing Packages #-#
 import pygame
 from default.path import *
+from default.color import *
 
 #-# Image Function #-#
 def GetImage(path: ImagePath, Size=[0, 0], ReturnSize=False):

@@ -1,9 +1,10 @@
 #region Import Packages
 
-from typing import Any, Iterable, Union
+from typing import List, Optional
 
 
-from pygame.sprite import AbstractGroup
+from pygame.rect import Rect
+from pygame.surface import Surface
 
 
 try:
@@ -11,15 +12,9 @@ try:
     import pygame
     from pygame.math import Vector2 as Vec
     import math
-
     from default.application import Application
-    from default.text import Text
-    from default.object import Object
-    from default.inputBox import InputBox
-    from default.button import Button
-    from default.image import GetImage
     from default.path import *
-
+    from default.color import *
     from settings import *
     from level import *
     from client import Client
@@ -30,15 +25,222 @@ except ImportError as e:
 
 #endregion
 
+#region Functions
+
+#-# Image Function #-#
+def GetImage(path: ImagePath, size=(0, 0)):
+
+    if size[0] and size[1]:
+
+        return pygame.image.load(path).convert_alpha()
+    
+    return pygame.transform.scale(pygame.image.load(path).convert_alpha(), size)
+
 def CollideHitRect(one, two):
     return one.hitRect.colliderect(two.rect)
+
+#endregion
+
+class Object(pygame.sprite.Sprite):
+
+    def __init__(self, position: tuple=("CENTER", "CENTER"), size: tuple=(0, 0), imagePath: ImagePath=None, visible=True, spriteGroups=[], surfaceRect: pygame.Rect = WINDOW_RECT):
+
+        super().__init__(spriteGroups)
+
+        self.image = pygame.Surface(size, pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
+        self.screenRect = self.rect.copy()
+
+        self.SetImage(imagePath)
+        self.SetVisible(visible)
+        self.SetSurfaceRect(surfaceRect)
+        self.SetPosition(position)
+
+    def SetImage(self, imagePath):
+
+        if imagePath:
+
+            image = GetImage(imagePath, self.rect.size)
+
+            if not self.rect.size == image.get_rect().size:
+
+                self.screenRect.size = self.rect.size = image.get_rect().size
+
+            self.image.blit(image, (0, 0))
+
+    def SetSurfaceRect(self, rect: pygame.Rect):
+
+        self.surfaceRect = rect
+
+    def SetPosition(self, position: tuple) -> None:
+
+        self.SetX(position[0])
+        self.SetY(position[1])
+
+    def SetX(self, x: int) -> None:
+
+        if x == "CENTER":
+        
+            self.rect.x = (self.surfaceRect.width - self.rect.width) / 2
+            
+        elif x == "LEFT":
+
+            self.rect.x = 0
+
+        elif x == "RIGHT":
+
+            self.rect.x = self.surfaceRect.width - self.rect.width
+
+        else:
+
+            self.rect.x = x
+
+        self.screenRect.x = self.surfaceRect.x + self.rect.x # image rect is the screen rect of the parent
+
+    def SetY(self, y: int) -> None:
+
+        if y == "CENTER":
+        
+            self.rect.y = (self.surfaceRect.height - self.rect.height) / 2
+            
+        elif y == "TOP":
+
+            self.rect.y = 0
+
+        elif y == "BOTTOM":
+
+            self.rect.y = self.surfaceRect.height - self.rect.height
+
+        else:
+
+            self.rect.y = y
+
+        self.screenRect.y = self.surfaceRect.y + self.rect.y # image rect is the screen rect of the parent
+
+    def isMouseOver(self, mousePosition: tuple) -> bool:
+        
+        if mousePosition != None and self.screenRect.collidepoint(mousePosition) and self.visible:
+
+            return True
+        
+        return False
+
+    def isMouseClick(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+
+        if self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONUP:
+
+            return True
+        
+        return False
+
+    def SetVisible(self, value):
+        
+        self.visible = value
+
+class Text(Object):
+
+    def __init__(self, position, text='', textSize=25, antialias=True, color=White, backgroundColor=None, fontPath = None, visible=True, spriteGroups: list=[], surfaceRect: pygame.Rect=WINDOW_RECT) -> None:
+
+        super().__init__(position, (0, 0), None, visible, spriteGroups, surfaceRect)
+
+        self.position = position
+        self.AddText(text, textSize, antialias, color, backgroundColor, fontPath)
+
+    def AddText(self, text, textSize, antialias=True, color=White, backgroundColor=None, fontPath=None):
+
+        self.text, self.textSize, self.antialias, self.color, self.backgroundColor, self.fontPath = text, textSize, antialias, color, backgroundColor, fontPath
+        self.image = pygame.font.Font(fontPath, textSize).render(text, antialias, color, backgroundColor)
+        self.rect = self.image.get_rect()
+        self.SetPosition(self.position)
+ 
+    def UpdateText(self, text) -> None:
+
+        self.AddText(text, self.textSize, self.antialias, self.color, self.backgroundColor, self.fontPath)
+
+class Button(Object):
+
+    def __init__(self, position: tuple=("CENTER", "CENTER"), size: tuple=(0, 0), imagePath: ImagePath=None, visible=True, spriteGroups: list=[], surfaceRect: pygame.Rect=None, text: str="", textSize: int=20, textColor: tuple=White, textFontPath: pygame.font.Font=None):
+
+        super().__init__(position, size, imagePath, visible, spriteGroups, surfaceRect)
+
+        if text:
+
+            self.SetText(text, textSize, True, textColor, None, textFontPath)
+
+    def SetText(self, text: str, textSize: int, antialias: bool, color: tuple, backgroundColor, fontPath: pygame.font.Font = None) -> None:
+
+        self.text = Text(("CENTER", "CENTER"), text, textSize, antialias, color, backgroundColor, fontPath, True, self.groups(), self.screenRect)
+
+    def Draw(self, image):
+
+        if hasattr(self, "text"):
+            
+            self.text.Draw(self.image)
+
+        super().Draw(image)
+
+class InputBox(Object):
+
+	def __init__(self, position, size, text='', spriteGroups: list=[], surfaceRect: pygame.Rect=None):
+
+		super().__init__(position, size, spriteGroups=spriteGroups, surfaceRect=surfaceRect)
+		
+		self.color = pygame.Color('dodgerblue2') # ('lightskyblue3')
+		self.text = text
+		self.txt_surface = pygame.font.Font(None, 32).render(text, True, self.color)
+		self.active = True # False
+
+	def HandleEvents(self, event, mousePosition, keys):
+
+		if event.type == pygame.MOUSEBUTTONDOWN:
+
+			# If the user clicked on the input_box rect.
+			if self.screenRect.collidepoint(mousePosition):
+
+				# Toggle the active variable.
+				self.active = True #not self.active
+
+			else:
+
+				self.active = False
+
+			# Change the current color of the input box.
+			self.color = pygame.Color('dodgerblue2') if self.active else pygame.Color('lightskyblue3')
+
+		if event.type == pygame.KEYDOWN:
+
+			if self.active:
+
+				if event.key == pygame.K_BACKSPACE:
+
+					self.text = self.text[:-1]
+
+				else:
+
+					self.text += event.unicode
+
+				# Re-render the text.
+				self.txt_surface = pygame.font.Font(None, 32).render(self.text, True, self.color)
+
+	def update(self):
+		# Resize the box if the text is too long.
+		width = max(200, self.txt_surface.get_width()+10)
+		if self.rect.w < width:        
+			self.rect.w = width
+
+	def Draw(self, image):
+
+		pygame.draw.rect(image, self.color, self.rect, 2)
+		self.surface = self.txt_surface
+
+		super().Draw(image)
 
 class Tile(pygame.sprite.Sprite):
     
     def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
 
-        self.surface = GetImage(ImagePath("tile_" + str(tileType), "tiles"))
-        self.rect = self.surface.get_rect()
+        self.image = GetImage(ImagePath("tile_" + str(tileType), "tiles"))
+        self.rect = self.image.get_rect()
         self.rect.topleft = self.rect.width*columnNumber, self.rect.height*rowNumber
         super().__init__(spriteGroups)
 
@@ -47,7 +249,7 @@ class Wall(Tile):
     def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
         
         super().__init__(tileType, rowNumber, columnNumber, spriteGroups)
-        self.surface = GetImage(ImagePath("tile_383", "tiles"))
+        self.image = GetImage(ImagePath("tile_383", "tiles"))
 
 class Tree(Tile):
 
@@ -70,16 +272,16 @@ class Bullet(pygame.sprite.Sprite):
 
         super().__init__(game.bullets, game.allSprites)
 
-        self.surface = pygame.Surface((10, 5))
-        self.rect = self.surface.get_rect(center=position)
+        self.image = pygame.Surface((10, 5))
+        self.rect = self.image.get_rect(center=position)
 
-        self.surface.fill(White)
+        self.image.fill(White)
         self.velocity = (Vec(targetPosition) - Vec(screenPosition.center)).normalize()
 
     def Rotate(self, angle):
 
-        self.surface = pygame.transform.rotate(self.surface, angle)
-        self.rect = self.surface.get_rect(center=self.rect.center)
+        self.image = pygame.transform.rotate(self.image, angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     def Move(self):
 
@@ -102,14 +304,14 @@ class Player(pygame.sprite.Sprite):
 
         self.map = game.map
         self.camera = game.camera
-        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=Yellow)
+        self.nameText = Text((0, 0), self.name, 25, color=Yellow)
         
         # Player graphic
-        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
-        self.rect = self.surface.get_rect()
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
 
         self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
-        self.surface.blit(self.originalImage, self.rect)
+        self.image.blit(self.originalImage, self.rect)
 
         self.rect.topleft = position
         self.hitRect = PLAYER_HIT_RECT
@@ -155,9 +357,9 @@ class Player(pygame.sprite.Sprite):
         self.angle = math.atan2(-distanceY, distanceX)
         self.angle = math.degrees(self.angle)  # Convert radians to degrees
 
-        self.surface = pygame.transform.rotate(self.originalImage, self.angle)
+        self.image = pygame.transform.rotate(self.originalImage, self.angle)
         
-        self.rect = self.surface.get_rect(center=self.rect.center)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     def Move(self):
 
@@ -351,14 +553,14 @@ class Zombie(pygame.sprite.Sprite):
         self.map = game.map
         self.camera = game.camera
         self.name = "Zombie"
-        self.nameText = Text((0, 0), WINDOW_RECT, self.name, 25, color=Yellow)
+        self.nameText = Text((0, 0), self.name, 25, color=Yellow)
         
         # Player graphic
-        self.surface = pygame.Surface((size, size), pygame.SRCALPHA)
-        self.rect = self.surface.get_rect()
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA)
+        self.rect = self.image.get_rect()
 
         self.originalImage = GetImage(ImagePath("idle", "characters/zombie"))
-        self.surface.blit(self.originalImage, self.rect)
+        self.image.blit(self.originalImage, self.rect)
 
         self.rect.topleft = position
         self.hitRect = PLAYER_HIT_RECT
@@ -404,9 +606,9 @@ class Zombie(pygame.sprite.Sprite):
         self.angle = math.atan2(-distanceY, distanceX)
         self.angle = math.degrees(self.angle)  # Convert radians to degrees
 
-        self.surface = pygame.transform.rotate(self.originalImage, self.angle)
+        self.image = pygame.transform.rotate(self.originalImage, self.angle)
 
-        self.rect = self.surface.get_rect(center=self.rect.center)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     def Move(self):
         
@@ -516,6 +718,8 @@ class MainPlayer(Player):
         
         super().__init__(ID, name, size, position, game)
 
+
+
 class TileMap(pygame.sprite.Group):
 
     def __init__(self, game):
@@ -546,8 +750,8 @@ class TileMap(pygame.sprite.Group):
         self.rowCount = len(self.level)
         self.columnCount = len(self.level[0])
         self.tileSize = tileSize
-        self.surface = pygame.Surface((self.columnCount*self.tileSize + borderWidth/2, self.rowCount*self.tileSize + borderWidth/2))
-        self.rect = self.surface.get_rect()
+        self.image = pygame.Surface((self.columnCount*self.tileSize + borderWidth/2, self.rowCount*self.tileSize + borderWidth/2))
+        self.rect = self.image.get_rect()
 
         self.CreateTiles()
 
@@ -592,23 +796,23 @@ class TileMap(pygame.sprite.Group):
         # Draw tiles
         for tile in self:
                 
-            self.surface.blit(tile.surface, tile.rect)
+            self.image.blit(tile.image, tile.rect)
 
     def DrawGrid(self):
 
         # Draw column lines
         for columnNumber in range(self.columnCount+1):
 
-            pygame.draw.line(self.surface, Gray, (columnNumber*self.tileSize, 0), (columnNumber*self.tileSize, self.rect.height), self.borderWidth)
+            pygame.draw.line(self.image, Gray, (columnNumber*self.tileSize, 0), (columnNumber*self.tileSize, self.rect.height), self.borderWidth)
 
         # Draw row lines
         for rowNumber in range(self.rowCount+1):
 
-            pygame.draw.line(self.surface, Gray, (0, rowNumber*self.tileSize), (self.rect.width, rowNumber*self.tileSize), self.borderWidth)
+            pygame.draw.line(self.image, Gray, (0, rowNumber*self.tileSize), (self.rect.width, rowNumber*self.tileSize), self.borderWidth)
 
-    def Draw(self, surface: pygame.Surface):
+    def Draw(self, image: pygame.Surface):
 
-        self.camera.Draw(surface, self.surface, self.rect)
+        self.camera.Draw(image, self.image, self.rect)
 
 class Bullets(pygame.sprite.Group):
 
@@ -618,7 +822,7 @@ class Bullets(pygame.sprite.Group):
         self.game = game
         self.camera = self.game.camera
 
-    def Draw(self, surface):
+    def Draw(self, image):
 
         for bullet in self:
 
@@ -631,7 +835,7 @@ class Bullets(pygame.sprite.Group):
                         self.remove(bullet)
 
             bullet.Move()
-            self.camera.Draw(surface, bullet.surface, bullet.rect)
+            self.camera.Draw(image, bullet.image, bullet.rect)
 
 class Players(pygame.sprite.Group):
 
@@ -670,55 +874,70 @@ class Camera():
         
         return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
 
-    def Draw(self, surface, objects):
+    def Draw(self, image, objects):
 
         for object in objects:
             
-            surface.blit(object.surface, self.Apply(object.rect))
+            image.blit(object.image, self.Apply(object.rect))
 
-class MainMenu():
+class Spritesheet():
 
-    def __init__(self) -> None:
-
-        self.panel = Object(("CENTER", "CENTER"), WINDOW_RECT, (400, 400))
-        self.panel.AddSurface("Normal", pygame.Surface((400, 400), pygame.SRCALPHA))
-        self.panel["Normal"].fill((*Gray, 100))
+    def __init__(self, imagePath) -> None:
         
-        self.playerNameText = Text(("CENTER", 50), self.panel.screenRect, "PLAYER NAME", 40)
-        self.playerNameEntry = InputBox(("CENTER", 100), self.panel.screenRect, (200, 60), '')
+        self.sheet = pygame.image.load(imagePath).convert()
+        self.rect = self.sheet.get_rect()
 
-        self.playButton = Button(("CENTER", 200), self.panel.screenRect, (300, 75), text="PLAY", textSize=45)
-        self.playButton.AddSurface("Normal", pygame.Surface(self.playButton.rect.size))
-        self.playButton.AddSurface("Mouse Over", pygame.Surface(self.playButton.rect.size))
+    def GetSprite(self, rect):
 
-        self.playButton["Normal"].fill(Black)
-        self.playButton["Mouse Over"].fill(Gray)
+        sprite = pygame.Surface(rect.size)
+        sprite.blit(self.sheet, (0, 0), rect)
+        sprite.set_colorkey(Black)
+        return sprite
+
         
-        self.playerCountText = Text(("CENTER", 350), self.panel.screenRect, "0 Players are Online", 20, backgroundColor=Black, color=Yellow)
+class MainMenu(pygame.sprite.Group):
+
+    def __init__(self, game) -> None:
+
+        super().__init__()
+
+        self.game = game
+
+        self.panel = Object(size=(400, 400), spriteGroups=[self, self.game.allSprites])
+        self.panel.image.fill((*Gray, 100))
+        
+        self.playerNameText = Text(("CENTER", 50), "PLAYER NAME", 40, spriteGroups=[self, self.game.allSprites], surfaceRect=self.panel.screenRect)
+        self.playerNameEntry = InputBox(("CENTER", 100), (200, 60), '', [self, self.game.allSprites], self.panel.screenRect)
+
+        self.playButton = Button(("CENTER", 200), (300, 75), spriteGroups=[self, self.game.allSprites], surfaceRect=self.panel.screenRect, text="PLAY", textSize=45)
+        self.playButtonMouseOver = Button(("CENTER", 200), (300, 75), spriteGroups=[self, self.game.allSprites], surfaceRect=self.panel.screenRect, text="PLAY", textSize=45)
+
+        self.playButton.image.fill(Black)
+        self.playButtonMouseOver.image.fill(Gray)
+        
+        self.playerCountText = Text(("CENTER", 350), "0 Players are Online", 20, backgroundColor=Black, color=Yellow, spriteGroups=[self, self.game.allSprites], surfaceRect= self.panel.screenRect)
 
     def HandleEvents(self, event, mousePosition, keys):
 
         self.playerNameEntry.HandleEvents(event, mousePosition, keys)
         self.playButton.HandleEvents(event, mousePosition, keys)
 
-    def Draw(self, surface):
+    def Draw(self, image):
 
-        self.playerNameText.Draw(self.panel["Normal"])
-        self.playerNameEntry.Draw(self.panel["Normal"])
-        self.playButton.Draw(self.panel["Normal"])
-        self.playerCountText.Draw(self.panel["Normal"])
-        self.panel.Draw(surface)
+        self.playerNameText.draw(self.panel.image)
+        self.playerNameEntry.Draw(self.panel.image)
+        self.playButton.Draw(self.panel.image)
+        self.playerCountText.Draw(self.panel.image)
+        self.panel.Draw(image)
 
 class Game(Application):
 
     def __init__(self) -> None:
 
-        super().__init__(WINDOW_TITLE, WINDOW_SIZE, {"mainMenu" : CustomBlue}, developMode=DEVELOP_MODE)
+        super().__init__(developMode=DEVELOP_MODE)
 
-        self.AddObject("mainMenu", "title", Text(("CENTER", 250), self.rect, self.title, 60, color=Red))
-        self.AddObject("mainMenu", "menu", MainMenu())
-        
         self.allSprites = pygame.sprite.Group()
+        self.menu = MainMenu(self)
         self.walls = pygame.sprite.Group()
         self.zombies = pygame.sprite.Group()
         self.map = TileMap(self)
@@ -728,6 +947,8 @@ class Game(Application):
         self.camera = Camera(self.rect.size, self.map)
         self.bullets = Bullets(self)
         self.players = Players(self)
+
+        self.AddObject("mainMenu", "title", Text(("CENTER", 250), self.title, 60, color=Red))
 
         self.StartClient()
         self.OpenTab("mainMenu")
@@ -740,7 +961,7 @@ class Game(Application):
 
     def StartGame(self) -> None:
         
-        playerName = self["mainMenu"]["menu"].playerNameEntry.text
+        playerName = self.menu.playerNameEntry.text
 
         if self.client.isConnected:
 
@@ -753,8 +974,6 @@ class Game(Application):
 
         self.OpenTab("game")
 
-        
-   
     def GetData(self, data) -> None:
 
         if data:
@@ -765,11 +984,11 @@ class Game(Application):
 
                     self.players.Add(playerID, playerName)
 
-                self["mainMenu"]["menu"].playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
+                self.menu.playerCountText.UpdateText("Normal", str(len(self.players)) + " Players are Online")
 
             elif data['command'] == "!PLAYER_ID":
                 
-                self.player = self.players.Add(data['value'], self["mainMenu"]["menu"].playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow)
+                self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1], Yellow)
                 self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
             elif data['command'] == "!NEW_PLAYER":
                 
@@ -797,11 +1016,10 @@ class Game(Application):
 
         if self.tab == "mainMenu":
             
-            if self[self.tab]["menu"].playButton.isMouseClick(event, self.mousePosition):
+            if self.menu.playButton.isMouseClick(event, self.mousePosition):
 
                 self.StartGame()
 
-        
         if event.type == pygame.MOUSEBUTTONDOWN:
 
             if hasattr(self, "player"):
@@ -826,18 +1044,25 @@ class Game(Application):
 
     def Draw(self) -> None:
 
-        self.camera.Draw(self.window, self.allSprites)
-        
-        for player in self.players:
+        if self.tab == "mainMenu":
+            print(self.menu.sprites())
+            self.menu.draw(self.window)
 
-            self.window.blit(player.nameText["Normal"], self.camera.Apply(player.nameText.rect))
+        elif self.tab == "game":
 
-            if self.developMode:
-                
-                pygame.draw.rect(player.surface, Red, self.camera.Apply(player.rect), 2)
-                pygame.draw.rect(player.surface, Blue, self.camera.Apply(player.hitRect), 2)
-                
-        super().Draw()
+            self.camera.Draw(self.window, self.allSprites)
+            
+            for player in self.players:
+
+                self.window.blit(player.nameText.image, self.camera.Apply(player.nameText.rect))
+
+                if self.developMode:
+                    
+                    pygame.draw.rect(player.image, Red, self.camera.Apply(player.rect), 2)
+                    pygame.draw.rect(player.image, Blue, self.camera.Apply(player.hitRect), 2)
+                    
+            super().Draw()
+
 
     def Exit(self) -> None:
 
