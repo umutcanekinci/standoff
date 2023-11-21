@@ -1,24 +1,20 @@
 #region Import Packages
 
-from typing import List, Optional
-
-
-from pygame.rect import Rect
-from pygame.surface import Surface
-
-
 try:
 
-	import pygame
+	from typing import List, Optional
+	from pygame.rect import Rect
+	from pygame.surface import Surface
+	import pygame, math
 	from pygame.math import Vector2 as Vec
-	import math
-	from default.application import Application
-	from default.path import *
-	from default.color import *
+	from path import *
 	from settings import *
 	from level import *
 	from client import Client
-	
+	import sys, os
+	from pygame import mixer
+	import pytmx
+
 except ImportError as e:
 
 	print("An error occured while importing packages:  " + str(e))
@@ -159,9 +155,13 @@ class Text(Object):
 		self.rect = self.image.get_rect()
 		self.SetPosition(self.position)
  
-	def UpdateText(self, text) -> None:
+	def UpdateText(self, text: str) -> None:
 
 		self.AddText(text, self.textSize, self.antialias, self.color, self.backgroundColor, self.fontPath)
+
+	def UpdateColor(self, color: tuple):
+
+		self.AddText(self.text, self.textSize, self.antialias, color, self.backgroundColor, self.fontPath)
 
 class Button(Object):
 
@@ -175,15 +175,13 @@ class Button(Object):
 
 	def SetText(self, text: str, textSize: int, antialias: bool, color: tuple, backgroundColor, fontPath: pygame.font.Font = None) -> None:
 
-		self.text = Text(("CENTER", "CENTER"), text, textSize, antialias, color, backgroundColor, fontPath, self.groups(), self.screenRect)
+		self.text = Text(("CENTER", "CENTER"), text, textSize, antialias, color, backgroundColor, fontPath, (), self.screenRect)
+		self.text.Draw(self.image)
 
-	def Draw(self, image):
+	def SetColor(self, color: tuple):
 
-		if hasattr(self, "text"):
-			
-			self.text.Draw(self.image)
-
-		super().Draw(image)
+		self.image.fill(color)
+		self.text.Draw(self.image)
 
 class InputBox(Object):
 
@@ -236,7 +234,6 @@ class InputBox(Object):
 		pygame.draw.rect(self.image, self.color, pygame.Rect((0, 0), self.rect.size), 2)
 		self.image.blit(self.textSurface, (10, self.rect.height/2-self.textSurface.get_height()/2))
 
-
 class Tile(Object):
 	
 	def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
@@ -265,15 +262,13 @@ class Tree(Tile):
 
 			self.kill()
 
-class Bullet(pygame.sprite.Sprite):
+class Bullet(Object):
 
 	def __init__(self, position, screenPosition, targetPosition, game) -> None:
 
-		super().__init__(game.bullets, game.allSprites)
+		super().__init__(position, (10, 5), spriteGroups=[game.bullets, game.allSprites])
 
-		self.image = pygame.Surface((10, 5))
 		self.rect = self.image.get_rect(center=position)
-
 		self.image.fill(White)
 		self.velocity = (Vec(targetPosition) - Vec(screenPosition.center)).normalize()
 
@@ -294,7 +289,7 @@ class Player(Object):
 
 	def __init__(self, ID, name, size, position, game) -> None:
 
-		super().__init__(position, (size, size), ImagePath("idle", "characters/hitman"), (game.players, game.allSprites))
+		super().__init__(position, (size, size), {}, (game.players, game.allSprites))
 
 		self.name = name
 		self.ID = ID
@@ -306,7 +301,7 @@ class Player(Object):
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
 		
 		# Player graphic
-		self.originalImage = GetImage(ImagePath("idle", "characters/hitman")) #pygame.image.load(ImagePath("idle", "characters/hitman")).convert_alpha()
+		self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
 		self.image = self.originalImage.copy()
 
 		self.hitRect = PLAYER_HIT_RECT
@@ -709,46 +704,20 @@ class Zombie(pygame.sprite.Sprite):
 		#self.Rotate()
 		#self.Move()
 
-class MainPlayer(Player):
+class TileMap(Object):
 
-	def __init__(self, ID, name, size, position, game) -> None:
-		
-		super().__init__(ID, name, size, position, game)
+	def __init__(self, game, fileName, borderWidth):
 
-class TileMap(pygame.sprite.Group):
-
-	def __init__(self, game):
-
+		self.spawnPoints = {0 : (120, 120), 1 : (220, 220)}
 		self.game = game
-		super().__init__()
-
-	def LoadLevel(self, level, tileSize, borderWidth):
-
-		#region control level
-
-		if not level or len(level) == 0:
-
-			print("This level is not suitable for rendering!")
-			return ImportError
-		
-		for i in range(len(level)):
-
-			if len(level[i]) != len(level[0]):
-
-				print("This level is not suitable for rendering!")
-				return ImportError
-		
-		#endregion
-
-		self.level = level
 		self.borderWidth = borderWidth
-		self.rowCount = len(self.level)
-		self.columnCount = len(self.level[0])
-		self.tileSize = tileSize
-		self.map = Object((0, 0), (self.columnCount*self.tileSize + borderWidth/2, self.rowCount*self.tileSize + borderWidth/2), spriteGroups=self.game.allSprites)
+		self.tilemap =  pytmx.load_pygame(fileName, pixelalpha=True)
+		self.tileWidth, self.tileHeight = self.tilemap.tilewidth, self.tilemap.tileheight
+		self.columnCount, self.rowCount = self.tilemap.width, self.tilemap.height
 
-		self.CreateTiles()
-
+		super().__init__((0, 0), (self.columnCount * self.tileWidth + self.borderWidth / 2, self.rowCount * self.tileHeight + self.borderWidth / 2), spriteGroups=self.game.allSprites)
+		self.Render()
+		
 	def CreateTiles(self):
 
 		if hasattr(self, "level") and self.level:
@@ -761,7 +730,7 @@ class TileMap(pygame.sprite.Group):
 					
 					if "P" in tileType:
 
-						self.spawnPoints[int(tileType[1:])] = self.tileSize*columnNumber, self.tileSize*rowNumber
+						self.spawnPoints[int(tileType[1:])] = self.tileWidth*columnNumber, self.tileHeight*rowNumber
 						tileType = "01"
 
 					elif tileType not in MOVABLE_TILES:
@@ -776,30 +745,35 @@ class TileMap(pygame.sprite.Group):
 
 	def Render(self):
 
-		if hasattr(self, "level") and self.level:
+		self.image = pygame.Surface((self.columnCount * self.tileWidth + self.borderWidth / 2, self.rowCount * self.tileHeight + self.borderWidth / 2), pygame.SRCALPHA)
+		
+		tileImage = self.tilemap.get_tile_image_by_gid
 
-			self.DrawTiles()
-			self.DrawGrid()
+		for layer in self.tilemap.visible_layers:
 
-		else:
+			if isinstance(layer, pytmx.TiledTileLayer):
 
-			print("Please load a level before rendering!")
+				for x, y, gid in layer:
 
-	def DrawTiles(self):
+					tile = tileImage(gid)
 
-		super().draw(self.map.image)
+					if tile:
+
+						self.image.blit(tile, (x * self.tileWidth, y * self.tileHeight))
+
+		self.DrawGrid()
 
 	def DrawGrid(self):
 
 		# Draw column lines
 		for columnNumber in range(self.columnCount+1):
 
-			pygame.draw.line(self.map.image, Gray, (columnNumber*self.tileSize, 0), (columnNumber*self.tileSize, self.map.rect.height), self.borderWidth)
+			pygame.draw.line(self.image, Gray, (columnNumber*self.tileWidth, 0), (columnNumber*self.tileWidth, self.rect.height), self.borderWidth)
 
 		# Draw row lines
 		for rowNumber in range(self.rowCount+1):
 
-			pygame.draw.line(self.map.image, Gray, (0, rowNumber*self.tileSize), (self.map.rect.width, rowNumber*self.tileSize), self.borderWidth)
+			pygame.draw.line(self.image, Gray, (0, rowNumber*self.tileHeight), (self.rect.width, rowNumber*self.tileHeight), self.borderWidth)
 
 class Bullets(pygame.sprite.Group):
 
@@ -836,18 +810,12 @@ class Players(pygame.sprite.Group):
 		player = Player(playerID, playerName, playerSize, playerPosition, self.game)
 		return player
 
-	def HandleEvents(self, event, mousePosition, keys):
-
-		if hasattr(self.game, "player"):
-
-			self.game.player.HandleEvents(event, mousePosition, keys)
-
 class Camera():
 
 	def __init__(self, size: tuple, map: TileMap):
 		
 		self.rect = pygame.Rect((0, 0), size)
-		self.map = map.map
+		self.map = map
 		self.map.camera = self
 		
 	def Follow(self, targetRect):
@@ -867,20 +835,6 @@ class Camera():
 			
 			image.blit(object.image, self.Apply(object.rect))
 
-class Spritesheet():
-
-	def __init__(self, imagePath) -> None:
-		
-		self.sheet = pygame.image.load(imagePath).convert()
-		self.rect = self.sheet.get_rect()
-
-	def GetSprite(self, rect):
-
-		sprite = pygame.Surface(rect.size)
-		sprite.blit(self.sheet, (0, 0), rect)
-		sprite.set_colorkey(Black)
-		return sprite
-
 class MainMenu(pygame.sprite.Group):
 
 	def __init__(self) -> None:
@@ -892,7 +846,7 @@ class MainMenu(pygame.sprite.Group):
 		self.playerNameText = Text(("CENTER", 50), "PLAYER NAME", 40, spriteGroups=self, parentRect=self.panel.screenRect)
 		self.playerNameEntry = InputBox(("CENTER", 100), (300, 40), '', self, self.panel.screenRect)
 		self.playButton = Button(("CENTER", 200), (300, 75), spriteGroups=self, parentRect=self.panel.screenRect, text="PLAY", textSize=45)
-		self.playerCountText = Text(("CENTER", 350), "0 Players are Online", 20, backgroundColor=Black, color=Yellow, spriteGroups=self, parentRect= self.panel.screenRect)
+		self.playerCountText = Text(("CENTER", 350), "You are playing in offline mode !", 24, backgroundColor=Black, color=Red, spriteGroups=self, parentRect= self.panel.screenRect)
 
 	def draw(self, image):
 		
@@ -901,6 +855,202 @@ class MainMenu(pygame.sprite.Group):
 		self.panel.image.fill((*Gray, 100))
 		super().draw(self.panel.image)
 		self.panel.Draw(image)
+
+class Application(dict[str : pygame.Surface]):
+    
+    def __init__(self, developMode=False) -> None:
+        
+        super().__init__()
+        self.InitPygame()
+        self.InitClock()
+        self.InitMixer()
+        self.SetTitle(WINDOW_TITLE)
+        self.SetSize(WINDOW_SIZE)
+        self.SetDevelopMode(developMode)
+        self.OpenWindow()
+        self.SetFPS(FPS)
+        self.SetBackgorundColor(BACKGROUND_COLORS)
+        self.tab = ""
+
+    def InitPygame(self) -> None:
+        
+        pygame.init()
+
+    def InitMixer(self) -> None:
+
+        pygame.mixer.init()
+
+    def InitClock(self) -> None:
+
+        self.clock = pygame.time.Clock()
+
+    @staticmethod
+    def PlaySound(channel: int, soundPath: SoundPath, volume: float, loops=0) -> None:
+
+        mixer.Channel(channel).play(mixer.Sound(soundPath), loops)
+        Application.SetVolume(channel, volume)
+
+    @staticmethod
+    def SetVolume(channel: int, volume: float):
+
+        if volume < 0:
+
+            volume = 0
+
+        if volume > 1:
+
+            volume = 1
+
+        mixer.Channel(channel).set_volume(volume)
+
+    def OpenWindow(self) -> None:
+
+        self.window = pygame.display.set_mode(self.rect.size)
+
+    def CenterWindow(self) -> None:
+
+        os.environ['SDL_VIDEO_CENTERED'] = '1'
+
+    def SetFPS(self, FPS: int) -> None:
+        
+        self.FPS = FPS
+
+    def SetTitle(self, title: str) -> None:
+        
+        self.title = title
+        pygame.display.set_caption(self.title)
+
+    def SetSize(self, size: tuple) -> None:
+
+        self.rect = pygame.Rect((0, 0), size)
+
+    def SetBackgorundColor(self, colors: list = {}) -> None:
+
+        self.backgroundColors = colors
+
+    def SetDevelopMode(self, value: bool):
+
+        self.developMode = value
+
+
+    def OpenTab(self, tab: str) -> None:
+
+        self.tab = tab
+
+    def Exit(self) -> None:
+
+        self.isRunning = False
+        pygame.quit()
+        sys.exit()
+
+    def SetCursorVisible(self, value=True) -> None:
+
+        pygame.mouse.set_visible(value)
+
+    def SetCursorImage(self, image: Object) -> None:
+
+        self.cursor = image
+
+    def DebugLog(self, text):
+
+        if "debugLog" in self:
+
+            self["debugLog"].UpdateText(str(text))
+
+        else:
+
+            self["debugLog"] = Text((0, 0), str(text), 25, backgroundColor=Black)
+
+    def Run(self) -> None:
+        
+        #-# Starting App #-#
+        self.isRunning = True
+        self.isDebugLogVisible = False
+
+        #-# Main Loop #-#
+        while self.isRunning:
+
+            #-# FPS #-#
+            self.deltaTime = self.clock.tick(self.FPS) * .001 * self.FPS
+
+            #-# Getting Mouse Position #-#
+            self.mousePosition = pygame.mouse.get_pos()
+
+            #-# Getting Pressed Keys #-#
+            self.keys = pygame.key.get_pressed()
+
+            #-# Handling Events #-#
+            for event in pygame.event.get():
+
+                self.HandleEvents(event)
+
+            self.Update()
+
+            #-# Fill Background #-#
+            if self.tab in self.backgroundColors:
+
+                self.window.fill(self.backgroundColors[self.tab])
+
+            #-# Draw Objects #-#
+            self.Draw()
+
+            #-# Draw Cursor #-#
+            if hasattr(self, "cursor"):
+
+                self.cursor.Draw(self.window)    
+
+            #-# Draw debug log #-#
+            if self.developMode and "debugLog" in self:
+
+                self["debugLog"].Draw(self.window)
+    
+            pygame.display.update()
+
+    def HandleEvents(self, event: pygame.event.Event) -> None:
+        
+        #-# Set Cursor Position #-#
+        if hasattr(self, "cursor"):
+
+            self.cursor.SetPosition(self.mousePosition)   
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
+
+            self.SetDevelopMode(not self.developMode)
+
+        if self.tab in self:
+            
+            for object in self[self.tab].values():
+                
+                if hasattr(object, "HandleEvents"):
+
+                    object.HandleEvents(event, self.mousePosition, self.keys)
+
+        self.HandleExitEvents(event)
+
+    def HandleExitEvents(self, event: pygame.event.Event) -> None:
+
+        if event.type == pygame.QUIT:
+
+            self.Exit()
+
+        elif event.type == pygame.KEYDOWN:
+
+            if event.key == pygame.K_ESCAPE:
+
+                self.Exit()
+    
+    def Update(self):
+
+        pass
+
+    def Draw(self):
+
+        #-# Draw Objects #-#
+        if self.tab in self:
+
+            for object in self[self.tab].values():
+                    
+                object.Draw(self.window)
 
 class Game(Application):
 
@@ -914,13 +1064,10 @@ class Game(Application):
 
 		self.walls = pygame.sprite.Group()
 		self.zombies = pygame.sprite.Group()
-		self.map = TileMap(self)
-		self.map.LoadLevel(level1, TILE_SIZE, BORDER_WIDTH)
-		self.map.Render()
+		self.map = TileMap(self, FilePath("level1", "maps", "tmx"), 2)
 		self.players = Players(self)
 		self.camera = Camera(self.rect.size, self.map)
 		self.bullets = Bullets(self)
-		self.players = Players(self)
 
 		self.StartClient()
 		self.OpenTab("mainMenu")
@@ -941,8 +1088,8 @@ class Game(Application):
 
 		else:
 
-			self.player = self.players.Add(1, playerName, TILE_SIZE, self.map.spawnPoints[1], Yellow)
-			self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
+			self.player = self.players.Add(1, playerName, TILE_SIZE, self.map.spawnPoints[1])
+			#self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
 
 		self.OpenTab("game")
 
@@ -956,12 +1103,13 @@ class Game(Application):
 
 					self.players.Add(playerID, playerName)
 
+				self.menu.playerCountText.UpdateColor(Yellow)
 				self.menu.playerCountText.UpdateText(str(len(self.players)) + " Players are Online")
 
 			elif data['command'] == "!PLAYER_ID":
 				
-				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, TILE_SIZE, self.map.spawnPoints[1])
-				self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
+				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, TILE_SIZE, (data['value']*100, data['value']*100))
+				#self.zombies.add(Zombie(self.player, TILE_SIZE, (10, 20), self))
 
 			elif data['command'] == "!NEW_PLAYER":
 				
@@ -973,7 +1121,7 @@ class Game(Application):
 
 					if player.ID == data['value'][0]:
 						
-						player.UpdatePosition(data['value'][1].topleft)
+						player.UpdatePosition(data['value'][1].center)
 						break
 
 			elif data['command'] == "!DISCONNECT":
@@ -993,9 +1141,11 @@ class Game(Application):
 			
 			if self.menu.playButton.isMouseOver(self.mousePosition):
 
-				self.menu.playButton.image.fill(Gray)
+				self.menu.playButton.SetColor(Gray)
+
 			else:
-				self.menu.playButton.image.fill(Black)
+
+				self.menu.playButton.SetColor(Black)
 			
 			if self.menu.playButton.isMouseClick(event, self.mousePosition):
 
@@ -1019,26 +1169,28 @@ class Game(Application):
 
 		elif self.tab == "game":
 
-			self.allSprites.update()
+			
 
 			if hasattr(self, "player"):
-
+				self.player.update()
 				self.camera.Follow(self.player.rect)
+
+				self.DebugLog(self.players)
 
 				if self.client.isConnected:
 
-					self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.map.rect.x, self.player.rect.y - self.map.map.rect.y, self.player.rect.w, self.player.rect.h)]})
+					self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.rect.x - self.map.rect.x, self.player.rect.y - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
 
 	def Draw(self) -> None:
 
 		super().Draw()
-		
+
 		if self.tab == "mainMenu":
 
 			self.menu.draw(self.window)
 
 		elif self.tab == "game":
-
+			
 			self.camera.Draw(self.window, self.allSprites)
 			
 			for player in self.players:
