@@ -1,14 +1,19 @@
 import socket
 import threading
 import pickle
-from server_settings import *
+from settings import *
 import struct
+from player_info import PlayerInfo
+from room import Room
 
 class Server:
 
     def Start(self):
 
-        self.players = {} # {client : [playerID, playerName]}
+        self.clientSockets = {} # id : clientSocket
+        self.gameList = {} # id : playerList
+        self.roomList = {} # id : playerList
+        self.players = {} # playerId : player
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,7 +27,7 @@ class Server:
         try:
 
             # Binding the socket with the IP address and Port Number.
-            self.server.bind(ADDR)
+            self.server.bind(SERVER_ADDR)
 
         except socket.error as error:
 
@@ -37,14 +42,24 @@ class Server:
     def Listen(self):
 
         self.server.listen()
-        print(f"[SERVER] => Server is listening on IP = {IP} at PORT = {PORT}")
+        print(f"[SERVER] => Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
+        playerID, self.roomID = 0, 0
 
         # running an infinite loop to accept continuous client requests.
         while True:
 
             # Making the server listen to new connections. when a new connection has detected codes will continue 
             clientSocket, addr = self.server.accept()
-            print(f"[SERVER] => {addr[0]} is connected.")
+            playerID += 1
+
+            self.clientSockets[playerID] = clientSocket
+            self.players[playerID] = PlayerInfo(playerID)
+            
+            print(f"[SERVER] => {addr[0]} is connected from PORT = {addr[1]}.")
+            print(f"[SERVER] => Player count is now {str(len(self.players))}.")
+
+            self.SendData([clientSocket], {'command' : "!SET_PLAYER_ID", 'value' : playerID})
+            self.SendDataToAllClients({'command' : "!SET_PLAYERS", 'value' : self.players})
 
             # starting a new thread
             thread = threading.Thread(target=self.HandleClient, args=(clientSocket, addr))
@@ -81,13 +96,18 @@ class Server:
 
     def SendDataToAllClients(self, data, exceptions=[]):
 
-        clientSockets = list(self.players.keys())
+        clientSockets = list(self.clientSockets.values())
 
         for exception in exceptions:
 
             clientSockets.remove(exception)
 
         self.SendData(clientSockets, data)
+
+    def OpenRoom(self):
+
+        self.roomID += 1
+        self.roomList[self.roomID] = Room(self.roomID, 100)
 
     def HandleClient(self, clientSocket: socket.socket, addr):
 
@@ -102,28 +122,62 @@ class Server:
 
                 if data:
 
-                    if data['command'] == '!GET_PLAYERS': # new player entered to main menu
+                    if data['command'] == '!ENTER_LOBBY': # a player entered to lobby
 
-                        self.SendData([clientSocket], {'command' : "!PLAYERS", 'value' : list(self.players.values())})
+                        player = self.players[data['value'][0]]
 
-                    if data['command'] == '!GET_PLAYER_ID': # new player came to game
+                        if len(self.roomList) > 0:
 
-                        playerID = len(self.players) + 1
-                        playerName = data['value']
+                            player.EnterLobby(data['value'][1])
+                            
+                        else:
 
-                        self.players[clientSocket] = [playerID, playerName]
+                            self.OpenRoom()
+                            player.JoinRoom(self.roomList[self.roomID])
+                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
 
-                        #printing player count and player name
-                        print(f"[SERVER] => {self.players[clientSocket][1]} ({ip}) is entered to game from PORT = {port}.")
-                        print(f"[SERVER] => Player count is now {str(playerID)}.")
-                        
-                        self.SendData([clientSocket], {'command' : "!PLAYER_ID", 'value' : playerID})
-                        self.SendDataToAllClients({'command' : "!NEW_PLAYER", 'value' : [playerID, playerName]}, [clientSocket])        
-                        
-                    elif data['command'] == '!PLAYER_RECT':
+                    elif data['command'] == '!JOIN_ROOM':
 
-                        self.SendDataToAllClients(data, [clientSocket])
-                        
+                        playerID, roomID = data['value']
+
+                        if len(self.roomList) > 0 and roomID in self.roomList.keys():
+
+                            player = self.players[playerID]
+                            player.JoinRoom(self.roomList[roomID])
+
+                            for p in player.room:
+
+                                self.SendData([self.clientSockets[p.ID]], {'command' : "!JOIN_ROOM", 'value' : self.roomList[roomID]})
+
+                        else:
+
+                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : False})
+
+                    elif data['command'] == '!CREATE_ROOM':
+
+                            player = self.players[data['value']]
+                            self.OpenRoom()
+                            player.JoinRoom(self.roomList[self.roomID])
+                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
+
+                    elif data['command'] == '!START_GAME':
+
+                        roomID = data['value']
+                        room = self.roomList[roomID]
+                        room.StartGame()
+
+                        self.SendData([self.clientSockets[player.ID] for player in room], {'command' : '!START_GAME'})
+
+                    elif data['command'] == '!SET_PLAYER_RECT':
+
+                        playerID = data['value']
+
+                        for player in self.players[playerID].room:
+
+                            if player.ID != playerID:
+
+                                self.SendData(self.clientSockets[player.ID], data)
+
                     elif data['command'] == '!DISCONNECT':
 
                         connected = False
@@ -143,14 +197,25 @@ class Server:
             clientSocket.close()
 
     def DisconnectClient(self, clientSocket, ip=""):
+        
+        playerID = list(self.clientSockets.keys())[list(self.clientSockets.values()).index(clientSocket)]
+        self.clientSockets.pop(playerID)
+        
+        if self.players[playerID].state == "room":
+            
+            if len(self.players[playerID].room) == 1:
 
-        playerData = self.players[clientSocket]
-        self.players.pop(clientSocket)
+                self.roomList.pop(self.players[playerID].room.ID)
+            
+            else:
 
-        print(f"[SERVER] => {playerData[1]} ({ip}) is dissconnected.")
+                self.players[playerID].room.remove(self.players[playerID])
+
+        print(f"[SERVER] => {self.players[playerID].name} ({ip}) is dissconnected.")
+        self.players.pop(playerID)
         print(f"[SERVER] => Player count is now {str(len(self.players))}.")
 
-        self.SendDataToAllClients({'command' : "!DISCONNECT", 'value' : playerData})
+        self.SendDataToAllClients({'command' : "!DISCONNECT", 'value' : playerID})
         
 server = Server()
 server.Start()

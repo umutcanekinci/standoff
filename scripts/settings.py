@@ -37,5 +37,10 @@ MOVABLE_TILES = ["01", "55", "56", "57", "60", "61"]
 IP = "localhost" #"5.tcp.eu.ngrok.io"
 PORT = 5050
 ADDR = (IP, PORT)
+
+SERVER_IP = "localhost" # socket.gethostbyname(socket.gethostname())
+SERVER_PORT = 5050
+SERVER_ADDR = (SERVER_IP, SERVER_PORT)
+
 HEADER = 4
 FORMAT = 'utf-8'
