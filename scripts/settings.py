@@ -1,5 +1,21 @@
 import pygame
 
+# TO-DO
+
+# collision with obstacles
+# shooting improvments
+# online position fix
+# lose hp
+# mobs
+# sounds
+# pause screen
+# background music
+# character selection
+# item collecting
+# crafting
+# days
+# effects
+
 #-# Colors #-#
 Black = (0,0,0)
 White = (255,255,255)
