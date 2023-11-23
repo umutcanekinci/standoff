@@ -58,7 +58,7 @@ class Server:
             print(f"[SERVER] => {addr[0]} is connected from PORT = {addr[1]}.")
             print(f"[SERVER] => Player count is now {str(len(self.players))}.")
 
-            self.SendData([clientSocket], {'command' : "!SET_PLAYER_ID", 'value' : playerID})
+            self.SendData(clientSocket, {'command' : "!SET_PLAYER_ID", 'value' : playerID})
             self.SendDataToAllClients({'command' : "!SET_PLAYERS", 'value' : self.players})
 
             # starting a new thread
@@ -80,6 +80,10 @@ class Server:
 
     def SendData(self, clientSockets, dataToSend):
         
+        if type(clientSockets) == socket.socket:
+
+            clientSockets = [clientSockets]
+
         for clientSocket in clientSockets:
             
             try:
@@ -125,16 +129,13 @@ class Server:
                     if data['command'] == '!ENTER_LOBBY': # a player entered to lobby
 
                         player = self.players[data['value'][0]]
-
-                        if len(self.roomList) > 0:
-
-                            player.EnterLobby(data['value'][1])
-                            
-                        else:
+                        player.EnterLobby(data['value'][1])
+                        
+                        if len(self.roomList) == 0:
 
                             self.OpenRoom()
                             player.JoinRoom(self.roomList[self.roomID])
-                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
+                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
 
                     elif data['command'] == '!JOIN_ROOM':
 
@@ -147,18 +148,18 @@ class Server:
 
                             for p in player.room:
 
-                                self.SendData([self.clientSockets[p.ID]], {'command' : "!JOIN_ROOM", 'value' : self.roomList[roomID]})
+                                self.SendData(self.clientSockets[p.ID], {'command' : "!JOIN_ROOM", 'value' : self.roomList[roomID]})
 
                         else:
 
-                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : False})
+                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : False})
 
                     elif data['command'] == '!CREATE_ROOM':
 
                             player = self.players[data['value']]
                             self.OpenRoom()
                             player.JoinRoom(self.roomList[self.roomID])
-                            self.SendData([clientSocket], {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
+                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
 
                     elif data['command'] == '!START_GAME':
 
@@ -170,12 +171,15 @@ class Server:
 
                     elif data['command'] == '!SET_PLAYER_RECT':
 
-                        playerID = data['value']
+                        playerID = data['value'][0]
 
-                        for player in self.players[playerID].room:
+                        playerInfo = self.players[playerID]
+                        room = playerInfo.room
+
+                        for player in room:
 
                             if player.ID != playerID:
-
+                                
                                 self.SendData(self.clientSockets[player.ID], data)
 
                     elif data['command'] == '!DISCONNECT':

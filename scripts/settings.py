@@ -57,16 +57,16 @@ BACKGROUND_COLORS = {"mainMenu" : CustomBlue}
 DEVELOP_MODE = False
 FPS = 60
 
-#-# Player #-#
-PLAYER_SPAWNPOINT = 0, 0
-PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
-CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solider", "survivor", "woman_green"] # , "zombie"
-CHARACTER_SIZE = 48, 48
-
 #-# Tile #-#
-TILE_SIZE = 64
+TILE_SIZE = TILE_WIDTH, TILE_HEIGHT = 64, 64
 BORDER_WIDTH = 2
 MOVABLE_TILES = ["01", "55", "56", "57", "60", "61"]
+
+#-# Player #-#
+PLAYER_SIZE = TILE_SIZE
+CHARACTER_SIZE = 48, 48
+PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
+CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solider", "survivor", "woman_green"] # , "zombie"
 
 #endregion
 

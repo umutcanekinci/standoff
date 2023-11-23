@@ -14,7 +14,7 @@ class Player(Object):
 
 	def __init__(self, ID, name, size, position, game) -> None:
 
-		super().__init__(position, (size, size), {}, (game.players, game.allSprites))
+		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
 		self.ID = ID
 		self.name = name
@@ -53,7 +53,7 @@ class Player(Object):
 
 		# Weight (Kilogram)
 		self.density = 25 # d (kg/piksel**2)
-		self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
+		self.weight = (self.rect.width/TILE_WIDTH * self.rect.height/TILE_HEIGHT) * self.density # m = d*v
 
 		#endregion
 

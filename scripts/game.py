@@ -100,10 +100,20 @@ class MainMenu(pygame.sprite.Group):
 		
 		self.roomText = Text(("CENTER", 20), "ROOM 0", 40, spriteGroups=self.room, parentRect=self.panel.screenRect)
 		self.startGame = Button(("CENTER", self.panel.rect.height-115), (300, 75), spriteGroups=self.room, parentRect=self.panel.screenRect, text="START GAME", textSize=45)
-		self.playersInRoom = []
+		
+		
 
 		self.playButton.SetColor(Black)
 		self.joinButton.SetColor(Black)
+
+	def UpdatePlayersInRoom(self, players):
+
+		self.playersInRoom = players
+		self.playerTexts = []
+
+		for i, player in enumerate(self.playersInRoom):
+
+			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), player.name, 25, parentRect=self.panel.screenRect))
 
 	def draw(self, image):
 		
@@ -132,9 +142,9 @@ class MainMenu(pygame.sprite.Group):
 			pygame.draw.line(self.panel.image, White, (0, 0), (0, self.panel.rect.height))
 			pygame.draw.line(self.panel.image, White, (self.panel.rect.width, 0), (self.panel.rect.width, self.panel.rect.height))
 
-			for i, player in enumerate(self.playersInRoom):
-				print(i, player.name)
-				Text(("CENTER", 50*i), player.name, 25, spriteGroups=self.room, parentRect=self.panel.screenRect).Draw(self.panel.image)
+			for playerText in self.playerTexts:
+
+				playerText.Draw(self.panel.image)
 				
 			self.room.draw(self.panel.image)
 		
@@ -167,8 +177,8 @@ class Game(Application):
 	def StartGameInOfflineMode(self, playerName, characterName):
 
 		self.mode = "offline"
-		self.player = self.players.Add(1, playerName, TILE_SIZE, self.map.spawnPoints[1])
-		#self.zombies.add(Zombie(self.player, TILE_SIZE, (200, 200), self))
+		self.player = self.players.Add(1, playerName, PLAYER_SIZE, self.map.spawnPoints[1])
+		#self.zombies.add(Zombie(self.player, PLAYER_SIZE, (200, 200), self))
 		self.OpenTab("game")
 
 	def EnterLobby(self, playerName, characterName) -> None:
@@ -181,6 +191,16 @@ class Game(Application):
 
 		self.client.SendData({'command' : "!JOIN_ROOM", 'value' : [self.player.ID, roomID]})
 
+	def StartGame(self):
+
+		self.OpenTab("game")
+		
+		for player in self.player.room:
+
+			if not player.ID == self.player.ID:
+
+				self.players.Add(player.ID, player.name, PLAYER_SIZE)
+
 	def GetData(self, data) -> None:
 
 		if data:
@@ -189,7 +209,7 @@ class Game(Application):
 
 			if data['command'] == "!SET_PLAYER_ID":
 
-				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, TILE_SIZE, (data['value']*100, data['value']*100))
+				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, PLAYER_SIZE, (data['value']*100, data['value']*100))
 
 			elif data['command'] == "!JOIN_ROOM":
 
@@ -203,15 +223,15 @@ class Game(Application):
 						self.OpenTab("room")
 
 					self.player.room = room
-					self.menu.playersInRoom = room
+					self.menu.UpdatePlayersInRoom(room)
 
 				else:
 
-					pass
+					self.Exit()
 
 			elif data['command'] == "!START_GAME":
 
-				self.OpenTab("game")
+				self.StartGame()
 
 			elif data['command'] == "!SET_PLAYERS":
 				
@@ -221,12 +241,12 @@ class Game(Application):
 				self.menu.playerCountText.UpdateText(str(len(self.playerList)) + " Players are Online")
 
 			elif data['command'] == "!SET_PLAYER_RECT":
-				return
+
 				for player in self.players:
 
 					if player.ID == data['value'][0]:
 						
-						player.UpdatePosition(data['value'][1].center)
+						player.UpdatePosition(self.camera.Apply(data['value'][1]).center)
 						break
 
 			elif data['command'] == "!DISCONNECT":
@@ -322,8 +342,6 @@ class Game(Application):
 
 				self.menu.createRoomButton.SetColor(Black)
 			
-
-
 		elif self.tab == "room":
 			
 			if self.menu.startGame.isMouseOver(self.mousePosition):
@@ -392,7 +410,7 @@ class Game(Application):
 
 				if self.client.isConnected:
 
-					self.client.SendData({'command' : "!PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.hitRect.centerx - self.map.rect.x, self.player.hitRect.centery - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
+					self.client.SendData({'command' : "!SET_PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.hitRect.centerx - self.map.rect.x, self.player.hitRect.centery - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
 
 	def Draw(self) -> None:
 
