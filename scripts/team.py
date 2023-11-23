@@ -1,6 +1,6 @@
 from player_info import PlayerInfo
 
-class Room(list[PlayerInfo]):
+class Team(list[PlayerInfo]):
 
     def __init__(self, ID, maxPlayerInfoCount):
 

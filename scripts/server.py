@@ -4,15 +4,14 @@ import pickle
 from settings import *
 import struct
 from player_info import PlayerInfo
-from room import Room
+from team import Team
 
 class Server:
 
     def Start(self):
 
         self.clientSockets = {} # id : clientSocket
-        self.gameList = {} # id : playerList
-        self.roomList = {} # id : playerList
+        self.teamList = {} # id : playerList
         self.players = {} # playerId : player
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
@@ -43,7 +42,7 @@ class Server:
 
         self.server.listen()
         print(f"[SERVER] => Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
-        playerID, self.roomID = 0, 0
+        playerID, self.teamID = 0, 0
 
         # running an infinite loop to accept continuous client requests.
         while True:
@@ -108,10 +107,10 @@ class Server:
 
         self.SendData(clientSockets, data)
 
-    def OpenRoom(self):
+    def OpenTeam(self):
 
-        self.roomID += 1
-        self.roomList[self.roomID] = Room(self.roomID, 100)
+        self.teamID += 1
+        self.teamList[self.teamID] = Team(self.teamID, 100)
 
     def HandleClient(self, clientSocket: socket.socket, addr):
 
@@ -131,57 +130,57 @@ class Server:
                         player = self.players[data['value'][0]]
                         player.EnterLobby(data['value'][1])
                         
-                        if len(self.roomList) == 0:
+                        if len(self.teamList) == 0:
 
-                            self.OpenRoom()
-                            player.JoinRoom(self.roomList[self.roomID])
-                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
+                            self.OpenTeam()
+                            player.JoinTeam(self.teamList[self.teamID])
+                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : self.teamList[self.teamID]})
 
-                    elif data['command'] == '!JOIN_ROOM':
+                    elif data['command'] == '!JOIN_TEAM':
 
-                        playerID, roomID = data['value']
+                        playerID, teamID = data['value']
 
-                        if len(self.roomList) > 0 and roomID in self.roomList.keys():
+                        if len(self.teamList) > 0 and teamID in self.teamList.keys():
 
                             player = self.players[playerID]
-                            player.JoinRoom(self.roomList[roomID])
+                            player.JoinTeam(self.teamList[teamID])
 
-                            for p in player.room:
+                            for p in player.team:
 
-                                self.SendData(self.clientSockets[p.ID], {'command' : "!JOIN_ROOM", 'value' : self.roomList[roomID]})
+                                self.SendData(self.clientSockets[p.ID], {'command' : "!JOIN_TEAM", 'value' : self.teamList[teamID]})
 
                         else:
 
-                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : False})
+                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : False})
 
-                    elif data['command'] == '!CREATE_ROOM':
+                    elif data['command'] == '!CREATE_TEAM':
 
                             player = self.players[data['value']]
-                            self.OpenRoom()
-                            player.JoinRoom(self.roomList[self.roomID])
-                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : self.roomList[self.roomID]})
+                            self.OpenTeam()
+                            player.JoinTeam(self.teamList[self.teamID])
+                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : self.teamList[self.teamID]})
 
                     elif data['command'] == '!START_GAME':
 
-                        roomID = data['value']
-                        room = self.roomList[roomID]
-                        room.StartGame()
+                        teamID = data['value']
+                        team = self.teamList[teamID]
+                        team.StartGame()
 
-                        self.SendData([self.clientSockets[player.ID] for player in room], {'command' : '!START_GAME'})
+                        self.SendData([self.clientSockets[player.ID] for player in team], {'command' : '!START_GAME'})
 
                     elif data['command'] == '!SET_PLAYER_RECT':
-
+                        """
                         playerID = data['value'][0]
 
                         playerInfo = self.players[playerID]
-                        room = playerInfo.room
+                        team = playerInfo.team
 
-                        for player in room:
+                        for player in team:
 
                             if player.ID != playerID:
                                 
                                 self.SendData(self.clientSockets[player.ID], data)
-
+                        """
                     elif data['command'] == '!DISCONNECT':
 
                         connected = False
@@ -205,15 +204,15 @@ class Server:
         playerID = list(self.clientSockets.keys())[list(self.clientSockets.values()).index(clientSocket)]
         self.clientSockets.pop(playerID)
         
-        if self.players[playerID].state == "room":
+        if self.players[playerID].state == "team":
             
-            if len(self.players[playerID].room) == 1:
+            if len(self.players[playerID].team) == 1:
 
-                self.roomList.pop(self.players[playerID].room.ID)
+                self.teamList.pop(self.players[playerID].team.ID)
             
             else:
 
-                self.players[playerID].room.remove(self.players[playerID])
+                self.players[playerID].team.remove(self.players[playerID])
 
         print(f"[SERVER] => {self.players[playerID].name} ({ip}) is dissconnected.")
         self.players.pop(playerID)

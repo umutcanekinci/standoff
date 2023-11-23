@@ -14,7 +14,7 @@ try:
 	from player import Players
 	from bullet import Bullets
 	from player_info import PlayerInfo
-	from room import Room
+	from team import Team
 
 except ImportError as e:
 
@@ -56,7 +56,7 @@ class MainMenu(pygame.sprite.Group):
 		self.game = game
 		self.panel = Object(size=(400, 500))
 		self.lobby = pygame.sprite.Group()
-		self.room = pygame.sprite.Group()
+		self.team = pygame.sprite.Group()
 
 		self.selectedCharacter = 0
 		self.characterTexts = []
@@ -85,33 +85,30 @@ class MainMenu(pygame.sprite.Group):
 
 		self.playerNameText = Text(("CENTER", 60), "PLAYER NAME", 40, spriteGroups=self, parentRect=self.panel.screenRect)
 		self.playerNameEntry = InputBox(("CENTER", 110), (300, 40), '', 'Please enter a player name...', self, self.panel.screenRect)
-		self.playButton = Button(("CENTER", self.panel.rect.height-115), (300, 75), spriteGroups=self, parentRect=self.panel.screenRect, text="PLAY", textSize=45)
+		self.playButton = Button(("CENTER", self.panel.rect.height-115), (300, 75), Blue, Red, spriteGroups=self, parentRect=self.panel.screenRect, text="PLAY", textSize=45)
 		
-		self.previous = Button((75, 270), (50, 50), spriteGroups=self, parentRect=self.panel.screenRect)
-		self.next = Button((275, 270), (50, 50), spriteGroups=self, parentRect=self.panel.screenRect)
+		self.previous = Button((75, 270), (50, 50), Blue, Red, spriteGroups=self, parentRect=self.panel.screenRect)
+		self.next = Button((275, 270), (50, 50), Blue, Red, spriteGroups=self, parentRect=self.panel.screenRect)
 		
 		pygame.draw.polygon(self.previous.image, Red, [(0, 25), (50, 0), (50, 50)])
 		pygame.draw.polygon(self.next.image, Red, [(0, 0), (50, 25), (0, 50)])
 
-		self.joinRoomText = Text(("CENTER", 50), "JOIN ROOM", 40, spriteGroups=self.lobby, parentRect=self.panel.screenRect)
-		self.roomIDEntry = InputBox(("CENTER", 100), (300, 40), '', 'Please enter a room ID...', self.lobby, self.panel.screenRect)
-		self.createRoomButton = Button(("CENTER", self.panel.rect.height-200), (300, 75), spriteGroups=self.lobby, parentRect=self.panel.screenRect, text="CREATE", textSize=45)
-		self.joinButton = Button(("CENTER", self.panel.rect.height-115), (300, 75), spriteGroups=self.lobby, parentRect=self.panel.screenRect, text="JOIN", textSize=45)
+		self.joinTeamText = Text(("CENTER", 50), "JOIN TEAM", 40, spriteGroups=self.lobby, parentRect=self.panel.screenRect)
+		self.teamIDEntry = InputBox(("CENTER", 100), (300, 40), '', 'Please enter a team ID...', self.lobby, self.panel.screenRect)
+		self.createTeamButton = Button(("CENTER", self.panel.rect.height-285), (300, 75), Blue, Red, spriteGroups=self.lobby, parentRect=self.panel.screenRect, text="CREATE", textSize=45)
+		self.joinButton = Button(("CENTER", self.panel.rect.height-200), (300, 75), Blue, Red, spriteGroups=self.lobby, parentRect=self.panel.screenRect, text="JOIN", textSize=45)
+		self.backButton = Button(("CENTER", self.panel.rect.height-115), (300, 75), Blue, Red, spriteGroups=self.lobby, parentRect=self.panel.screenRect, text="BACK", textSize=45)
 		
-		self.roomText = Text(("CENTER", 20), "ROOM 0", 40, spriteGroups=self.room, parentRect=self.panel.screenRect)
-		self.startGame = Button(("CENTER", self.panel.rect.height-115), (300, 75), spriteGroups=self.room, parentRect=self.panel.screenRect, text="START GAME", textSize=45)
-		
-		
+		self.teamText = Text(("CENTER", 20), "TEAM 0", 40, spriteGroups=self.team, parentRect=self.panel.screenRect)
+		self.startGame = Button(("CENTER", self.panel.rect.height-115), (300, 75), Blue, Red, spriteGroups=self.team, parentRect=self.panel.screenRect, text="START GAME", textSize=45)
+		self.exitTeam = Button(("CENTER", self.panel.rect.height-200), (300, 75), Blue, Red, spriteGroups=self.team, parentRect=self.panel.screenRect, text="EXIT FROM TEAM", textSize=45)
 
-		self.playButton.SetColor(Black)
-		self.joinButton.SetColor(Black)
+	def UpdatePlayersInTeam(self, players):
 
-	def UpdatePlayersInRoom(self, players):
-
-		self.playersInRoom = players
+		self.playersInTeam = players
 		self.playerTexts = []
 
-		for i, player in enumerate(self.playersInRoom):
+		for i, player in enumerate(self.playersInTeam):
 
 			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), player.name, 25, parentRect=self.panel.screenRect))
 
@@ -133,7 +130,7 @@ class MainMenu(pygame.sprite.Group):
 
 			self.lobby.draw(self.panel.image)
 
-		elif self.game.tab == "room":
+		elif self.game.tab == "team":
 	
 			for i in range(6):
 
@@ -146,7 +143,7 @@ class MainMenu(pygame.sprite.Group):
 
 				playerText.Draw(self.panel.image)
 				
-			self.room.draw(self.panel.image)
+			self.team.draw(self.panel.image)
 		
 		self.panel.Draw(image)
 
@@ -187,15 +184,15 @@ class Game(Application):
 		self.client.SendData({'command' : "!ENTER_LOBBY", 'value' : [self.player.ID, playerName]})
 		self.OpenTab("lobby")
 
-	def JoinRoom(self, roomID):
+	def JoinTeam(self, teamID):
 
-		self.client.SendData({'command' : "!JOIN_ROOM", 'value' : [self.player.ID, roomID]})
+		self.client.SendData({'command' : "!JOIN_TEAM", 'value' : [self.player.ID, teamID]})
 
 	def StartGame(self):
 
 		self.OpenTab("game")
 		
-		for player in self.player.room:
+		for player in self.player.team:
 
 			if not player.ID == self.player.ID:
 
@@ -211,19 +208,19 @@ class Game(Application):
 
 				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, PLAYER_SIZE, (data['value']*100, data['value']*100))
 
-			elif data['command'] == "!JOIN_ROOM":
+			elif data['command'] == "!JOIN_TEAM":
 
-				room = data['value']
+				team = data['value']
 
-				if room:
+				if team:
 
-					if not self.player.room:
+					if not self.player.team:
 						
-						self.menu.roomText.UpdateText("Room " + str(room.ID))
-						self.OpenTab("room")
+						self.menu.teamText.UpdateText("Team " + str(team.ID))
+						self.OpenTab("team")
 
-					self.player.room = room
-					self.menu.UpdatePlayersInRoom(room)
+					self.player.team = team
+					self.menu.UpdatePlayersInTeam(team)
 
 				else:
 
@@ -281,6 +278,8 @@ class Game(Application):
 
 				pygame.draw.polygon(self.menu.next.image, Red, [(0, 0), (50, 25), (0, 50)])
 			
+			self.menu.playButton.HandleEvents(event, self.mousePosition)
+
 			if self.menu.previous.isMouseClick(event, self.mousePosition):
 
 				if self.menu.selectedCharacter > 0:
@@ -293,14 +292,6 @@ class Game(Application):
 
 					self.menu.selectedCharacter += 1
 
-			if self.menu.playButton.isMouseOver(self.mousePosition):
-
-				self.menu.playButton.SetColor(Gray)
-
-			else:
-
-				self.menu.playButton.SetColor(Black)
-			
 			if self.menu.playButton.isMouseClick(event, self.mousePosition):
 		
 				playerName = self.menu.playerNameEntry.text
@@ -315,34 +306,20 @@ class Game(Application):
 
 		elif self.tab == "lobby":
 
-			self.menu.roomIDEntry.HandleEvents(event, self.mousePosition, self.keys)
-			
-			if self.menu.joinButton.isMouseOver(self.mousePosition):
-
-				self.menu.joinButton.SetColor(Gray)
-
-			else:
-
-				self.menu.joinButton.SetColor(Black)
+			self.menu.teamIDEntry.HandleEvents(event, self.mousePosition, self.keys)
+			self.menu.joinButton.HandleEvents(event, self.mousePosition)
+			self.menu.createTeamButton.HandleEvents(event, self.mousePosition, self.keys)
 			
 			if self.menu.joinButton.isMouseClick(event, self.mousePosition):
 				
-				roomID = int(self.menu.roomIDEntry.text) if self.menu.roomIDEntry.text.isnumeric() else 0
-				self.JoinRoom(roomID)
+				teamID = int(self.menu.teamIDEntry.text) if self.menu.teamIDEntry.text.isnumeric() else 0
+				self.JoinTeam(teamID)
 
-			elif self.menu.createRoomButton.isMouseClick(event, self.mousePosition):
+			elif self.menu.createTeamButton.isMouseClick(event, self.mousePosition):
 				
-				self.client.SendData({'command' : "!CREATE_ROOM", 'value' : self.player.ID})
+				self.client.SendData({'command' : "!CREATE_TEAM", 'value' : self.player.ID})
 
-			if self.menu.createRoomButton.isMouseOver(self.mousePosition):
-
-				self.menu.createRoomButton.SetColor(Gray)
-
-			else:
-
-				self.menu.createRoomButton.SetColor(Black)
-			
-		elif self.tab == "room":
+		elif self.tab == "team":
 			
 			if self.menu.startGame.isMouseOver(self.mousePosition):
 
@@ -354,7 +331,7 @@ class Game(Application):
 			
 			if self.menu.startGame.isMouseClick(event, self.mousePosition):
 				
-				self.client.SendData({'command' : "!START_GAME", 'value' : self.player.room.ID})
+				self.client.SendData({'command' : "!START_GAME", 'value' : self.player.team.ID})
 
 		elif self.tab == "game":
 
@@ -374,7 +351,7 @@ class Game(Application):
 
 				self.OpenTab("mainMenu")
 
-			elif self.tab == "room":
+			elif self.tab == "team":
 
 				self.OpenTab("lobby")
 
@@ -386,7 +363,7 @@ class Game(Application):
 
 				elif self.mode == "online":
 
-					self.OpenTab("room")
+					self.OpenTab("team")
 
 			elif self.tab == "mainMenu":
 
