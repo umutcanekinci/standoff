@@ -3,6 +3,10 @@ import os
 
 __location__ = os.getcwd()
 
+def SetLocation():
+
+    pass
+
 class FilePath(str):
 
     def __new__(cls, name: str, folder, extension) -> None:

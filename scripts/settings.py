@@ -1,6 +1,10 @@
+#region #-# Import Paackages #-#
+
 import pygame
 
-# TO-DO
+#endregion
+
+#region TO-DO
 
 # collision with obstacles
 # shooting improvments
@@ -16,10 +20,14 @@ import pygame
 # days
 # effects
 
-#-# Colors #-#
+#endregion
+
+#region #-# Colors #-#
+
 Black = (0,0,0)
 White = (255,255,255)
 Red = (255,0,0)
+LightRed = (255, 127, 127)
 Lime = (0,255,0)
 Blue = (0,0,255)
 Yellow = (255,255,0)
@@ -35,28 +43,46 @@ Teal = (0,128,128)
 Navy = (0,0,128)
 CustomBlue = (72, 218, 233)
 
-#-# Settings #-#
+#endregion
+
+#region #-# Settings #-#
+
+#-# Window #-#
 WINDOW_TITLE = "CHOOSE YOUR WAY"
 WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
 WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
 BACKGROUND_COLORS = {"mainMenu" : CustomBlue}
+
+#-# Game #-#
 DEVELOP_MODE = False
 FPS = 60
+
+#-# Player #-#
 PLAYER_SPAWNPOINT = 0, 0
-TILE_SIZE = 64
-CHARACTER_SIZE = 48, 48
-BORDER_WIDTH = 2
 PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
+CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solider", "survivor", "woman_green"] # , "zombie"
+CHARACTER_SIZE = 48, 48
+
+#-# Tile #-#
+TILE_SIZE = 64
+BORDER_WIDTH = 2
 MOVABLE_TILES = ["01", "55", "56", "57", "60", "61"]
 
-#-# Socket #-#
-IP = "localhost" #"5.tcp.eu.ngrok.io"
-PORT = 5050
-ADDR = (IP, PORT)
+#endregion
 
+#region #-# Socket #-#
+
+#-# Client #-#
+CLIENT_IP = "localhost" #"5.tcp.eu.ngrok.io"
+CLIENT_PORT = 5050
+CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
+
+#-# Server #-#
 SERVER_IP = "localhost" # socket.gethostbyname(socket.gethostname())
 SERVER_PORT = 5050
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 
 HEADER = 4
 FORMAT = 'utf-8'
+
+#endregion

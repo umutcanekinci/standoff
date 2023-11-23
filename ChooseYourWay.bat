@@ -1,4 +1,3 @@
 @echo off
 
-cd scripts
-python __main__.py
+python scripts/__main__.py

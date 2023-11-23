@@ -23,7 +23,7 @@ class Client:
 
         try:
 
-            self.client.connect(ADDR)
+            self.client.connect(CLIENT_ADDR)
 
         except ConnectionRefusedError as e:
 
