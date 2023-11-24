@@ -51,7 +51,7 @@ CustomBlue = (72, 218, 233)
 WINDOW_TITLE = "CHOOSE YOUR WAY"
 WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
 WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
-BACKGROUND_COLORS = {"mainMenu" : CustomBlue}
+BACKGROUND_COLORS = {"menu" : CustomBlue}
 
 #-# Game #-#
 DEVELOP_MODE = False

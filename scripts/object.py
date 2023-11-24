@@ -19,7 +19,7 @@ class Object(pygame.sprite.Sprite):
 		self.image = pygame.Surface(size, pygame.SRCALPHA)
 		self.rect = self.image.get_rect()
 		self.screenRect = self.rect.copy()
-
+		self.active = False
 		self.SetImage(imagePath)
 		self.SetparentRect(parentRect)
 		self.SetPosition(position)
@@ -92,18 +92,35 @@ class Object(pygame.sprite.Sprite):
 
 		self.screenRect.y = self.parentRect.y + self.rect.y # image rect is the screen rect of the parent
 
+	def HandleEvents(self, event, mousePosition, keys):
+
+		if event.type == pygame.MOUSEBUTTONUP:
+
+			if not self.isMouseButtonUp(event, mousePosition):
+
+				self.active = False
+
+		if self.isMouseButtonDown(event, mousePosition):
+
+			self.active = True
+
 	def isMouseOver(self, mousePosition: tuple) -> bool:
 		
-		if mousePosition != None and self.screenRect.collidepoint(mousePosition):
+		return mousePosition != None and self.screenRect.collidepoint(mousePosition)
 
-			return True
-		
-		return False
+	def isMouseButtonDown(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+
+		return self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONDOWN
+
+	def isMouseButtonUp(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+
+		return self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONUP
 
 	def isMouseClick(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
-
-		if self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONUP:
-
+		
+		if self.isMouseButtonUp(event, mousePosition) and self.active:
+			
+			self.active = False
 			return True
 		
 		return False

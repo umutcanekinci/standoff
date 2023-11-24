@@ -5,7 +5,7 @@ from pygame import mixer
 from object import Object
 from text import Text
 
-class Application(dict[str : pygame.Surface]):
+class Application:
     
     def __init__(self, developMode=False) -> None:
         
@@ -18,8 +18,6 @@ class Application(dict[str : pygame.Surface]):
         self.SetDevelopMode(developMode)
         self.OpenWindow()
         self.SetFPS(FPS)
-        self.SetBackgorundColor(BACKGROUND_COLORS)
-        self.tab = ""
 
     def InitPygame(self) -> None:
         
@@ -81,11 +79,6 @@ class Application(dict[str : pygame.Surface]):
 
         self.developMode = value
 
-
-    def OpenTab(self, tab: str) -> None:
-
-        self.tab = tab
-
     def Exit(self) -> None:
 
         self.isRunning = False
@@ -102,13 +95,13 @@ class Application(dict[str : pygame.Surface]):
 
     def DebugLog(self, text):
 
-        if "debugLog" in self:
+        if hasattr(self, "debugLog"):
 
-            self["debugLog"].UpdateText(str(text))
+            self.debugLog.UpdateText(str(text))
 
         else:
 
-            self["debugLog"] = Text((0, 0), str(text), 25, backgroundColor=Black)
+            self.debugLog = Text((0, 0), str(text), 25, backgroundColor=Black)
 
     def Run(self) -> None:
         
@@ -134,11 +127,6 @@ class Application(dict[str : pygame.Surface]):
                 self.HandleEvents(event)
 
             self.Update()
-
-            #-# Fill Background #-#
-            if self.tab in self.backgroundColors:
-
-                self.window.fill(self.backgroundColors[self.tab])
 
             #-# Draw Objects #-#
             self.Draw()
@@ -166,14 +154,6 @@ class Application(dict[str : pygame.Surface]):
 
             self.SetDevelopMode(not self.developMode)
 
-        if self.tab in self:
-            
-            for object in self[self.tab].values():
-                
-                if hasattr(object, "HandleEvents"):
-
-                    object.HandleEvents(event, self.mousePosition, self.keys)
-
         self.HandleExitEvents(event)
 
     def HandleExitEvents(self, event: pygame.event.Event) -> None:
@@ -194,9 +174,4 @@ class Application(dict[str : pygame.Surface]):
 
     def Draw(self):
 
-        #-# Draw Objects #-#
-        if self.tab in self:
-
-            for object in self[self.tab].values():
-                    
-                object.Draw(self.window)
+        pass
