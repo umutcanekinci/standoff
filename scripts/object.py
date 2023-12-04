@@ -19,7 +19,7 @@ class Object(pygame.sprite.Sprite):
 		self.image = pygame.Surface(size, pygame.SRCALPHA)
 		self.rect = self.image.get_rect()
 		self.screenRect = self.rect.copy()
-		self.active = False
+		self.isMouseHolding = False
 		self.SetImage(imagePath)
 		self.SetparentRect(parentRect)
 		self.SetPosition(position)
@@ -98,11 +98,11 @@ class Object(pygame.sprite.Sprite):
 
 			if not self.isMouseButtonUp(event, mousePosition):
 
-				self.active = False
+				self.isMouseHolding = False
 
 		if self.isMouseButtonDown(event, mousePosition):
 
-			self.active = True
+			self.isMouseHolding = True
 
 	def isMouseOver(self, mousePosition: tuple) -> bool:
 		
@@ -118,9 +118,9 @@ class Object(pygame.sprite.Sprite):
 
 	def isMouseClick(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
 		
-		if self.isMouseButtonUp(event, mousePosition) and self.active:
+		if self.isMouseButtonUp(event, mousePosition) and self.isMouseHolding:
 			
-			self.active = False
+			self.isMouseHolding = False
 			return True
 		
 		return False

@@ -8,19 +8,26 @@ class Text(Object):
 		super().__init__(position, (0, 0), None, spriteGroups, parentRect)
 
 		self.position = position
-		self.AddText(text, textSize, antialias, color, backgroundColor, fontPath)
+		
+		self.text, self.textSize, self.antialias, self.textColor, self.backgroundColor, self.fontPath = text, textSize, antialias, color, backgroundColor, fontPath
+		self.Render()
+		
+	def Render(self):
 
-	def AddText(self, text, textSize, antialias=True, color=White, backgroundColor=None, fontPath=None):
-
-		self.text, self.textSize, self.antialias, self.color, self.backgroundColor, self.fontPath = text, textSize, antialias, color, backgroundColor, fontPath
-		self.image = pygame.font.Font(fontPath, textSize).render(text, antialias, color, backgroundColor)
+		self.image = pygame.font.Font(self.fontPath, self.textSize).render(self.text, self.antialias, self.textColor, self.backgroundColor)
 		self.rect = self.image.get_rect()
 		self.SetPosition(self.position)
  
 	def UpdateText(self, text: str) -> None:
 
-		self.AddText(text, self.textSize, self.antialias, self.color, self.backgroundColor, self.fontPath)
+		self.text = text
+		self.Render()
 
-	def UpdateColor(self, color: tuple):
+	def Rerender(self):
 
-		self.AddText(self.text, self.textSize, self.antialias, color, self.backgroundColor, self.fontPath)
+		self.Render()
+
+	def SetColor(self, color: tuple):
+
+		self.textColor = color
+		self.Render()

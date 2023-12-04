@@ -247,6 +247,12 @@ class Player(Object):
 			self.game.bullets.add(bullet)
 			self.lastFireTime = time
 
+	def HandleEvents(self, event, mousePosition, keys):
+		
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button==1:
+			
+			self.Fire()
+
 	def UpdatePosition(self, position):
 
 		self.hitRect.center = self.rect.center = position

@@ -5,7 +5,7 @@ class PlayerInfo():
         
         self.ID = ID
         self.name = ""
-        self.room = None
+        self.team = None
         self.state = state
 
     def EnterLobby(self, name):
@@ -14,10 +14,10 @@ class PlayerInfo():
         
         print(f"[SERVER] => {self.name} ({self.ID}) is entered to lobby.")
 
-    def JoinRoom(self, room):
+    def JoinTeam(self, team):
         
-        self.state = "room"
-        self.room = room
-        room.append(self)
+        self.state = "team"
+        self.team = team
+        team.append(self)
 
-        print(f"[SERVER] => {self.name} ({self.ID}) is joined to room {room.ID}.")
+        print(f"[SERVER] => {self.name} ({self.ID}) is joined to team {team.ID}.")
