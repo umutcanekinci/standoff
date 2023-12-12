@@ -89,8 +89,8 @@ class EllipseButton(Button):
 
 	def Rerender(self):
 
-		polygonUpRect = pygame.Rect(0, 0, self.rect.width, self.rect.height-10)
-		polygonDownRect = pygame.Rect(0, 10, self.rect.width, self.rect.height-10)
+		polygonUpRect = pygame.Rect(0, 0, self.rect.width, self.rect.height-5)
+		polygonDownRect = pygame.Rect(0, 5, self.rect.width, self.rect.height-5)
 
 		Object.Rerender(self)
 

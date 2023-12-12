@@ -4,9 +4,19 @@ class PlayerInfo():
     def __init__(self, ID, state="menu") -> None:
         
         self.ID = ID
-        self.name = ""
+        self.SetName()
+        self.SetCharacterName()
         self.team = None
+        self.room = None
         self.state = state
+
+    def SetName(self, name=""):
+
+        self.name = name
+
+    def SetCharacterName(self, name=""):
+
+        self.characterName = ""
 
     def EnterLobby(self, name):
         

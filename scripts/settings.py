@@ -20,6 +20,11 @@ import pygame
 # days
 # effects
 
+
+# takımlar birbiine saldırabilecek
+# aynı takımdakiler birbirine saldıramayacak
+# takımdaki oyuncular oyuna aynı anda mı girmeli / istedikleri zaman mı
+
 #endregion
 
 #region #-# Colors #-#

@@ -16,266 +16,6 @@ from team import Team
 
 #endregion
 
-class Camera():
-
-	def __init__(self, size: tuple, map: TileMap):
-		
-		self.rect = pygame.Rect((0, 0), size)
-		self.map = map
-		self.map.camera = self
-		
-	def Follow(self, targetRect):
-		
-		self.rect.x, self.rect.y = -targetRect.centerx + (self.rect.width / 2), -targetRect.centery + (self.rect.height / 2)
-		
-		self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
-		self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
-
-	def Apply(self, rect: pygame.Rect):
-		
-		return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
-
-	def Draw(self, image, objects):
-
-		for object in objects:
-			
-			image.blit(object.image, self.Apply(object.rect))
-
-class Menu():
-
-	def __init__(self, game) -> None:
-
-		super().__init__()
-
-		self.game = game
-
-		self.tabs = {
-
-			"mainMenu" : pygame.sprite.Group(),
-			"gameTypeMenu" : pygame.sprite.Group(),
-			"playerMenu" : pygame.sprite.Group(),
-			"teamTypeMenu" : pygame.sprite.Group(),
-			"createTeamMenu" : pygame.sprite.Group(),
-			"joinTeamMenu" : pygame.sprite.Group(),
-			"teamMenu" : pygame.sprite.Group()
-
-		}
-
-		self.panel = Object(size=(400, 500))
-		self.title = Text(("CENTER", self.panel.rect.y-100), WINDOW_TITLE, 60, color=Red)
-		self.playerCountText = Text(("CENTER", self.panel.rect.bottom+30), "You are playing in offline mode !", 24, backgroundColor=Black, color=Red)		
-
-		self.selectedCharacter = 0
-		self.characterTexts = []
-		self.characters = []
-
-		for characterName in CHARACTER_LIST:
-
-			self.characters.append(Object(("CENTER", 195), CHARACTER_SIZE, ImagePath("idle", "characters/"+characterName), parentRect=self.panel.screenRect))
-
-			words = characterName.split("_")
-			characterName = ""
-
-			for text in words:
-
-				if not characterName == "":
-
-					characterName += " "
-
-				characterName += text.capitalize()
-		
-			self.characterTexts.append(Text(("CENTER", 145), characterName, 40, parentRect=self.panel.screenRect))
-
-		self.creditsButton = EllipseButton(("CENTER", "CENTER"), (300, 75), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="CREDITS", textSize=45, isActive=False)
-		self.playButton = EllipseButton(("CENTER", self.creditsButton.rect.y - 90), (300, 75), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="PLAY", textSize=45)
-		self.exitButton = EllipseButton(("CENTER", self.creditsButton.rect.y + 90), (300, 75), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="EXIT", textSize=45)
-		
-		self.offlineButton = EllipseButton(("CENTER", "CENTER"), (300, 75), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="PLAY OFFLINE", textSize=45)
-		self.onlineButton = EllipseButton(("CENTER", self.offlineButton.rect.y - 90), (300, 75), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="PLAY ONLINE", textSize=45)
-		self.backButton = EllipseButton(("CENTER", self.offlineButton.rect.y + 90), (300, 75), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="BACK", textSize=45)
-		
-		self.playerNameText = Text(("CENTER", 40), "PLAYER NAME", 40, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect)
-		self.playerNameEntry = InputBox(("CENTER", 90), (300, 40), '', 'Please enter a player name...', self.tabs["playerMenu"], self.panel.screenRect)
-		self.previous = TriangleButton((75, self.backButton.rect.y - 110), (50, 50), Blue, Red, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect, rotation="LEFT")
-		self.next = TriangleButton((275, self.backButton.rect.y - 110), (50, 50), Blue, Red, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect)
-		self.confirmButton = EllipseButton(("CENTER", self.backButton.rect.y), (300, 75), Red, Blue, spriteGroups=[self.tabs["playerMenu"]], parentRect=self.panel.screenRect, text="CONFIRM", textSize=45)
-		self.backButton2 = EllipseButton(("CENTER", self.confirmButton.rect.y + 90), (300, 75), Red, Blue, spriteGroups=[self.tabs["playerMenu"]], parentRect=self.panel.screenRect, text="BACK", textSize=45)
-
-		self.joinTeamButton = EllipseButton(("CENTER", 100), (300, 75), Red, Blue, spriteGroups=self.tabs["teamTypeMenu"], parentRect=self.panel.screenRect, text="JOIN A TEAM", textSize=45)
-		self.createTeamButton = EllipseButton(("CENTER", 190), (300, 75), Red, Blue, spriteGroups=self.tabs["teamTypeMenu"], parentRect=self.panel.screenRect, text="CREATE A TEAM", textSize=45)
-		self.soloModeButton = EllipseButton(("CENTER", 280), (300, 75), Red, Blue, spriteGroups=self.tabs["teamTypeMenu"], parentRect=self.panel.screenRect, text="SOLO MODE", textSize=45)
-		self.backButton3 = EllipseButton(("CENTER", 370), (300, 75), Red, Blue, spriteGroups=[self.tabs["teamTypeMenu"]], parentRect=self.panel.screenRect, text="BACK", textSize=45)
-		
-		self.joinTeamText = Text(("CENTER", 50), "JOIN TEAM", 40, spriteGroups=self.tabs["joinTeamMenu"], parentRect=self.panel.screenRect)
-		self.teamIDEntry = InputBox(("CENTER", 100), (300, 40), '', 'Please enter a team ID...', self.tabs["joinTeamMenu"], self.panel.screenRect)
-		self.createTeamButton = EllipseButton(("CENTER", self.panel.rect.height-285), (300, 75), Blue, Red, spriteGroups=self.tabs["joinTeamMenu"], parentRect=self.panel.screenRect, text="CREATE", textSize=45)
-		self.joinButton = EllipseButton(("CENTER", self.panel.rect.height-200), (300, 75), Blue, Red, spriteGroups=self.tabs["joinTeamMenu"], parentRect=self.panel.screenRect, text="JOIN", textSize=45)
-		
-		self.teamText = Text(("CENTER", 20), "TEAM 0", 40, spriteGroups=self.tabs["teamMenu"], parentRect=self.panel.screenRect)
-		self.startGame = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 75), Blue, Red, spriteGroups=self.tabs["teamMenu"], parentRect=self.panel.screenRect, text="START GAME", textSize=45)
-		self.exitTeam = EllipseButton(("CENTER", self.panel.rect.height-200), (300, 75), Blue, Red, spriteGroups=self.tabs["teamMenu"], parentRect=self.panel.screenRect, text="EXIT FROM TEAM", textSize=45)
-
-	def OpenTab(self, tab: str) -> None:
-
-		for sprite in self.tabs[tab]:
-			
-			if hasattr(self.game, "mousePosition") and hasattr(sprite, "UpdateColor"):
-
-				sprite.UpdateColor(self.game.mousePosition)
-				sprite.Rerender()
-
-		self.tab = tab
-
-	def UpdatePlayersInTeam(self, players):
-
-		self.playersInTeam = players
-		self.playerTexts = []
-
-		for i, player in enumerate(self.playersInTeam):
-
-			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), player.name, 25, parentRect=self.panel.screenRect))
-
-	def HandleEvents(self, event, mousePosition, keys):
-
-		for sprite in self.tabs[self.tab]:
-
-			if hasattr(sprite, "HandleEvents"):
-
-				sprite.HandleEvents(event, mousePosition, keys)
-
-		if self.tab == "mainMenu":
-				
-			if self.playButton.isMouseClick(event, mousePosition):
-		
-				if not self.game.client.isConnected:
-
-					self.onlineButton.Disable() 
-
-				self.OpenTab("gameTypeMenu")
-
-			elif self.creditsButton.isMouseClick(event, mousePosition):
-
-				self.game.Exit()
-
-			elif self.exitButton.isMouseClick(event, mousePosition):
-
-				self.game.Exit()
-
-		elif self.tab == "gameTypeMenu":
-
-			if self.onlineButton.isMouseClick(event, mousePosition) and self.game.client.isConnected:
-		
-				self.game.mode = "online"
-				self.OpenTab("playerMenu")
-
-			elif self.offlineButton.isMouseClick(event, mousePosition):
-
-				self.game.mode = "offline"
-				self.OpenTab("playerMenu")
-
-			elif self.backButton.isMouseClick(event, mousePosition):
-
-				self.OpenTab("mainMenu")
-
-		elif self.tab == "playerMenu":
-			
-			if self.previous.isMouseClick(event, mousePosition):
-
-				if self.selectedCharacter > 0:
-
-					self.selectedCharacter -= 1
-
-			elif self.next.isMouseClick(event, mousePosition):
-
-				if self.selectedCharacter+1 < len(self.characters):
-
-					self.selectedCharacter += 1
-
-			elif self.confirmButton.isMouseClick(event, mousePosition):
-
-				if self.game.mode == "online":
-
-					self.game.EnterLobby(self.playerNameEntry.text, self.characters[self.selectedCharacter])
-				
-				elif self.game.mode == "offline":
-				
-					self.game.StartGameInOfflineMode(self.playerNameEntry.text, self.characters[self.selectedCharacter])
-
-			elif self.backButton2.isMouseClick(event, mousePosition):
-
-				self.OpenTab("gameTypeMenu")
-
-		elif self.tab == "teamTypeMenu":
-
-			if self.joinTeamButton.isMouseClick(event, mousePosition):
-
-				self.OpenTab("joinTeamMenu")
-
-			elif self.createTeamButton.isMouseClick(event, mousePosition):
-
-				self.OpenTab("createTeamMenu")
-
-			elif self.soloModeButton.isMouseClick(event, mousePosition):
-
-				self.OpenTab("joinTeamMenu")
-
-			elif self.backButton3.isMouseClick(event, mousePosition):
-
-				self.OpenTab("playerMenu")
-
-		elif self.tab == "joinTeamMenu":
-			
-			if self.joinButton.isMouseClick(event, mousePosition):
-				
-				teamID = int(self.teamIDEntry.text) if self.teamIDEntry.text.isnumeric() else 0
-				self.game.JoinTeam(teamID)
-
-			elif self.createTeamButton.isMouseClick(event, mousePosition):
-				
-				self.game.client.SendData({'command' : "!CREATE_TEAM", 'value' : self.game.player.ID})
-
-		elif self.tab == "teamMenu":
-
-			if self.startGame.isMouseClick(event, mousePosition):
-				
-				self.game.client.SendData({'command' : "!START_GAME", 'value' : self.game.player.team.ID})
-
-	def update(self):
-
-		pass
-
-	def draw(self, image):
-
-		image.fill(BACKGROUND_COLORS["menu"])
-
-		self.title.Draw(image)
-		self.playerCountText.Draw(image)
-
-		self.panel.Rerender()
-		self.panel.image.fill((*Gray, 100))
-		
-		self.tabs[self.tab].draw(self.panel.image)
-
-		if self.tab == "playerMenu":
-			
-			self.characters[self.selectedCharacter].Draw(self.panel.image)
-			self.characterTexts[self.selectedCharacter].Draw(self.panel.image)
-
-		elif self.tab == "teamMenu":
-	
-			for i in range(6):
-
-				pygame.draw.line(self.panel.image, White, (0, (i+1)*60), (self.panel.rect.width, (i+1)*60))
-
-			pygame.draw.line(self.panel.image, White, (0, 0), (0, self.panel.rect.height))
-			pygame.draw.line(self.panel.image, White, (self.panel.rect.width, 0), (self.panel.rect.width, self.panel.rect.height))
-
-			for playerText in self.playerTexts:
-
-				playerText.Draw(self.panel.image)
-		
-		self.panel.Draw(image)
-
 class Game(Application):
 
 	def __init__(self) -> None:
@@ -300,30 +40,32 @@ class Game(Application):
 		self.client = Client(self)
 		self.client.Start()
 
-	def StartGameInOfflineMode(self, playerName, characterName):
-	
-		self.player = self.players.Add(1, playerName, PLAYER_SIZE, self.map.spawnPoints[1])
-		#self.zombies.add(Zombie(self.player, PLAYER_SIZE, (200, 200), self))
-		self.isGameStarted = True
-
 	def EnterLobby(self, playerName, characterName) -> None:
 
 		self.client.SendData({'command' : "!ENTER_LOBBY", 'value' : [self.player.ID, playerName]})
-		self.menu.OpenTab("teamTypeMenu")
 
-	def JoinTeam(self, teamID):
+	def JoinRoom(self, roomID):
 
-		self.client.SendData({'command' : "!JOIN_TEAM", 'value' : [self.player.ID, teamID]})
+		self.client.SendData({'command' : "!JOIN_ROOM", 'value' : [self.player.ID, roomID]})
 
-	def StartGame(self):
-
-		self.isGameStarted = True
+	def Start(self, mode, playerName, characterName):
 		
-		for player in self.player.team:
+		self.mode = mode
 
-			if not player.ID == self.player.ID:
+		if self.mode == "offline":
 
-				self.players.Add(player.ID, player.name, PLAYER_SIZE)
+			self.player = self.players.Add(1, playerName, characterName, PLAYER_SIZE, self.map.spawnPoints[1])
+			#self.zombies.add(Zombie(self.player, PLAYER_SIZE, (200, 200), self))
+
+		elif self.mode == "online":
+
+			self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, CHARACTER_LIST[self.menu.selectedCharacter], PLAYER_SIZE, (data['value']*100, data['value']*100))
+
+			for player in self.player.team:
+
+				if not player.ID == self.player.ID:
+
+					self.players.Add(player.ID, player.name, PLAYER_SIZE)
 
 	def GetData(self, data) -> None:
 
@@ -333,9 +75,14 @@ class Game(Application):
 
 			if data['command'] == "!SET_PLAYER_ID":
 
-				self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, PLAYER_SIZE, (data['value']*100, data['value']*100))
+				self.playerInfo = data['value']
 
-			elif data['command'] == "!JOIN_TEAM":
+			elif data['command'] == "!SET_PLAYER_COUNT":
+					
+				self.menu.playerCountText.SetColor(Yellow)
+				self.menu.playerCountText.UpdateText(data['value'] + " Players are Online")
+
+			elif data['command'] == "!JOIN_ROOM":
 
 				team = data['value']
 
@@ -344,7 +91,7 @@ class Game(Application):
 					if not hasattr(self.player, "team") or not self.player.team:
 						
 						self.menu.teamText.UpdateText("Team " + str(team.ID))
-						self.menu.OpenTab("teamMenu")
+						self.menu.OpenTab("roomMenu")
 
 					self.player.team = team
 					self.menu.UpdatePlayersInTeam(team)
@@ -355,14 +102,7 @@ class Game(Application):
 
 			elif data['command'] == "!START_GAME":
 
-				self.StartGame()
-
-			elif data['command'] == "!SET_PLAYERS":
-				
-				self.playerList = data['value']
-					
-				self.menu.playerCountText.SetColor(Yellow)
-				self.menu.playerCountText.UpdateText(str(len(self.playerList)) + " Players are Online")
+				self.Start("online", )
 
 			elif data['command'] == "!SET_PLAYER_RECT":
 
@@ -403,25 +143,21 @@ class Game(Application):
 				self.isGameStarted = False
 				self.menu.OpenTab("mainMenu")
 
-			elif self.menu.tab == "gameTypeMenu":
+			elif self.menu.tab == "playerMenu":
 
 				self.menu.OpenTab("mainMenu")
 
-			elif self.menu.tab == "playerMenu":
+			elif self.menu.tab == "gameTypeMenu":
 
-				self.menu.OpenTab("gameTypeMenu")
-
-			elif self.menu.tab == "teamTypeMenu":
-				
 				self.menu.OpenTab("playerMenu")
 
-			elif self.menu.tab == "createTeamMenu":
+			elif self.menu.tab == "createRoomMenu":
 				
-				self.menu.OpenTab("teamTypeMenu")
+				self.menu.OpenTab("gameTypeMenu")
 
-			elif self.menu.tab == "joinTeamMenu":
+			elif self.menu.tab == "connectMenu":
 				
-				self.menu.OpenTab("teamTypeMenu")
+				self.menu.OpenTab("gameTypeMenu")
 
 			elif self.menu.tab == "mainMenu":
 
@@ -471,3 +207,258 @@ class Game(Application):
 		self.client.DisconnectFromServer()
 		return super().Exit()
 			
+class Camera():
+
+	def __init__(self, size: tuple, map: TileMap):
+		
+		self.rect = pygame.Rect((0, 0), size)
+		self.map = map
+		self.map.camera = self
+		
+	def Follow(self, targetRect):
+		
+		self.rect.x, self.rect.y = -targetRect.centerx + (self.rect.width / 2), -targetRect.centery + (self.rect.height / 2)
+		
+		self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
+		self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
+
+	def Apply(self, rect: pygame.Rect):
+		
+		return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
+
+	def Draw(self, image, objects):
+
+		for object in objects:
+			
+			image.blit(object.image, self.Apply(object.rect))
+
+class Menu():
+
+	def __init__(self, game: Game) -> None:
+
+		super().__init__()
+
+		self.game = game
+
+		self.tabs = {
+
+			"mainMenu" : pygame.sprite.Group(),
+			"playerMenu" : pygame.sprite.Group(),
+			"gameTypeMenu" : pygame.sprite.Group(),
+			"createRoomMenu" : pygame.sprite.Group(),
+			"connectMenu" : pygame.sprite.Group(),
+			"roomMenu" : pygame.sprite.Group()
+
+		}
+
+		self.panel = Object(size=(400, 500))
+		self.title = Text(("CENTER", self.panel.rect.y-80), WINDOW_TITLE, 60, color=Red)
+		self.playerCountText = Text(("CENTER", self.panel.rect.bottom+30), "You are playing in offline mode !", 24, backgroundColor=Black, color=Red)		
+
+		self.selectedCharacter = 0
+		self.characterTexts = []
+		self.characters = []
+
+		for characterName in CHARACTER_LIST:
+
+			self.characters.append(Object(("CENTER", 195), CHARACTER_SIZE, ImagePath("idle", "characters/"+characterName), parentRect=self.panel.screenRect))
+
+			words = characterName.split("_")
+			characterName = ""
+
+			for text in words:
+
+				if not characterName == "":
+
+					characterName += " "
+
+				characterName += text.capitalize()
+		
+			self.characterTexts.append(Text(("CENTER", 145), characterName, 40, parentRect=self.panel.screenRect))
+	
+		# Main menu
+		self.settingsButton = EllipseButton(("CENTER", "CENTER"), (300, 60), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="SETTINGS", textSize=40, isActive=False)
+		self.playButton = EllipseButton(("CENTER", self.settingsButton.rect.y - 140), (300, 60), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="PLAY", textSize=40)
+		self.achievmentsButton = EllipseButton(("CENTER", self.settingsButton.rect.y - 70), (300, 60), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="ACHIEVMENTS", textSize=40, isActive=False)
+		self.creditsButton = EllipseButton(("CENTER", self.settingsButton.rect.y + 70), (300, 60), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="CREDITS", textSize=40, isActive=False)
+		self.exitButton = EllipseButton(("CENTER", self.settingsButton.rect.y + 140), (300, 60), Red, Blue, spriteGroups=self.tabs["mainMenu"], parentRect=self.panel.screenRect, text="EXIT", textSize=40)
+
+		# Player menu
+		self.playerNameText = Text(("CENTER", 40), "PLAYER NAME", 40, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect)
+		self.playerNameEntry = InputBox(("CENTER", 90), (300, 40), '', 'Please enter a player name...', self.tabs["playerMenu"], self.panel.screenRect)
+		self.previous = TriangleButton((75, 185), (50, 50), Blue, Red, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect, rotation="LEFT")
+		self.next = TriangleButton((275, 185), (50, 50), Blue, Red, spriteGroups=self.tabs["playerMenu"], parentRect=self.panel.screenRect)
+		self.confirmButton = EllipseButton(("CENTER", self.creditsButton.rect.y), (300, 60), Red, Blue, spriteGroups=[self.tabs["playerMenu"]], parentRect=self.panel.screenRect, text="CONFIRM", textSize=40)
+		self.backButton = EllipseButton(("CENTER", self.exitButton.rect.y), (300, 60), Red, Blue, spriteGroups=[self.tabs["playerMenu"]], parentRect=self.panel.screenRect, text="BACK", textSize=40)
+
+		# Game type menu
+		self.createRoomButton = EllipseButton(("CENTER", "CENTER"), (300, 60), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="CREATE ROOM", textSize=40)
+		self.newGameButton = EllipseButton(("CENTER", self.settingsButton.rect.y - 140), (300, 60), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="NEW GAME", textSize=40)
+		self.continueButton = EllipseButton(("CENTER", self.settingsButton.rect.y - 70), (300, 60), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="CONTINUE", textSize=40, isActive=False)	
+		self.connectButton = EllipseButton(("CENTER", self.settingsButton.rect.y + 70), (300, 60), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="CONNECT", textSize=40)
+		self.backButton2 = EllipseButton(("CENTER", self.settingsButton.rect.y + 140), (300, 60), Red, Blue, spriteGroups=self.tabs["gameTypeMenu"], parentRect=self.panel.screenRect, text="BACK", textSize=40)
+
+		# Create room menu
+		self.createButton = EllipseButton(("CENTER", self.settingsButton.rect.y + 70), (300, 60), Red, Blue, spriteGroups=self.tabs["createRoomMenu"], parentRect=self.panel.screenRect, text="CREATE", textSize=40)
+		self.backButton3 = EllipseButton(("CENTER", self.settingsButton.rect.y + 140), (300, 60), Red, Blue, spriteGroups=self.tabs["createRoomMenu"], parentRect=self.panel.screenRect, text="BACK", textSize=40)
+
+		# Join room menu
+		self.joinRoomText = Text(("CENTER", 100), "JOIN A ROOM", 40, spriteGroups=self.tabs["connectMenu"], parentRect=self.panel.screenRect)
+		self.roomIDEntry = InputBox(("CENTER", 150), (300, 40), '', 'Please enter a room ID...', self.tabs["connectMenu"], self.panel.screenRect)
+		self.joinButton = EllipseButton(("CENTER", 250), (300, 60), Red, Blue, spriteGroups=self.tabs["connectMenu"], parentRect=self.panel.screenRect, text="JOIN", textSize=40)
+		self.backButton4 = EllipseButton(("CENTER", 320), (300, 60), Red, Blue, spriteGroups=self.tabs["connectMenu"], parentRect=self.panel.screenRect, text="BACK", textSize=40)
+
+		# Room menu
+		self.teamText = Text(("CENTER", 20), "TEAM 0", 40, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect)
+		self.startGame = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Blue, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="START GAME", textSize=40)
+		self.exitTeam = EllipseButton(("CENTER", self.panel.rect.height-200), (300, 60), Blue, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="EXIT FROM TEAM", textSize=40)
+
+	def OpenTab(self, tab: str) -> None:
+	
+		if not self.game.client.isConnected:
+
+			self.createRoomButton.Disable()
+			self.connectButton.Disable()
+
+		for sprite in self.tabs[tab]:
+			
+			if hasattr(self.game, "mousePosition") and hasattr(sprite, "UpdateColor"):
+
+				sprite.UpdateColor(self.game.mousePosition)
+				sprite.Rerender()
+
+		self.tab = tab
+
+	def UpdatePlayersInTeam(self, players):
+
+		self.playersInTeam = players
+		self.playerTexts = []
+
+		for i, player in enumerate(self.playersInTeam):
+
+			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), player.name, 25, parentRect=self.panel.screenRect))
+
+	def HandleEvents(self, event, mousePosition, keys):
+
+		for sprite in self.tabs[self.tab]:
+
+			if hasattr(sprite, "HandleEvents"):
+
+				sprite.HandleEvents(event, mousePosition, keys)
+
+		if self.tab == "mainMenu":
+				
+			if self.playButton.isMouseClick(event, mousePosition):
+
+				self.OpenTab("playerMenu")
+
+			elif self.exitButton.isMouseClick(event, mousePosition):
+
+				self.game.Exit()
+
+		elif self.tab == "playerMenu":
+			
+			if self.previous.isMouseClick(event, mousePosition):
+
+				if self.selectedCharacter > 0:
+
+					self.selectedCharacter -= 1
+
+			elif self.next.isMouseClick(event, mousePosition):
+
+				if self.selectedCharacter+1 < len(self.characters):
+
+					self.selectedCharacter += 1
+
+			elif self.confirmButton.isMouseClick(event, mousePosition):
+
+				if self.game.client.isConnected:
+
+					self.game.EnterLobby(self.playerNameEntry.text, self.characters[self.selectedCharacter])
+
+				self.OpenTab("gameTypeMenu")
+
+			elif self.backButton.isMouseClick(event, mousePosition):
+
+				self.OpenTab("mainMenu")
+
+		elif self.tab == "gameTypeMenu":
+
+			if self.newGameButton.isMouseClick(event, mousePosition):
+ 
+				self.game.Start("offline", self.playerNameEntry.text, CHARACTER_LIST[self.selectedCharacter])
+
+			elif self.createRoomButton.isMouseClick(event, mousePosition) and self.game.client.isConnected:
+		
+				self.OpenTab("createRoomMenu")
+
+			elif self.connectButton.isMouseClick(event, mousePosition) and self.game.client.isConnected:
+		
+				self.OpenTab("connectMenu")
+
+			elif self.backButton2.isMouseClick(event, mousePosition):
+
+				self.OpenTab("playerMenu")
+
+		elif self.tab == "createRoomMenu":
+
+			if self.createButton.isMouseClick(event, mousePosition):
+				
+				self.game.client.SendData({'command' : "!CREATE_ROOM", 'value' : self.game.player.ID})
+
+			elif self.backButton3.isMouseClick(event, mousePosition):
+
+				self.OpenTab("gameTypeMenu")
+
+		elif self.tab == "connectMenu":
+			
+			if self.joinButton.isMouseClick(event, mousePosition):
+
+				roomID = int(self.roomIDEntry.text) if self.roomIDEntry.text.isnumeric() else 0
+				self.game.JoinRoom(roomID)
+
+			elif self.backButton4.isMouseClick(event, mousePosition):
+
+				self.OpenTab("gameTypeMenu")
+
+		elif self.tab == "roomMenu":
+
+			if self.startGame.isMouseClick(event, mousePosition):
+				
+				self.game.client.SendData({'command' : "!START_GAME", 'value' : self.game.player.room.ID})
+
+	def update(self):
+
+		pass
+
+	def draw(self, image):
+
+		image.fill(BACKGROUND_COLORS["menu"])
+
+		self.title.Draw(image)
+		self.playerCountText.Draw(image)
+
+		self.panel.Rerender()
+		self.panel.image.fill((*Gray, 100))
+		
+		self.tabs[self.tab].draw(self.panel.image)
+
+		if self.tab == "playerMenu":
+			
+			self.characters[self.selectedCharacter].Draw(self.panel.image)
+			self.characterTexts[self.selectedCharacter].Draw(self.panel.image)
+
+		elif self.tab == "roomMenu":
+	
+			for i in range(6):
+
+				pygame.draw.line(self.panel.image, White, (0, (i+1)*60), (self.panel.rect.width, (i+1)*60))
+
+			pygame.draw.line(self.panel.image, White, (0, 0), (0, self.panel.rect.height))
+			pygame.draw.line(self.panel.image, White, (self.panel.rect.width, 0), (self.panel.rect.width, self.panel.rect.height))
+
+			for playerText in self.playerTexts:
+
+				playerText.Draw(self.panel.image)
+		
+		self.panel.Draw(image)

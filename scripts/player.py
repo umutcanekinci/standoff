@@ -12,7 +12,7 @@ def CollideHitRect(one, two):
 
 class Player(Object):
 
-	def __init__(self, ID, name, size, position, game) -> None:
+	def __init__(self, ID, name, characterName, size, position, game) -> None:
 
 		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
@@ -27,7 +27,7 @@ class Player(Object):
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
 		
 		# Player graphic
-		self.originalImage = GetImage(ImagePath("idle", "characters/hitman"))
+		self.originalImage = GetImage(ImagePath("idle", "characters/"+characterName))
 		self.image = self.originalImage.copy()
 
 		self.hitRect = PLAYER_HIT_RECT
@@ -443,9 +443,9 @@ class Players(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, playerID, playerName, playerSize=TILE_SIZE, playerPosition=(0, 0)):
+	def Add(self, playerID, playerName, characterName, playerSize=TILE_SIZE, playerPosition=(0, 0)):
 		
-		player = Player(playerID, playerName, playerSize, playerPosition, self.game)
+		player = Player(playerID, playerName, characterName, playerSize, playerPosition, self.game)
 		return player
 
 	def GetPlayerWithID(self):

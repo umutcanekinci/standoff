@@ -1,6 +1,6 @@
 from player_info import PlayerInfo
 
-class Team(list[PlayerInfo]):
+class Room(list[PlayerInfo]):
 
     def __init__(self, ID, maxPlayerInfoCount):
 
@@ -13,3 +13,12 @@ class Team(list[PlayerInfo]):
     def StartGame(self):
 
         self.isGameStarted = True
+
+class Team(list[PlayerInfo]):
+
+    def __init__(self, ID, maxPlayerInfoCount):
+
+        super().__init__()
+
+        self.ID = ID
+        self.maxPlayerInfoCount = maxPlayerInfoCount

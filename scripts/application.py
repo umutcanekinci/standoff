@@ -137,9 +137,9 @@ class Application:
                 self.cursor.Draw(self.window)    
 
             #-# Draw debug log #-#
-            if self.developMode and "debugLog" in self:
+            if self.developMode and hasattr(self, "debugLog"):
 
-                self["debugLog"].Draw(self.window)
+                self.debugLog.Draw(self.window)
     
             pygame.display.update()
 

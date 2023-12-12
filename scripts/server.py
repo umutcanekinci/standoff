@@ -57,8 +57,8 @@ class Server:
             print(f"[SERVER] => {addr[0]} is connected from PORT = {addr[1]}.")
             print(f"[SERVER] => Player count is now {str(len(self.players))}.")
 
-            self.SendData(clientSocket, {'command' : "!SET_PLAYER_ID", 'value' : playerID})
-            self.SendDataToAllClients({'command' : "!SET_PLAYERS", 'value' : self.players})
+            self.SendData(clientSocket, {'command' : "!SET_PLAYER_ID", 'value' : self.players[playerID]})
+            self.SendDataToAllClients({'command' : "!SET_PLAYER_COUNT", 'value' : str(len(self.players))})
 
             # starting a new thread
             thread = threading.Thread(target=self.HandleClient, args=(clientSocket, addr))
@@ -107,7 +107,7 @@ class Server:
 
         self.SendData(clientSockets, data)
 
-    def OpenTeam(self):
+    def CreateTeam(self):
 
         self.teamID += 1
         self.teamList[self.teamID] = Team(self.teamID, 100)
@@ -129,14 +129,8 @@ class Server:
 
                         player = self.players[data['value'][0]]
                         player.EnterLobby(data['value'][1])
-                        
-                        if len(self.teamList) == 0:
 
-                            self.OpenTeam()
-                            player.JoinTeam(self.teamList[self.teamID])
-                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : self.teamList[self.teamID]})
-
-                    elif data['command'] == '!JOIN_TEAM':
+                    elif data['command'] == '!JOIN_ROOM':
 
                         playerID, teamID = data['value']
 
@@ -147,40 +141,40 @@ class Server:
 
                             for p in player.team:
 
-                                self.SendData(self.clientSockets[p.ID], {'command' : "!JOIN_TEAM", 'value' : self.teamList[teamID]})
+                                self.SendData(self.clientSockets[p.ID], {'command' : "!JOIN_ROOM", 'value' : self.teamList[teamID]})
 
                         else:
 
-                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : False})
+                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : False})
 
-                    elif data['command'] == '!CREATE_TEAM':
+                    elif data['command'] == '!CREATE_ROOM':
 
                             player = self.players[data['value']]
-                            self.OpenTeam()
+                            self.CreateTeam()
                             player.JoinTeam(self.teamList[self.teamID])
-                            self.SendData(clientSocket, {'command' : "!JOIN_TEAM", 'value' : self.teamList[self.teamID]})
+                            self.SendData(clientSocket, {'command' : "!JOIN_ROOM", 'value' : self.teamList[self.teamID]})
 
                     elif data['command'] == '!START_GAME':
 
-                        teamID = data['value']
-                        team = self.teamList[teamID]
-                        team.StartGame()
+                        #teamID = data['value']
+                        #team = self.teamList[teamID]
+                        #team.StartGame()
 
-                        self.SendData([self.clientSockets[player.ID] for player in team], {'command' : '!START_GAME'})
+                        self.SendData(self.clientSockets[playerID], {'command' : '!START_GAME'})
 
                     elif data['command'] == '!SET_PLAYER_RECT':
-                        """
+
                         playerID = data['value'][0]
 
-                        playerInfo = self.players[playerID]
-                        team = playerInfo.team
+                        #playerInfo = self.players[playerID]
+                        #team = playerInfo.team
 
-                        for player in team:
+                        for player in self.players.values(): #team:
 
                             if player.ID != playerID:
                                 
                                 self.SendData(self.clientSockets[player.ID], data)
-                        """
+
                     elif data['command'] == '!DISCONNECT':
 
                         connected = False

@@ -1,4 +1,3 @@
 @echo off
 
-cd scripts
-python server.py
+python scripts/server.py
