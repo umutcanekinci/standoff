@@ -27,15 +27,15 @@ class Zombie(Object):
 		self.rect = self.image.get_rect()
 
 		# Hit rect for collisions
-		self.rect.topleft = position
-		self.hitRect = PLAYER_HIT_RECT
+		self.rect.center = position
+		self.hitRect = PLAYER_HIT_RECT.copy()
 		self.hitRect.center = self.rect.center
 
 		#region Physical Variables
 
 		# Velocity / Speed (piksel/s*2)
 		self.velocity = Vec()
-		self.movSpeed = 0
+		self.movSpeed = 1
 
 		#endregion
 
@@ -116,13 +116,13 @@ class Zombie(Object):
 
 	def UpdatePosition(self, position):
 
-		self.hitRect.center = position
-		self.rect.center = position
+		self.hitRect.center = self.rect.center = position
 		self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
 	
 	def update(self):
 		
-		self.game.DebugLog((self.hitRect.center, self.rect.center))
+		self.Rotate()
+		self.Move()
 
 
 class Zombies(pygame.sprite.Group):
@@ -132,11 +132,10 @@ class Zombies(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, zombieID, targetPlayer, character='zombie', zombieSize=TILE_SIZE, zombiePosition=(0, 0)):
+	def Add(self, ID, target, character='zombie', size=TILE_SIZE, position=(0, 0)):
 		
-		zombie = Zombie(zombieID, targetPlayer, 'Zombie ' + str(zombieID), character, zombieSize, zombiePosition, self.game)
-		return zombie
-
+		Zombie(ID, target, 'Zombie ' + str(ID), character, size, position, self.game)
+		
 	def GetZombieWithID(self, ID: int) -> Zombie:
 
 		for zombie in self.sprites():

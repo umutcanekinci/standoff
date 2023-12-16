@@ -17,7 +17,7 @@ class Player(Object):
 		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
 		self.ID, self.name, self.character, self.game = ID, name, character, game
-		self.map, self.camera = game.map, game.camera
+		self.map = game.map
 		self.HP = 100
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
 
@@ -26,7 +26,7 @@ class Player(Object):
 		self.image = self.originalImage.copy()
 
 		# Hit rect for collisions
-		self.hitRect = PLAYER_HIT_RECT
+		self.hitRect = PLAYER_HIT_RECT.copy()
 		self.hitRect.center = self.rect.center
 
 		#region Physical Variables
