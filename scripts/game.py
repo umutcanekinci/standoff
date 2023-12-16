@@ -10,9 +10,10 @@ from button import TriangleButton, EllipseButton
 from text import Text
 from tilemap import TileMap
 from player import Players
+from zombie import Zombies
 from bullet import Bullets
 from player_info import PlayerInfo
-from team import Team
+from room import Room
 
 #endregion
 
@@ -21,106 +22,112 @@ class Game(Application):
 	def __init__(self) -> None:
 
 		super().__init__(developMode=DEVELOP_MODE)
+
 		self.isGameStarted = False
 		self.menu = Menu(self)
 
 		self.allSprites = pygame.sprite.Group()
 		self.walls = pygame.sprite.Group()
-		self.zombies = pygame.sprite.Group()
 		self.map = TileMap(self, FilePath("level1", "maps", "tmx"), 2)
 		self.players = Players(self)
+		self.zombies = Zombies(self)
 		self.camera = Camera(self.rect.size, self.map)
 		self.bullets = Bullets(self)
 
 		self.StartClient()
-		self.menu.OpenTab("mainMenu")
+
+		# Fast run
+		self.SetPlayer("Player", 'hitman')
+		self.Start('offline')
+
+		#self.menu.OpenTab("mainMenu")
 
 	def StartClient(self) -> None:
 
 		self.client = Client(self)
 		self.client.Start()
 
-	def EnterLobby(self, playerName, characterName) -> None:
+	def SetPlayer(self, playerName, characterName) -> None:
 
-		self.client.SendData({'command' : "!ENTER_LOBBY", 'value' : [self.player.ID, playerName]})
+		self.playerInfo = PlayerInfo(name=playerName, characterName=characterName)
+		self.client.SendData("!SET_PLAYER", [playerName, characterName])
 
 	def JoinRoom(self, roomID):
 
-		self.client.SendData({'command' : "!JOIN_ROOM", 'value' : [self.player.ID, roomID]})
+		self.client.SendData("!JOIN_ROOM", roomID)
 
-	def Start(self, mode, playerName, characterName):
+	def CreateRoom(self):
+
+		self.client.SendData("!CREATE_ROOM")
+
+	def Start(self, mode):
 		
+		self.isGameStarted = True
 		self.mode = mode
+		
+		self.player = self.players.Add(self.playerInfo.ID, self.playerInfo.name, self.playerInfo.characterName, PLAYER_SIZE, (self.playerInfo.ID*200, self.playerInfo.ID*200))
+		self.zombies.Add(1, self.player)
 
-		if self.mode == "offline":
+		if self.mode == "online":
 
-			self.player = self.players.Add(1, playerName, characterName, PLAYER_SIZE, self.map.spawnPoints[1])
-			#self.zombies.add(Zombie(self.player, PLAYER_SIZE, (200, 200), self))
-
-		elif self.mode == "online":
-
-			self.player = self.players.Add(data['value'], self.menu.playerNameEntry.text, CHARACTER_LIST[self.menu.selectedCharacter], PLAYER_SIZE, (data['value']*100, data['value']*100))
-
-			for player in self.player.team:
+			for player in self.playerInfo.room:
 
 				if not player.ID == self.player.ID:
 
-					self.players.Add(player.ID, player.name, PLAYER_SIZE)
+					self.players.Add(player.ID, player.name, player.characterName, PLAYER_SIZE)
+
+	def UpdatePlayerCount(self, count: int):
+
+		self.menu.playerCountText.SetColor(Yellow)
+		self.menu.playerCountText.UpdateText(str(count) + " Players are Online")
+
+	def UpdateRoom(self):
+
+		room = self.playerInfo.room
+
+		self.menu.teamText.UpdateText("Room " + str(room.ID))
+		self.menu.OpenTab("roomMenu")
+		self.menu.UpdatePlayersInRoom(room)
+
+	def UpdatePlayerRect(self, playerID, playerRect):
+
+		return
+		self.players.GetPlayerWithID(playerID).UpdatePosition(self.camera.Apply(playerRect).center)
+		
+	def RemovePlayer(self, playerID):
+
+		self.playerInfo.room 
+		self.players.remove(self.players.GetPlayerWithID(playerID))
 
 	def GetData(self, data) -> None:
 
 		if data:
 
-			print(data)
+			command = data['command']
+			value = data['value'] if 'value' in data else None
 
-			if data['command'] == "!SET_PLAYER_ID":
 
-				self.playerInfo = data['value']
-
-			elif data['command'] == "!SET_PLAYER_COUNT":
+			if command == "!SET_PLAYER_COUNT":
 					
-				self.menu.playerCountText.SetColor(Yellow)
-				self.menu.playerCountText.UpdateText(data['value'] + " Players are Online")
+				self.UpdatePlayerCount(value)
 
-			elif data['command'] == "!JOIN_ROOM":
+			elif command == "!SET_ROOM" and value:
 
-				team = data['value']
+				self.playerInfo = value
 
-				if team:
+				self.UpdateRoom()
 
-					if not hasattr(self.player, "team") or not self.player.team:
-						
-						self.menu.teamText.UpdateText("Team " + str(team.ID))
-						self.menu.OpenTab("roomMenu")
+			elif command == "!START_GAME":
 
-					self.player.team = team
-					self.menu.UpdatePlayersInTeam(team)
+				self.Start("online")
 
-				else:
+			elif command == "!SET_PLAYER_RECT":
 
-					self.Exit()
+				self.UpdatePlayerRect(*value)
 
-			elif data['command'] == "!START_GAME":
+			elif command == "!DISCONNECT":
 
-				self.Start("online", )
-
-			elif data['command'] == "!SET_PLAYER_RECT":
-
-				for player in self.players:
-
-					if player.ID == data['value'][0]:
-						
-						player.UpdatePosition(self.camera.Apply(data['value'][1]).center)
-						break
-
-			elif data['command'] == "!DISCONNECT":
-
-				for player in self.players:
-
-					if player.ID == data['value']:
-						
-						self.players.remove(player)
-						break
+				self.RemovePlayer(value)
 
 	def HandleEvents(self, event: pygame.event.Event) -> None:
 
@@ -175,14 +182,12 @@ class Game(Application):
 			
 			self.camera.Follow(self.player.rect)
 
-			if self.client.isConnected:
+			if self.mode == "online":
+				
+				self.client.SendData("!SET_PLAYER_RECT", [self.playerInfo.ID, pygame.Rect(self.player.hitRect.center, self.player.rect.size)])
 
-				self.client.SendData({'command' : "!SET_PLAYER_RECT", 'value' : [self.player.ID, pygame.Rect(self.player.hitRect.centerx - self.map.rect.x, self.player.hitRect.centery - self.map.rect.y, self.player.rect.w, self.player.rect.h)]})
-
-	def Draw(self) -> None:
-
-		super().Draw()
-
+	def Draw(self):
+		
 		if not self.isGameStarted:
 
 			self.menu.draw(self.window)
@@ -190,7 +195,18 @@ class Game(Application):
 		else:
 
 			self.camera.Draw(self.window, self.allSprites)
-			
+
+			for zombie in self.zombies:
+
+				if hasattr(zombie, "nameText"):
+
+					self.window.blit(zombie.nameText.image, self.camera.Apply(zombie.nameText.rect))
+
+				if self.developMode:
+
+					pygame.draw.rect(self.window, Red, self.camera.Apply(zombie.rect), 2)
+					pygame.draw.rect(self.window, Blue, self.camera.Apply(zombie.hitRect), 2)
+
 			for player in self.players:
 
 				if hasattr(player, "nameText"):
@@ -201,7 +217,9 @@ class Game(Application):
 
 					pygame.draw.rect(self.window, Red, self.camera.Apply(player.rect), 2)
 					pygame.draw.rect(self.window, Blue, self.camera.Apply(player.hitRect), 2)
-					
+
+		return super().Draw()
+
 	def Exit(self) -> None:
 
 		self.client.DisconnectFromServer()
@@ -251,7 +269,8 @@ class Menu():
 
 		}
 
-		self.panel = Object(size=(400, 500))
+		self.panel = Object(("CENTER", "CENTER"), size=(400, 500))
+
 		self.title = Text(("CENTER", self.panel.rect.y-80), WINDOW_TITLE, 60, color=Red)
 		self.playerCountText = Text(("CENTER", self.panel.rect.bottom+30), "You are playing in offline mode !", 24, backgroundColor=Black, color=Red)		
 
@@ -329,7 +348,7 @@ class Menu():
 
 		self.tab = tab
 
-	def UpdatePlayersInTeam(self, players):
+	def UpdatePlayersInRoom(self, players):
 
 		self.playersInTeam = players
 		self.playerTexts = []
@@ -372,10 +391,7 @@ class Menu():
 
 			elif self.confirmButton.isMouseClick(event, mousePosition):
 
-				if self.game.client.isConnected:
-
-					self.game.EnterLobby(self.playerNameEntry.text, self.characters[self.selectedCharacter])
-
+				self.game.SetPlayer(self.playerNameEntry.text, CHARACTER_LIST[self.selectedCharacter])
 				self.OpenTab("gameTypeMenu")
 
 			elif self.backButton.isMouseClick(event, mousePosition):
@@ -385,14 +401,14 @@ class Menu():
 		elif self.tab == "gameTypeMenu":
 
 			if self.newGameButton.isMouseClick(event, mousePosition):
- 
-				self.game.Start("offline", self.playerNameEntry.text, CHARACTER_LIST[self.selectedCharacter])
 
-			elif self.createRoomButton.isMouseClick(event, mousePosition) and self.game.client.isConnected:
+				self.game.Start("offline")
+
+			elif self.createRoomButton.isMouseClick(event, mousePosition):
 		
 				self.OpenTab("createRoomMenu")
 
-			elif self.connectButton.isMouseClick(event, mousePosition) and self.game.client.isConnected:
+			elif self.connectButton.isMouseClick(event, mousePosition):
 		
 				self.OpenTab("connectMenu")
 
@@ -404,7 +420,7 @@ class Menu():
 
 			if self.createButton.isMouseClick(event, mousePosition):
 				
-				self.game.client.SendData({'command' : "!CREATE_ROOM", 'value' : self.game.player.ID})
+				self.game.CreateRoom()
 
 			elif self.backButton3.isMouseClick(event, mousePosition):
 
@@ -425,14 +441,14 @@ class Menu():
 
 			if self.startGame.isMouseClick(event, mousePosition):
 				
-				self.game.client.SendData({'command' : "!START_GAME", 'value' : self.game.player.room.ID})
+				self.game.client.SendData("!START_GAME")
 
 	def update(self):
 
 		pass
 
 	def draw(self, image):
-
+		
 		image.fill(BACKGROUND_COLORS["menu"])
 
 		self.title.Draw(image)

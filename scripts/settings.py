@@ -1,6 +1,7 @@
 #region #-# Import Paackages #-#
 
 import pygame
+from colorama import Fore
 
 #endregion
 
@@ -48,14 +49,17 @@ Teal = (0,128,128)
 Navy = (0,0,128)
 CustomBlue = (72, 218, 233)
 
+SERVER_PREFIX = f"{Fore.CYAN}[SERVER] {Fore.RED}=> {Fore.YELLOW}"
+
 #endregion
 
 #region #-# Settings #-#
 
 #-# Window #-#
 WINDOW_TITLE = "CHOOSE YOUR WAY"
-WINDOW_SIZE = WINDOW_WIDTH, WINDOW_HEIGHT = 1920, 1080
+WINDOW_SIZE = WINDIW_WIDTH, WINDOW_HEIGHT = 1920, 1080
 WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
+
 BACKGROUND_COLORS = {"menu" : CustomBlue}
 
 #-# Game #-#

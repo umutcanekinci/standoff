@@ -12,24 +12,20 @@ def CollideHitRect(one, two):
 
 class Player(Object):
 
-	def __init__(self, ID, name, characterName, size, position, game) -> None:
+	def __init__(self, ID, name, character, size, position, game) -> None:
 
 		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
-		self.ID = ID
-		self.name = name
-		self.state = "menu"
+		self.ID, self.name, self.character, self.game = ID, name, character, game
+		self.map, self.camera = game.map, game.camera
 		self.HP = 100
-		self.game = game
-		self.room = None
-		self.map = game.map
-		self.camera = game.camera
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
-		
+
 		# Player graphic
-		self.originalImage = GetImage(ImagePath("idle", "characters/"+characterName))
+		self.originalImage = GetImage(ImagePath("idle", "characters/"+character))
 		self.image = self.originalImage.copy()
 
+		# Hit rect for collisions
 		self.hitRect = PLAYER_HIT_RECT
 		self.hitRect.center = self.rect.center
 
@@ -195,7 +191,7 @@ class Player(Object):
 		self.UpdatePosition(self.hitRect.center)
 
 	def CollideWithWalls(self, dir):
-
+		return
 		if dir == 'x':
 
 			hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
@@ -265,177 +261,6 @@ class Player(Object):
 			self.Rotate()
 			self.Move()
 
-class Zombie(pygame.sprite.Sprite):
-
-	def __init__(self, target, size, position, game) -> None:
-
-		super().__init__(game.allSprites, game.zombies)
-
-		self.target = target
-		self.HP = 100
-		self.game = game
-		self.map = game.map
-		self.camera = game.camera
-		self.name = "Zombie"
-		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
-		
-		# Player graphic
-		self.image = pygame.Surface((size, size), pygame.SRCALPHA)
-		self.rect = self.image.get_rect()
-
-		self.originalImage = GetImage(ImagePath("idle", "characters/zombie"))
-		self.image.blit(self.originalImage, self.rect)
-
-		self.rect.topleft = position
-		self.hitRect = PLAYER_HIT_RECT
-		self.hitRect.center = self.rect.center
-
-		#region Physical Variables
-
-		# Force (Newton)
-		self.force = Vec(3, 3)
-		self.frictionalForce = Vec(-1., -1.)
-		self.netForce = Vec()
-
-		# Acceleration (m/s**2)
-		self.acceleration = Vec()
-		self.maxAcceleration = 5
-
-		# Velocity / Speed (m/s*2)
-		self.velocity = Vec()
-		self.maxMovSpeed = 5
-
-		# Rotation
-		self.forceRotation = Vec()
-
-		# Weight (Kilogram)
-		self.density = 25 # d (kg/piksel**2)
-		self.weight = (self.rect.width/TILE_SIZE * self.rect.height/TILE_SIZE) * self.density # m = d*v
-
-		#endregion
-
-	def LoseHP(self, value):
-
-		self.HP -= value
-
-		if self.HP <= 0:
-
-			self.kill()
-
-	def Rotate(self):
-
-		distanceX = self.target.rect.x - self.game.camera.Apply(self.rect)[0]
-		distanceY = self.target.rect.y - self.game.camera.Apply(self.rect)[1]
-
-		self.angle = math.atan2(-distanceY, distanceX)
-		self.angle = math.degrees(self.angle)  # Convert radians to degrees
-
-		self.image = pygame.transform.rotate(self.originalImage, self.angle)
-
-		self.rect = self.image.get_rect(center=self.rect.center)
-
-	def Move(self):
-		
-		self.forceRotation = Vec(Vec(self.target.rect.center) - Vec(self.rect.center))
-
-		# Normalize force rotation
-		if self.forceRotation.length() != 0:
-		
-			self.forceRotation.normalize()
-
-		# Calculate net force
-		self.netForce = self.force.elementwise() * self.forceRotation
-
-		# apply frictional force
-		if self.velocity.length() != 0:
-
-			if abs(self.netForce.x) > self.frictionalForce.x:
-
-				self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * self.game.deltaTime
-
-			if abs(self.netForce.y) > self.frictionalForce.y:
-
-				self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * self.game.deltaTime
-			
-		# Calculate acceleration
-		self.acceleration = self.netForce / self.weight
-
-		# Clamp acceleration
-		self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
-		self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
-
-		# Update velocity
-		self.velocity += self.acceleration * self.game.deltaTime
-
-		# Limit velocity to a maximum speed
-		if self.velocity.length() > self.maxMovSpeed:
-
-			self.velocity.scale_to_length(self.maxMovSpeed)
-
-		if abs(self.velocity.x) < 0.01:
-
-			self.velocity.x = 0
-
-		if abs(self.velocity.y) < 0.01:
-			
-			self.velocity.y = 0
-		
-		self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
-
-		self.hitRect.centerx += self.delta.x
-		self.CollideWithWalls('x')
-		self.hitRect.centery += self.delta.y
-		self.CollideWithWalls('y')
-
-		self.UpdatePosition(self.hitRect.center)
-
-	def CollideWithWalls(self, dir):
-
-		if dir == 'x':
-
-			hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
-			
-			if hits:
-
-				if self.velocity.x > 0:
-
-					self.hitRect.x = hits[0].rect.left - self.hitRect.width / 2.0
-
-				if self.velocity.x < 0:
-
-					self.hitRect.x = hits[0].rect.right + self.hitRect.width / 2.0
-
-				self.velocity.x = 0
-
-				self.hitRect.centerx = self.hitRect.x
-
-		if dir == 'y':
-
-			hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
-
-			if hits:
-
-				if self.velocity.y > 0:
-
-					self.hitRect.y = hits[0].rect.top - self.hitRect.height / 2.0
-
-				if self.velocity.y < 0:
-
-					self.hitRect.y = hits[0].rect.bottom + self.hitRect.height / 2.0
-
-				self.velocity.y = 0
-				self.hitRect.centery = self.hitRect.y
-
-	def UpdatePosition(self, position):
-
-		self.hitRect.center = self.rect.center = position
-		self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
-	
-	def update(self):
-		pass
-		#self.Rotate()
-		#self.Move()
-
 class Players(pygame.sprite.Group):
 
 	def __init__(self, game) -> None:
@@ -443,13 +268,15 @@ class Players(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, playerID, playerName, characterName, playerSize=TILE_SIZE, playerPosition=(0, 0)):
+	def Add(self, playerID, playerName, character, playerSize=TILE_SIZE, playerPosition=(0, 0)):
 		
-		player = Player(playerID, playerName, characterName, playerSize, playerPosition, self.game)
+		player = Player(playerID, playerName, character, playerSize, playerPosition, self.game)
 		return player
 
-	def GetPlayerWithID(self):
+	def GetPlayerWithID(self, ID: int) -> Player:
 
 		for player in self.sprites():
 
-			return player
+			if player.ID == ID:
+
+				return player

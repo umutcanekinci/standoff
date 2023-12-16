@@ -51,12 +51,12 @@ class Object(pygame.sprite.Sprite):
 
 		self.SetX(position[0])
 		self.SetY(position[1])
-
+		
 	def SetX(self, x: int) -> None:
 
 		if x == "CENTER":
 		
-			self.rect.x = (self.parentRect.width - self.rect.width) / 2
+			self.rect.centerx = self.parentRect.width / 2
 			
 		elif x == "LEFT":
 
@@ -76,7 +76,7 @@ class Object(pygame.sprite.Sprite):
 
 		if y == "CENTER":
 		
-			self.rect.y = (self.parentRect.height - self.rect.height) / 2
+			self.rect.centery = self.parentRect.height / 2
 			
 		elif y == "TOP":
 

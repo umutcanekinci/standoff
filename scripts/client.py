@@ -53,7 +53,9 @@ class Client:
                 self.isConnected = False
                 break
 
-    def SendData(self, dataToSend):
+    def SendData(self, command, value=None):
+
+        dataToSend = {'command': command, 'value': value}
 
         if self.isConnected:
             
@@ -64,5 +66,5 @@ class Client:
 
     def DisconnectFromServer(self):
 
-        self.SendData({'command' : "!DISCONNECT"})
+        self.SendData('!DISCONNECT')
         self.isConnected = False

@@ -5,8 +5,10 @@ from pygame import mixer
 from object import Object
 from text import Text
 
+
 class Application:
-    
+
+    # Those will be current monitor size
     def __init__(self, developMode=False) -> None:
         
         super().__init__()
@@ -52,6 +54,8 @@ class Application:
 
     def OpenWindow(self) -> None:
 
+        infoObject = pygame.display.Info()
+        infoObject.current_w, infoObject.current_h
         self.window = pygame.display.set_mode(self.rect.size)
 
     def CenterWindow(self) -> None:
@@ -69,7 +73,7 @@ class Application:
 
     def SetSize(self, size: tuple) -> None:
 
-        self.rect = pygame.Rect((0, 0), size)
+        self.rect = pygame.Rect((0, 0), WINDOW_SIZE)
 
     def SetBackgorundColor(self, colors: list = {}) -> None:
 
@@ -107,7 +111,6 @@ class Application:
         
         #-# Starting App #-#
         self.isRunning = True
-        self.isDebugLogVisible = False
 
         #-# Main Loop #-#
         while self.isRunning:
@@ -130,20 +133,11 @@ class Application:
 
             #-# Draw Objects #-#
             self.Draw()
-
-            #-# Draw Cursor #-#
-            if hasattr(self, "cursor"):
-
-                self.cursor.Draw(self.window)    
-
-            #-# Draw debug log #-#
-            if self.developMode and hasattr(self, "debugLog"):
-
-                self.debugLog.Draw(self.window)
     
-            pygame.display.update()
 
     def HandleEvents(self, event: pygame.event.Event) -> None:
+        
+        self.HandleExitEvents(event)
         
         #-# Set Cursor Position #-#
         if hasattr(self, "cursor"):
@@ -153,8 +147,6 @@ class Application:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
 
             self.SetDevelopMode(not self.developMode)
-
-        self.HandleExitEvents(event)
 
     def HandleExitEvents(self, event: pygame.event.Event) -> None:
 
@@ -174,4 +166,14 @@ class Application:
 
     def Draw(self):
 
-        pass
+        #-# Draw Cursor #-#
+        if hasattr(self, "cursor"):
+
+            self.cursor.Draw(self.window)    
+
+        #-# Draw debug log #-#
+        if self.developMode and hasattr(self, "debugLog"):
+
+            self.debugLog.Draw(self.window)
+
+        pygame.display.update()
