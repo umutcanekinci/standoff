@@ -89,13 +89,12 @@ CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 
 #-# Server #-#
 SERVER_IP = socket.gethostbyname(socket.gethostname()) #localhost
-print(SERVER_IP)
 SERVER_PORT = 5050
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 
 SERVER_TITLE = WINDOW_TITLE + " SERVER"
 SERVER_SIZE = SERVER_WIDTH, SERVER_HEIGHT = 600, 800
-
+SPAWN_RATE = 0.3 # seconds
 
 HEADER = 4
 FORMAT = 'utf-8'

@@ -1,12 +1,17 @@
+#region İmporting Packages
+
 import socket
 import threading
 import pickle
 from settings import *
 import struct
-from player_info import PlayerInfo
+from player_info import PlayerInfo, ZombieInfo
 from room import Room
 from tkinter import Tk, Label, Text, Button, Frame, Entry, BOTH, END
 from ctypes import windll
+import random
+
+#endregion
 
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
@@ -92,6 +97,7 @@ class Server:
         self.clientSockets = {} # id : clientSocket
         self.roomList = {} # id : playerList
         self.players = {} # playerId : player
+        self.zombies = {}
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -193,9 +199,31 @@ class Server:
     def CreateRoom(self):
 
         self.roomID += 1
-        self.roomList[self.roomID] = Room(self.roomID, 100)
+        self.roomList[self.roomID] = Room(self.roomID, 4)
 
-    def HandleClient(self, clientSocket: socket.socket, player):
+    def HandleSpawner(self, room):
+
+        zombieID = 0
+        clock = pygame.time.Clock()
+
+        while True:
+
+            now = clock.get_time()
+            
+            if not hasattr(self, "lastSpawn") or now-self.lastSpawn >= SPAWN_RATE:
+
+                for player in room:
+
+                    zombieID += 1
+                    spawnPoint = random.randint(10, 20), random.randint(10, 20)
+
+                    zombie = ZombieInfo(zombieID, room, player.spawnPoint, spawnPoint)
+                    self.zombies[zombieID] = zombie
+                    self.SendData(room, '!SPAWN', zombie)
+
+                self.lastSpawn = now
+
+    def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
 
         connected = True
 
@@ -221,7 +249,7 @@ class Server:
 
                         roomID = value
 
-                        if len(self.roomList) > 0 and roomID in self.roomList.keys():
+                        if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
                             
                             player.JoinRoom(self.roomList[roomID])
                             self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
@@ -243,19 +271,25 @@ class Server:
 
                     elif command == '!START_GAME':
                         
+                        thread = threading.Thread(target=self.HandleSpawner, args=tuple(player.room))
+                        thread.start()
                         self.SendData(player.room, '!START_GAME')
 
                     elif command == '!SET_PLAYER_RECT':
 
                         for roomMate in player.room:
-                                
-                            self.SendData(roomMate, command, value)
+                            
+                            if roomMate.ID != player.ID:
+                               
+                                self.SendData(roomMate, command, value)
 
                     elif command == '!SET_PLAYER_ANGLE':
 
                         for roomMate in player.room:
-                                
-                            self.SendData(roomMate, command, value)
+                            
+                            if roomMate.ID != player.ID:
+
+                                self.SendData(roomMate, command, value)
 
                     elif command == '!DISCONNECT':
     
@@ -408,7 +442,7 @@ class Application(Tk):
         if not hasattr(self, 'server') or not self.server.isRunning:
 
             self.server = Server(self)
-            thread = threading.Thread(target=self.server.Start,)
+            thread = threading.Thread(target=self.server.Start)
             thread.start()
 
             self.startButton["state"] = "disabled"

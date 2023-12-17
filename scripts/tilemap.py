@@ -36,7 +36,7 @@ class TileMap(Object):
 
 	def __init__(self, game, fileName, borderWidth):
 
-		self.spawnPoints = {0 : (120, 120), 1 : (220, 220)}
+		self.spawnPoints = {}
 		self.game = game
 		self.borderWidth = borderWidth
 		self.tilemap =  pytmx.load_pygame(fileName, pixelalpha=True)

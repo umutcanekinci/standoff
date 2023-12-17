@@ -12,12 +12,21 @@ def CollideHitRect(one, two):
 
 class Player(Object):
 
-	def __init__(self, ID, name, character, size, position, game) -> None:
+	def __init__(self, ID, name, character, size, spawnPoint, game) -> None:
+
+
+		self.ID, self.name, self.character, self.spawnPoint, self.game = ID, name, character, spawnPoint, game
+		self.map, self.camera = game.map, game.camera
+
+		for object in self.map.tilemap.objects:
+
+			if object.name == "player"+str(self.spawnPoint):
+
+				position = object.x, object.y
+				break
 
 		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
-		self.ID, self.name, self.character, self.game = ID, name, character, game
-		self.map, self.camera = game.map, game.camera
 		self.HP = 100
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
 

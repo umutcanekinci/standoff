@@ -28,7 +28,7 @@ class Game(Application):
 
 		self.allSprites = pygame.sprite.Group()
 		self.walls = pygame.sprite.Group()
-		self.map = TileMap(self, FilePath("level1", "maps", "tmx"), 2)
+		self.map = TileMap(self, FilePath("level2", "maps", "tmx"), 2)
 		self.players = Players(self)
 		self.zombies = Zombies(self)
 		self.camera = Camera(self.rect.size, self.map)
@@ -37,9 +37,9 @@ class Game(Application):
 		self.StartClient()
 
 		#self.SetPlayer("Player", 'hitman')
-
 		# Fast offline
 		#self.Start('offline')
+
 		self.menu.OpenTab("mainMenu")
 
 	def StartClient(self) -> None:
@@ -50,6 +50,7 @@ class Game(Application):
 	def SetPlayer(self, playerName, characterName) -> None:
 
 		self.playerInfo = PlayerInfo(name=playerName, characterName=characterName)
+		self.playerInfo.JoinRoom(Room(1, 1))
 		self.client.SendData("!SET_PLAYER", [playerName, characterName])
 
 	def JoinRoom(self, roomID):
@@ -65,8 +66,7 @@ class Game(Application):
 		self.isGameStarted = True
 		self.mode = mode
 		
-		self.player = self.players.Add(self.playerInfo.ID, self.playerInfo.name, self.playerInfo.characterName, PLAYER_SIZE, (self.playerInfo.ID*200, self.playerInfo.ID*200))
-		#self.zombies.Add(1, self.player)
+		self.player = self.players.Add(self.playerInfo.ID, self.playerInfo.name, self.playerInfo.characterName, PLAYER_SIZE, self.playerInfo.spawnPoint)
 
 		if self.mode == "online":
 
@@ -85,7 +85,7 @@ class Game(Application):
 
 		room = self.playerInfo.room
 
-		self.menu.teamText.UpdateText("Room " + str(room.ID))
+		self.menu.roomText.UpdateText("Room " + str(room.ID))
 		self.menu.OpenTab("roomMenu")
 		self.menu.UpdatePlayersInRoom(room)
 
@@ -95,11 +95,15 @@ class Game(Application):
 	
 	def UpdatePlayerAngle(self, playerID, angle):
 
-		self.player.GetPlayerWithID(playerID).Rotate(angle)
+		self.players.GetPlayerWithID(playerID).Rotate(angle)
 
 	def RemovePlayer(self, playerID):
 
 		self.players.remove(self.players.GetPlayerWithID(playerID))
+
+	def SpawnZombie(self, zombieInfo):
+
+		self.zombies.Add(zombieInfo.ID, zombieInfo.target, position=zombieInfo.position)
 
 	def GetData(self, data) -> None:
 
@@ -110,29 +114,33 @@ class Game(Application):
 
 			print(command, value)
 
-			if command == "!SET_PLAYER_COUNT":
+			if command == '!SET_PLAYER_COUNT':
 					
 				self.UpdatePlayerCount(value)
 
-			elif command == "!SET_ROOM" and value:
+			elif command == '!SET_ROOM' and value:
 
 				self.playerInfo = value
 
 				self.UpdateRoom()
 
-			elif command == "!START_GAME":
+			elif command == '!START_GAME':
 
-				self.Start("online")
+				self.Start('online')
 
-			elif command == "!SET_PLAYER_RECT":
+			elif command == '!SET_PLAYER_RECT':
 
 				self.UpdatePlayerRect(*value)
 
-			elif command == "!SET_PLAYER_ANGLE":
+			elif command == '!SET_PLAYER_ANGLE':
 
 				self.UpdatePlayerAngle(*value)
 
-			elif command == "!DISCONNECT":
+			elif command == '!SPAWN':
+
+				self.SpawnZombie(value)
+
+			elif command == '!DISCONNECT':
 
 				self.RemovePlayer(value)
 
@@ -336,7 +344,7 @@ class Menu():
 		self.backButton4 = EllipseButton(("CENTER", 320), (300, 60), Red, Blue, spriteGroups=self.tabs["connectMenu"], parentRect=self.panel.screenRect, text="BACK", textSize=40)
 
 		# Room menu
-		self.teamText = Text(("CENTER", 20), "TEAM 0", 40, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect)
+		self.roomText = Text(("CENTER", 20), "ROOM 0", 40, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect)
 		self.startGame = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Blue, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="START GAME", textSize=40)
 		self.exitTeam = EllipseButton(("CENTER", self.panel.rect.height-200), (300, 60), Blue, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="EXIT FROM TEAM", textSize=40)
 
@@ -358,10 +366,9 @@ class Menu():
 
 	def UpdatePlayersInRoom(self, players):
 
-		self.playersInTeam = players
 		self.playerTexts = []
 
-		for i, player in enumerate(self.playersInTeam):
+		for i, player in enumerate(players):
 
 			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), player.name, 25, parentRect=self.panel.screenRect))
 
