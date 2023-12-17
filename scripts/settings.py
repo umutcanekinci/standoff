@@ -53,7 +53,7 @@ SERVER_PREFIX = f"{Fore.CYAN}[SERVER] {Fore.RED}=> {Fore.YELLOW}"
 
 #endregion
 
-#region #-# Settings #-#
+#region #-# Game Settings #-#
 
 #-# Window #-#
 WINDOW_TITLE = "CHOOSE YOUR WAY"
@@ -79,7 +79,7 @@ CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solide
 
 #endregion
 
-#region #-# Socket #-#
+#region #-# Socket Settings#-#
 
 #-# Client #-#
 CLIENT_IP = "localhost" #"5.tcp.eu.ngrok.io"
@@ -90,6 +90,10 @@ CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 SERVER_IP = "localhost" # socket.gethostbyname(socket.gethostname())
 SERVER_PORT = 5050
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
+
+SERVER_TITLE = WINDOW_TITLE + " SERVER"
+SERVER_SIZE = SERVER_WIDTH, SERVER_HEIGHT = 600, 800
+
 
 HEADER = 4
 FORMAT = 'utf-8'

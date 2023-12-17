@@ -68,3 +68,4 @@ class Client:
 
         self.SendData('!DISCONNECT')
         self.isConnected = False
+        self.client.close()

@@ -34,7 +34,8 @@ class Bullet(Object):
 
 		self.rect = self.image.get_rect(center=position)
 		self.image.fill(White)
-		self.velocity = (Vec(targetPosition) - Vec(screenPosition.center)).normalize()
+		self.movementSpeed = 5
+		self.velocity = (Vec(targetPosition) - Vec(screenPosition.center)).normalize() * self.movementSpeed
 
 	def Rotate(self, angle):
 

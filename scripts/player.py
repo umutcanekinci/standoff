@@ -17,7 +17,7 @@ class Player(Object):
 		super().__init__(position, size, {}, (game.players, game.allSprites))
 		
 		self.ID, self.name, self.character, self.game = ID, name, character, game
-		self.map = game.map
+		self.map, self.camera = game.map, game.camera
 		self.HP = 100
 		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
 
@@ -61,7 +61,12 @@ class Player(Object):
 
 			self.kill()
 
-	def Rotate(self):
+	def Rotate(self, angle: float):
+
+		self.image = pygame.transform.rotate(self.originalImage, angle)
+		self.rect = self.image.get_rect(center=self.rect.center)
+
+	def RotateToMouse(self):
 
 		distanceX = self.game.mousePosition[0] - self.game.camera.Apply(self.rect)[0]
 		distanceY = self.game.mousePosition[1] - self.game.camera.Apply(self.rect)[1]
@@ -69,9 +74,7 @@ class Player(Object):
 		self.angle = math.atan2(-distanceY, distanceX)
 		self.angle = math.degrees(self.angle)  # Convert radians to degrees
 
-		self.image = pygame.transform.rotate(self.originalImage, self.angle)
-		
-		self.rect = self.image.get_rect(center=self.rect.center)
+		self.Rotate(self.angle)
 
 	def Move(self):
 
@@ -258,7 +261,7 @@ class Player(Object):
 		
 		if hasattr(self.game, "player") and self.game.player.ID == self.ID:
 
-			self.Rotate()
+			self.RotateToMouse()
 			self.Move()
 
 class Players(pygame.sprite.Group):

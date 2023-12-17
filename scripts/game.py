@@ -36,11 +36,11 @@ class Game(Application):
 
 		self.StartClient()
 
-		# Fast offline
-		#self.SetPlayer("Player", 'hitman')
-		#self.Start('offline')
+		self.SetPlayer("Player", 'hitman')
 
-		self.menu.OpenTab("mainMenu")
+		# Fast offline
+		#self.Start('offline')
+		self.menu.OpenTab("gameTypeMenu")
 
 	def StartClient(self) -> None:
 
@@ -66,7 +66,7 @@ class Game(Application):
 		self.mode = mode
 		
 		self.player = self.players.Add(self.playerInfo.ID, self.playerInfo.name, self.playerInfo.characterName, PLAYER_SIZE, (self.playerInfo.ID*200, self.playerInfo.ID*200))
-		self.zombies.Add(1, self.player)
+		#self.zombies.Add(1, self.player)
 
 		if self.mode == "online":
 
@@ -89,14 +89,16 @@ class Game(Application):
 		self.menu.OpenTab("roomMenu")
 		self.menu.UpdatePlayersInRoom(room)
 
-	def UpdatePlayerRect(self, playerID, playerRect):
+	def UpdatePlayerRect(self, playerID, playerRect: pygame.Rect):
 
-		return
-		self.players.GetPlayerWithID(playerID).UpdatePosition(self.camera.Apply(playerRect).center)
-		
+		self.players.GetPlayerWithID(playerID).UpdatePosition(playerRect.center)
+	
+	def UpdatePlayerAngle(self, playerID, angle):
+
+		self.player.GetPlayerWithID(playerID).Rotate(angle)
+
 	def RemovePlayer(self, playerID):
 
-		self.playerInfo.room 
 		self.players.remove(self.players.GetPlayerWithID(playerID))
 
 	def GetData(self, data) -> None:
@@ -106,6 +108,7 @@ class Game(Application):
 			command = data['command']
 			value = data['value'] if 'value' in data else None
 
+			print(command, value)
 
 			if command == "!SET_PLAYER_COUNT":
 					
@@ -124,6 +127,10 @@ class Game(Application):
 			elif command == "!SET_PLAYER_RECT":
 
 				self.UpdatePlayerRect(*value)
+
+			elif command == "!SET_PLAYER_ANGLE":
+
+				self.UpdatePlayerAngle(*value)
 
 			elif command == "!DISCONNECT":
 
@@ -184,7 +191,8 @@ class Game(Application):
 
 			if self.mode == "online":
 				
-				self.client.SendData("!SET_PLAYER_RECT", [self.playerInfo.ID, pygame.Rect(self.player.hitRect.center, self.player.rect.size)])
+				self.client.SendData("!SET_PLAYER_ANGLE", [self.playerInfo.ID, self.player.angle])
+				self.client.SendData("!SET_PLAYER_RECT", [self.playerInfo.ID, self.player.rect])
 
 	def Draw(self):
 		
