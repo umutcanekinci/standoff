@@ -2,6 +2,7 @@
 
 import pygame
 from colorama import Fore
+import socket
 
 #endregion
 
@@ -82,12 +83,13 @@ CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solide
 #region #-# Socket Settings#-#
 
 #-# Client #-#
-CLIENT_IP = "localhost" #"5.tcp.eu.ngrok.io"
+CLIENT_IP = socket.gethostbyname(socket.gethostname()) #"localhost" #"5.tcp.eu.ngrok.io"
 CLIENT_PORT = 5050
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 
 #-# Server #-#
-SERVER_IP = "localhost" # socket.gethostbyname(socket.gethostname())
+SERVER_IP = socket.gethostbyname(socket.gethostname()) #localhost
+print(SERVER_IP)
 SERVER_PORT = 5050
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 

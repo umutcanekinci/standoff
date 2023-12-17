@@ -36,11 +36,11 @@ class Game(Application):
 
 		self.StartClient()
 
-		self.SetPlayer("Player", 'hitman')
+		#self.SetPlayer("Player", 'hitman')
 
 		# Fast offline
 		#self.Start('offline')
-		self.menu.OpenTab("gameTypeMenu")
+		self.menu.OpenTab("mainMenu")
 
 	def StartClient(self) -> None:
 
