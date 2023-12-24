@@ -3,6 +3,7 @@
 import pygame
 from colorama import Fore
 import socket
+from pygame.math import Vector2 as Vec
 
 #endregion
 
@@ -66,18 +67,45 @@ BACKGROUND_COLORS = {"menu" : CustomBlue}
 #-# Game #-#
 DEVELOP_MODE = False
 FPS = 60
+MAX_ROOM_SIZE = 4
+HEALTH_BAR_SIZE = (60, 15)
 
 #-# Tile #-#
 TILE_SIZE = TILE_WIDTH, TILE_HEIGHT = 64, 64
 BORDER_WIDTH = 2
-MOVABLE_TILES = ["01", "55", "56", "57", "60", "61"]
+MAP_GRID_SIZE = 2
 
 #-# Player #-#
+PLAYER_MAX_HP = 100
 PLAYER_SIZE = TILE_SIZE
 CHARACTER_SIZE = 48, 48
 PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
 CHARACTER_LIST = ["hitman", "man_blue", "man_brown", "man_old", "robot", "solider", "survivor", "woman_green"] # , "zombie"
 
+#-# Shooting #-#
+BARREL_OFFSET = Vec(30, 10)
+SHOOT_RATE = 300
+KICKBACK = 1
+GUN_SPREAD = 5
+BULLET_SPEED = 5
+BULLET_DAMAGE = 10
+FLASH_DURATOION = 40
+
+#-# Mob #-#
+MOB_MAX_HP = 100
+MOB_HIT_RECT = pygame.Rect(0, 0, 30, 30)
+SPAWN_RATE = 2000
+RANGE_RADIUS = 5*TILE_WIDTH # for attract by players
+AVOID_RADIUS = 50
+MOB_SPEEDS = [1.2, 1.3, 1.4, 1.1]
+MOB_KNOCKBACK = 20
+
+#-# Sprite Layers #-#
+WALL_LAYER = 1 
+ENTITY_LAYER = 2
+BULLET_LAYER = 3
+EFFECT_LAYER = 4
+GUI_LAYER = 5
 #endregion
 
 #region #-# Socket Settings#-#
@@ -94,7 +122,6 @@ SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 
 SERVER_TITLE = WINDOW_TITLE + " SERVER"
 SERVER_SIZE = SERVER_WIDTH, SERVER_HEIGHT = 600, 800
-SPAWN_RATE = 0.3 # seconds
 
 HEADER = 4
 FORMAT = 'utf-8'

@@ -9,6 +9,7 @@ class Button(Object):
 	def __init__(self, position: tuple=("CENTER", "CENTER"), size: tuple=(0, 0), color: tuple = Blue, mouseOverColor: tuple = Red, imagePath: ImagePath=None, spriteGroups: list=[], parentRect: pygame.Rect=None, text: str="", textSize: int=20, textColor: tuple=White, textFontPath: pygame.font.Font=None, isActive=True):
 
 		super().__init__(position, size, imagePath, spriteGroups, parentRect)
+		self._layer = GUI_LAYER
 
 		self.normalColor, self.mouseOverColor = color, mouseOverColor
 		self.color = self.normalColor

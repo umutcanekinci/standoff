@@ -1,42 +1,26 @@
-from object import Object, GetImage
-from path import ImagePath
 from settings import *
-from text import Text
-from pygame.math import Vector2 as Vec
-import math
+from path import ImagePath
 from bullet import Bullet
+from entity import Entity
+from muzzle_flash import MuzzleFlash
+from random import uniform
 
-def CollideHitRect(one, two):
-	
-	return one.hitRect.colliderect(two.rect)
+class Player(Entity):
 
-class Player(Object):
+	def __init__(self, ID, name, nameColor, character, position, size, game) -> None:
 
-	def __init__(self, ID, name, character, size, spawnPoint, game) -> None:
-
-
-		self.ID, self.name, self.character, self.spawnPoint, self.game = ID, name, character, spawnPoint, game
-		self.map, self.camera = game.map, game.camera
-
-		for object in self.map.tilemap.objects:
-
-			if object.name == "player"+str(self.spawnPoint):
-
-				position = object.x, object.y
-				break
-
-		super().__init__(position, size, {}, (game.players, game.allSprites))
+		super().__init__(ID, name, nameColor, position, size, ImagePath("gun", "characters/"+character), (game.players, game.allSprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
 		
-		self.HP = 100
-		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
+		self.isShooting = False
+		self.shootRate = SHOOT_RATE
 
-		# Player graphic
-		self.originalImage = GetImage(ImagePath("idle", "characters/"+character))
-		self.image = self.originalImage.copy()
+		self.character, self.game = character, game
+		self.map, self.camera = game.map, game.camera
 
 		# Hit rect for collisions
 		self.hitRect = PLAYER_HIT_RECT.copy()
 		self.hitRect.center = self.rect.center
+		self.autoShoot = True,
 
 		#region Physical Variables
 
@@ -51,31 +35,23 @@ class Player(Object):
 
 		# Velocity / Speed (m/s*2)
 		self.velocity = Vec()
-		self.maxMovSpeed = 5
+		self.maxspeed = 5
 
 		# Rotation
 		self.forceRotation = Vec()
-
+		self.angle = 0
+		
 		# Weight (Kilogram)
 		self.density = 25 # d (kg/piksel**2)
 		self.weight = (self.rect.width/TILE_WIDTH * self.rect.height/TILE_HEIGHT) * self.density # m = d*v
 
 		#endregion
 
-	def LoseHP(self, value):
-
-		self.HP -= value
-
-		if self.HP <= 0:
-
-			self.kill()
-
-	def Rotate(self, angle: float):
-
-		self.image = pygame.transform.rotate(self.originalImage, angle)
-		self.rect = self.image.get_rect(center=self.rect.center)
-
 	def RotateToMouse(self):
+
+		"""
+		
+		# Also this works to calculate angel
 
 		distanceX = self.game.mousePosition[0] - self.game.camera.Apply(self.rect)[0]
 		distanceY = self.game.mousePosition[1] - self.game.camera.Apply(self.rect)[1]
@@ -83,6 +59,9 @@ class Player(Object):
 		self.angle = math.atan2(-distanceY, distanceX)
 		self.angle = math.degrees(self.angle)  # Convert radians to degrees
 
+		"""
+
+		self.angle = (Vec(self.game.mousePosition) - Vec(self.game.camera.Apply(self.rect).center)).angle_to(Vec(1,0)) # sthis calculating angle between difference vector and x apsis
 		self.Rotate(self.angle)
 
 	def Move(self):
@@ -145,9 +124,9 @@ class Player(Object):
 		self.velocity += self.acceleration * self.game.deltaTime
 
 		# Limit velocity to a maximum speed
-		if self.velocity.length() > self.maxMovSpeed:
+		if self.velocity.length() > self.maxspeed:
 
-			self.velocity.scale_to_length(self.maxMovSpeed)
+			self.velocity.scale_to_length(self.maxspeed)
 
 		if abs(self.velocity.x) < 0.01:
 
@@ -159,116 +138,55 @@ class Player(Object):
 		
 		self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
 
-		self.hitRect.centerx += self.delta.x
-		self.CollideWithWalls('x')
-		self.hitRect.centery += self.delta.y
-		self.CollideWithWalls('y')
+		super().Move(self.delta)
 
-		"""
-		for wall in self.game.walls:
+	def Shoot(self):
 
-			if self.hitRect.colliderect(wall.rect):
+		now = pygame.time.get_ticks()
 
-				if self.delta.x > 0:
+		if not hasattr(self, "lastShootTime"):
 
-					self.hitRect.centerx = wall.rect.left - self.hitRect.width / 2 - 5
-				
-				elif self.delta.x < 0:
+			self.lastShootTime = -1000
 
-					self.hitRect.centerx = wall.rect.right + self.hitRect.width / 2 + 5
+		if now - self.lastShootTime > self.shootRate:
 
-				self.delta.x = 0
-				self.velocity.x = 0
-				self.acceleration.x = 0
+			spread = uniform(-GUN_SPREAD, GUN_SPREAD)
+			angle = self.angle + spread
+			position = Vec(self.rect.center) + BARREL_OFFSET.rotate(-angle)
 
-		self.hitRect.centery += self.delta.y
+			Bullet(self, position, angle)
+			MuzzleFlash(self.game, position, self.angle)
 
-		for wall in self.map.walls:
+			self.velocity = Vec(-KICKBACK, 0).rotate(-self.angle)
 
-			if self.hitRect.colliderect(wall.rect):
-
-				if self.delta.y > 0:
-
-					self.hitRect.centery = wall.rect.top - self.hitRect.height / 2 - 5
-				
-				elif self.delta.y < 0:
-
-					self.hitRect.centery = wall.rect.bottom + self.hitRect.height / 2 + 5
-
-				self.delta.y = 0
-				self.velocity.y = 0
-				self.acceleration.y = 0
-		"""
-				
-		self.UpdatePosition(self.hitRect.center)
-
-	def CollideWithWalls(self, dir):
-		return
-		if dir == 'x':
-
-			hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
+			self.lastShootTime = now
 			
-			if hits:
-
-				if self.velocity.x > 0:
-
-					self.hitRect.x = hits[0].rect.left - self.hitRect.width / 2.0
-
-				if self.velocity.x < 0:
-
-					self.hitRect.x = hits[0].rect.right + self.hitRect.width / 2.0
-
-				self.velocity.x = 0
-
-				self.hitRect.centerx = self.hitRect.x
-
-		if dir == 'y':
-
-			hits = pygame.sprite.spritecollide(self, self.game.walls, False, CollideHitRect)
-
-			if hits:
-
-				if self.velocity.y > 0:
-
-					self.hitRect.y = hits[0].rect.top - self.hitRect.height / 2.0
-
-				if self.velocity.y < 0:
-
-					self.hitRect.y = hits[0].rect.bottom + self.hitRect.height / 2.0
-
-				self.velocity.y = 0
-				self.hitRect.centery = self.hitRect.y
-
-	def Fire(self):
-
-		time = pygame.time.get_ticks() / 1000
-		fireRate = .1
-
-		if not hasattr(self, "lastFireTime"):
-
-			self.lastFireTime = 0
-
-		if time - self.lastFireTime > fireRate:
-
-			bullet = Bullet(self.rect.center, self.camera.Apply(self.rect), self.game.mousePosition, self.game)
-			bullet.Rotate(self.angle)
-			self.game.bullets.add(bullet)
-			self.lastFireTime = time
-
+			
 	def HandleEvents(self, event, mousePosition, keys):
 		
-		if event.type == pygame.MOUSEBUTTONDOWN and event.button==1:
+		if self.alive():
 			
-			self.Fire()
+			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+			
+				if self.autoShoot:
 
-	def UpdatePosition(self, position):
+					self.isShooting = True
 
-		self.hitRect.center = self.rect.center = position
-		self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
-	
+				else:
+
+					self.Shoot()
+
+			if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+
+				self.isShooting = False
+
 	def update(self):
 		
 		if hasattr(self.game, "player") and self.game.player.ID == self.ID:
+
+			if self.isShooting:
+
+				self.Shoot()
 
 			self.RotateToMouse()
 			self.Move()
@@ -280,10 +198,9 @@ class Players(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, playerID, playerName, character, playerSize=TILE_SIZE, playerPosition=(0, 0)):
+	def Add(self, playerInfo, nameColor):
 		
-		player = Player(playerID, playerName, character, playerSize, playerPosition, self.game)
-		return player
+		return Player(playerInfo.ID, playerInfo.name, nameColor, playerInfo.characterName, self.game.map.spawnPoints[playerInfo.baseNumber], playerInfo.size, self.game)
 
 	def GetPlayerWithID(self, ID: int) -> Player:
 

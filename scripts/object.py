@@ -1,14 +1,15 @@
 from settings import *
 from path import ImagePath
 
-#-# Image Function #-#
 def GetImage(path: ImagePath, size=(0, 0)):
 
-	if not (size[0] or size[1]):
+	image = pygame.image.load(path).convert_alpha()
 
-		return pygame.image.load(path).convert_alpha()
-	
-	return pygame.transform.scale(pygame.image.load(path).convert_alpha(), size)
+	if size[0] and size[1] and size != image.get_size():
+
+		return pygame.transform.scale(image, size)
+
+	return image
 
 class Object(pygame.sprite.Sprite):
 
@@ -20,16 +21,35 @@ class Object(pygame.sprite.Sprite):
 		self.rect = self.image.get_rect()
 		self.screenRect = self.rect.copy()
 		self.isMouseHolding = False
-		self.SetImage(imagePath)
+		
+		self.LoadImage(imagePath)
 		self.SetparentRect(parentRect)
 		self.SetPosition(position)
+		self.SetVisible(True)
+		
+	def SetVisible(self, value):
+		
+		self.isVisible = value
+		
+		if self.isVisible:
+
+			if hasattr(self, '_image'):
+
+				self.image = self._image
+
+		else:
+
+			if hasattr(self, 'image'):
+
+				self._image = self.image
+				self.image = None
 
 	def Rerender(self):
 
 		self.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-		self.SetImage(self.imagePath)
+		self.LoadImage(self.imagePath)
 
-	def SetImage(self, imagePath):
+	def LoadImage(self, imagePath):
 		
 		self.imagePath = imagePath
 
@@ -127,4 +147,6 @@ class Object(pygame.sprite.Sprite):
 
 	def Draw(self, image: pygame.Surface):
 
-		image.blit(self.image, self.rect)
+		if self.isVisible:
+			
+			image.blit(self.image, self.rect)

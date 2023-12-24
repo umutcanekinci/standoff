@@ -5,11 +5,10 @@ import threading
 import pickle
 from settings import *
 import struct
-from player_info import PlayerInfo, ZombieInfo
+from player_info import PlayerInfo, MobInfo
 from room import Room
 from tkinter import Tk, Label, Text, Button, Frame, Entry, BOTH, END
 from ctypes import windll
-import random
 
 #endregion
 
@@ -85,6 +84,7 @@ class Server:
 
     def __init__(self, application) -> None:
         
+        self.isRunning = False
         self.application = application
 
     def PrintLog(self, text: str):
@@ -97,7 +97,7 @@ class Server:
         self.clientSockets = {} # id : clientSocket
         self.roomList = {} # id : playerList
         self.players = {} # playerId : player
-        self.zombies = {}
+        self.mobs = {}
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -196,32 +196,49 @@ class Server:
                 self.DisconnectClient(player.ID)
                 continue
 
-    def CreateRoom(self):
+    def CreateRoom(self, mapName, basePoints):
 
         self.roomID += 1
-        self.roomList[self.roomID] = Room(self.roomID, 4)
+        self.roomList[self.roomID] = Room(self.roomID, mapName, basePoints)
 
-    def HandleSpawner(self, room):
-
-        zombieID = 0
-        clock = pygame.time.Clock()
-
-        while True:
-
-            now = clock.get_time()
+    def LeaveRoom(self, player):
+        
+        room = player.room
+        
+        if room:
             
-            if not hasattr(self, "lastSpawn") or now-self.lastSpawn >= SPAWN_RATE:
+            player.LeaveRoom()
+            self.PrintLog(f"{player.name} ({player.IP}) is leaved room {room.ID}.")
+            self.PrintLog(f"Player count in room {room.ID} is now {str(len(room))}.")
+            self.SendData(player, "!LEAVE_ROOM", player)
+            
+            if len(room) == 0:
 
-                for player in room:
+                self.roomList.pop(room.ID)
+                self.PrintLog(f"Room {room.ID} is deleted.")
 
-                    zombieID += 1
-                    spawnPoint = random.randint(10, 20), random.randint(10, 20)
+            else:
 
-                    zombie = ZombieInfo(zombieID, room, player.spawnPoint, spawnPoint)
-                    self.zombies[zombieID] = zombie
-                    self.SendData(room, '!SPAWN', zombie)
+                room[0].isRuler = True
 
-                self.lastSpawn = now
+                for roomMate in room:
+
+                    self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+
+        
+
+    def SpawnMob(self, room, mob):
+
+        if hasattr(self, 'mobs'):
+            
+            self.mobs[mob.ID] = mob
+            self.SendData(room, '!SPAWN', mob)
+
+    def HandleRoom(self, room):
+
+        while len(room):
+
+            room.Update(self.SpawnMob)
 
     def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
 
@@ -251,44 +268,48 @@ class Server:
 
                         if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
                             
-                            player.JoinRoom(self.roomList[roomID])
+                            player.JoinRoom(self.roomList[roomID], False)
                             self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
 
                             for roomMate in player.room:
 
-                                self.SendData(roomMate, "!SET_ROOM", roomMate)
+                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
 
                         else:
 
-                            self.SendData(player, "!SET_ROOM", False)
+                            self.SendData(player, "!UPDATE_ROOM", False)
 
                     elif command == '!CREATE_ROOM':
 
-                        self.CreateRoom()
-                        player.JoinRoom(self.roomList[self.roomID])
-                        self.SendData(player, "!SET_ROOM", player)
+                        self.CreateRoom(*value)
+                        player.JoinRoom(self.roomList[self.roomID], True)
+                        self.SendData(player, "!UPDATE_ROOM", player)
                         self.PrintLog(f"{player.name} ({player.ID}) is created a room {self.roomID}.")
+
+                    elif command == '!LEAVE_ROOM':
+
+                        self.LeaveRoom(player)
+
+                    elif command == '!GET_READY':
+                        
+                            player.isReady = True
+
+                            for roomMate in player.room:
+
+                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
 
                     elif command == '!START_GAME':
                         
-                        thread = threading.Thread(target=self.HandleSpawner, args=tuple(player.room))
+                        thread = threading.Thread(target= self.HandleRoom, args=(player.room, ))
                         thread.start()
                         self.SendData(player.room, '!START_GAME')
 
-                    elif command == '!SET_PLAYER_RECT':
+                    elif command == '!UPDATE_PLAYER':
 
                         for roomMate in player.room:
                             
                             if roomMate.ID != player.ID:
                                
-                                self.SendData(roomMate, command, value)
-
-                    elif command == '!SET_PLAYER_ANGLE':
-
-                        for roomMate in player.room:
-                            
-                            if roomMate.ID != player.ID:
-
                                 self.SendData(roomMate, command, value)
 
                     elif command == '!DISCONNECT':
@@ -313,15 +334,7 @@ class Server:
         
         self.clientSockets.pop(player.ID)
         
-        if player.room:
-            
-            if len(player.room) == 1:
-
-                self.roomList.pop(player.room.ID)
-            
-            else:
-
-                player.room.remove(player)
+        self.LeaveRoom(player)
 
         self.PrintLog(f"{player.name} ({player.IP}) is dissconnected.")
         self.players.pop(player.ID)
@@ -333,18 +346,23 @@ class Server:
 
         self.PrintLog(f"Server is closing...")
                 
-        for player in self.players.values():
+        if hasattr(self, 'server'):
 
-            self.DisconnectClient(player)
+            for player in self.players.values():
+
+                self.DisconnectClient(player)
+
+            self.server.close()
 
         self.isRunning = False
-        self.server.close()
 
 class Application(Tk):
 
     def __init__(self):
 
         super().__init__()
+
+        self.server = Server(self)
 
         self.SetWindowTitle(SERVER_TITLE)
         self.SetSize(SERVER_SIZE)
@@ -359,7 +377,7 @@ class Application(Tk):
 
         topFrame = Frame(mainFrame, bg="#505050")
         topFrame.place(x=0, y=0, anchor="nw", width=self.width, height=40)
-        grip = Grip(topFrame)
+        Grip(topFrame)
 
         Label(topFrame, bg="#505050", fg='white', font=("Comic Sans MS", 15), text=SERVER_TITLE).pack()
 
@@ -395,6 +413,7 @@ class Application(Tk):
 
     def Start(self):
 
+        self.StartServer()
         self.mainloop()
 
     def CenterWindow(self):
@@ -439,9 +458,8 @@ class Application(Tk):
 
     def StartServer(self):
 
-        if not hasattr(self, 'server') or not self.server.isRunning:
+        if not self.server.isRunning:
 
-            self.server = Server(self)
             thread = threading.Thread(target=self.server.Start)
             thread.start()
 

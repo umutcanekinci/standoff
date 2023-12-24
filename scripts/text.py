@@ -6,7 +6,8 @@ class Text(Object):
 	def __init__(self, position, text='', textSize=25, antialias=True, color=White, backgroundColor=None, fontPath = None, spriteGroups: list=[], parentRect: pygame.Rect=WINDOW_RECT) -> None:
 
 		super().__init__(position, (0, 0), None, spriteGroups, parentRect)
-
+		self._layer = GUI_LAYER
+		
 		self.position = position
 		
 		self.text, self.textSize, self.antialias, self.textColor, self.backgroundColor, self.fontPath = text, textSize, antialias, color, backgroundColor, fontPath

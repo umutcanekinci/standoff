@@ -1,4 +1,3 @@
-import socket
 from settings import *
 import threading
 import pickle
@@ -15,7 +14,8 @@ class Client:
 
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.ConnectToServer()
+        self.recieveThread = threading.Thread(target=self.ConnectToServer)
+        self.recieveThread.start()        
         
     def ConnectToServer(self):
 
@@ -33,10 +33,9 @@ class Client:
         self.isConnected = True
 
         self.game.DebugLog("[CLIENT] => Connected to server.")
-
-        self.recieveThread = threading.Thread(target=self.RecieveData)
-        self.recieveThread.start()
-                
+        
+        self.RecieveData()
+        
     def RecieveData(self):
 
         while self.isConnected:
@@ -68,4 +67,7 @@ class Client:
 
         self.SendData('!DISCONNECT')
         self.isConnected = False
-        self.client.close()
+
+        if hasattr(self, 'client'):
+
+            self.client.close()

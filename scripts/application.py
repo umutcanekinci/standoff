@@ -117,6 +117,7 @@ class Application:
 
             #-# FPS #-#
             self.deltaTime = self.clock.tick(self.FPS) * .001 * self.FPS
+            self.DebugLog(f"{int(self.clock.get_fps())} FPS")
 
             #-# Getting Mouse Position #-#
             self.mousePosition = pygame.mouse.get_pos()

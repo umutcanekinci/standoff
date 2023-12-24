@@ -1,13 +1,14 @@
-import pygame
-from object import Object
 from settings import *
+from object import Object
+
 
 class InputBox(Object):
 
 	def __init__(self, position, size, text='', inactiveText = '', spriteGroups: list=[], parentRect: pygame.Rect=None):
 
 		super().__init__(position, size, spriteGroups=spriteGroups, parentRect=parentRect)
-		
+		self._layer = GUI_LAYER
+
 		self.color = pygame.Color('dodgerblue2') # ('lightskyblue3')
 		self.text = text
 		self.inactiveText = inactiveText
