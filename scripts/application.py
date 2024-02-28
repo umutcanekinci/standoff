@@ -86,7 +86,6 @@ class Application:
     def Exit(self) -> None:
 
         self.isRunning = False
-        pygame.quit()
         sys.exit()
 
     def SetCursorVisible(self, value=True) -> None:
