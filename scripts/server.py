@@ -12,6 +12,299 @@ from ctypes import windll
 
 #endregion
 
+class Server:
+
+    def __init__(self, application) -> None:
+        
+        self.isRunning = False
+        self.application = application
+
+    def PrintLog(self, text: str):
+
+        self.application.PrintLog("[SERVER] => " + text + "\n")
+
+    def Start(self):
+
+        self.isRunning = True
+        self.clientSockets = {} # id : clientSocket
+        self.roomList = {} # id : playerList
+        self.players = {} # playerId : player
+        self.mobs = {}
+
+        # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+        self.PrintLog("Server is started.")
+        
+        self.Bind()
+
+    def Bind(self):
+
+        try:
+
+            # Binding the socket with the IP address and Port Number.
+            self.server.bind(SERVER_ADDR)
+
+        except socket.error as error:
+
+            self.PrintLog("An error occured during connecting to server: " + str(error))
+
+        else:
+
+            self.PrintLog("Server is binded.")
+            self.Listen()
+
+    def Listen(self):
+
+        self.server.listen()
+        self.PrintLog(f"Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
+        playerID, self.roomID = 0, 0
+
+        # running an infinite loop to accept continuous client requests.
+        while self.isRunning:
+
+            # Making the server listen to new connections. when a new connection has detected codes will continue 
+            try:
+
+                clientSocket, address = self.server.accept()
+
+                playerID += 1
+
+                self.clientSockets[playerID] = clientSocket
+                player = PlayerInfo(playerID, address)
+                self.players[playerID] = player
+
+                self.PrintLog(f"{player.IP} is connected from PORT = {player.PORT}.")
+                self.PrintLog(f"Player count is now {str(len(self.players))}.")
+
+                self.SendData(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
+                self.SendData(player, "!UPDATE_ROOM", player)
+
+                # starting a new thread
+                thread = threading.Thread(target=self.HandleClient, args=(clientSocket, player))
+                thread.start()
+
+            except socket.error as e:
+            
+                if self.isRunning:
+
+                    self.PrintLog(f"Error accepting client connection: {e}")
+
+    def RecieveData(self, clientSocket, player):
+
+        try:
+
+            packedLength = clientSocket.recv(HEADER)
+            dataLength = struct.unpack('!I', packedLength)[0]
+            serializedData = clientSocket.recv(dataLength)
+            return pickle.loads(serializedData)
+
+        except (socket.error, ConnectionResetError):
+
+            self.DisconnectClient(player)
+
+    def SendData(self, playerList, command, value=None, exceptions=[]):
+
+        dataToSend = {'command': command, 'value': value}
+
+        if not hasattr(playerList, '__iter__'):
+
+            playerList = [playerList]
+
+        for exception in exceptions:
+
+            playerList.remove(exception)
+
+        for player in playerList:
+
+            try:
+
+                serializedData = pickle.dumps(dataToSend)
+                dataLength = len(serializedData)
+                packedLength = struct.pack('!I', dataLength)
+                self.clientSockets[player.ID].sendall(packedLength + serializedData)
+
+            except (socket.error, ConnectionResetError):
+
+                self.DisconnectClient(player)
+                continue
+
+    def CreateRoom(self, mapName, basePoints):
+
+        self.roomID += 1
+        self.roomList[self.roomID] = Room(self.roomID, mapName, basePoints)
+
+    def LeaveRoom(self, player):
+ 
+        room = player.room
+        
+        if room:
+            
+            player.LeaveRoom()
+            self.PrintLog(f"{player.name} ({player.IP}) is leaved Room {room.ID}.")
+            self.PrintLog(f"Player count in Room {room.ID} is now {str(len(room))}.")
+
+            if len(room) == 0:
+
+                self.roomList.pop(room.ID)
+                self.PrintLog(f"Room {room.ID} is deleted.")
+
+            else:
+
+                room[0].isRuler = True
+
+                for roomMate in room:
+
+                    self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+
+            self.SendData(player, "!LEAVE_ROOM", player)
+     
+    def SpawnMob(self, room, mob):
+
+        if hasattr(self, 'mobs'):
+            
+            self.mobs[mob.ID] = mob
+            self.SendData(room, '!SPAWN', mob)
+
+    def HandleRoom(self, room):
+
+        while len(self.roomList[room.ID]):
+
+            room.Update(self.SpawnMob)
+
+    def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
+
+        connected = True
+
+        try:
+
+            while connected:
+                
+                data = self.RecieveData(clientSocket, player)
+
+                if data:
+
+                    command = data['command']
+                    value = data['value'] if 'value' in data else None
+
+                    if command == '!SET_PLAYER':
+                        
+                        playerName, characterName = value
+                        player.SetName(playerName)
+                        player.SetCharacterName(characterName)
+                        self.PrintLog(f"{player.name} ({player.ID}) is entered to lobby.")
+                        
+                    elif command == '!JOIN_ROOM':
+
+                        roomID = value
+
+                        if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
+                            
+                            player.JoinRoom(self.roomList[roomID], False)
+                            self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
+
+                            for roomMate in player.room:
+
+                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+
+                        else:
+
+                            self.SendData(player, "!UPDATE_ROOM", False)
+
+                    elif command == '!CREATE_ROOM':
+
+                        self.CreateRoom(*value)
+                        player.JoinRoom(self.roomList[self.roomID], True)
+                        self.SendData(player, "!UPDATE_ROOM", player)
+                        self.PrintLog(f"{player.name} ({player.ID}) is created a room {self.roomID}.")
+
+                    elif command == '!LEAVE_ROOM':
+
+                        self.LeaveRoom(player)
+
+                    elif command == '!GET_READY':
+                        
+                            player.isReady = True
+
+                            for roomMate in player.room:
+
+                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+
+                    elif command == '!GET_UNREADY':
+                        
+                            player.isReady = False
+
+                            for roomMate in player.room:
+
+                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+
+                    elif command == '!START_GAME':
+                        
+                        self.SendData(player.room, command)
+
+                        thread = threading.Thread(target= self.HandleRoom, args=(player.room, ))
+                        thread.start()
+
+                    elif command == '!SHOOT':
+
+                        self.SendData(player.room, command, value)
+
+                    elif command == '!UPDATE_PLAYER':
+
+                        for roomMate in player.room:
+                               
+                            self.SendData(roomMate, command, value)
+
+                    elif command == '!DISCONNECT':
+    
+                        connected = False
+                        self.DisconnectClient(player)
+
+                else:
+
+                    connected = False
+        
+        except(socket.error, ConnectionResetError):
+            
+            connected = False
+            self.DisconnectClient(player)
+        
+        finally:
+
+            clientSocket.close()
+
+    def DisconnectClient(self, player: PlayerInfo):
+
+        if player in self.players.values() and player.ID in self.clientSockets.keys():
+
+            if player.room:
+
+                self.LeaveRoom(player)
+            
+            self.SendData(list(self.players.values()), "!DISCONNECT", player.ID)
+
+            self.clientSockets.pop(player.ID)
+            self.players.pop(player.ID)
+
+            self.PrintLog(f"{player.name} ({player.IP}) is dissconnected.")
+            self.PrintLog(f"Player count is now {str(len(self.players))}.")
+
+    def Close(self):
+
+        self.PrintLog(f"Server is closing...")
+                
+        if hasattr(self, 'server'):
+
+            for player in self.players.values():
+
+                self.DisconnectClient(player)
+
+            self.server.close()
+
+        self.isRunning = False
+
+#region Tkinter
+
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
 WS_EX_TOOLWINDOW = 0x00000080
@@ -79,282 +372,6 @@ class Grip:
         if self.releaseCMD != None :
 
             self.releaseCMD()
-
-class Server:
-
-    def __init__(self, application) -> None:
-        
-        self.isRunning = False
-        self.application = application
-
-    def PrintLog(self, text: str):
-
-        self.application.PrintLog("[SERVER] => " + text + "\n")
-
-    def Start(self):
-
-        self.isRunning = True
-        self.clientSockets = {} # id : clientSocket
-        self.roomList = {} # id : playerList
-        self.players = {} # playerId : player
-        self.mobs = {}
-
-        # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
-        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        
-        self.PrintLog("Server is started.")
-        
-        self.Bind()
-
-    def Bind(self):
-
-        try:
-
-            # Binding the socket with the IP address and Port Number.
-            self.server.bind(SERVER_ADDR)
-
-        except socket.error as error:
-
-            self.PrintLog("An error occured during connecting to server: " + str(error))
-
-        else:
-
-            self.PrintLog("Server is binded.")
-            self.Listen()
-
-    def Listen(self):
-
-        self.server.listen()
-        self.PrintLog(f"Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
-        playerID, self.roomID = 0, 0
-
-        # running an infinite loop to accept continuous client requests.
-        while self.isRunning:
-
-            # Making the server listen to new connections. when a new connection has detected codes will continue 
-            try:
-
-                clientSocket, address = self.server.accept()
-
-                playerID += 1
-
-                self.clientSockets[playerID] = clientSocket
-                player = PlayerInfo(playerID, address)
-                self.players[playerID] = player
-
-                self.PrintLog(f"{player.IP} is connected from PORT = {player.PORT}.")
-                self.PrintLog(f"Player count is now {str(len(self.players))}.")
-
-                self.SendData(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
-
-                # starting a new thread
-                thread = threading.Thread(target=self.HandleClient, args=(clientSocket, player))
-                thread.start()
-
-            except socket.error as e:
-            
-                if self.isRunning:
-
-                    self.PrintLog(f"Error accepting client connection: {e}")
-
-    def RecieveData(self, clientSocket, player):
-
-        try:
-
-            packedLength = clientSocket.recv(HEADER)
-            dataLength = struct.unpack('!I', packedLength)[0]
-            serializedData = clientSocket.recv(dataLength)
-            return pickle.loads(serializedData)
-
-        except (socket.error, ConnectionResetError):
-
-            self.DisconnectClient(player)
-
-    def SendData(self, playerList, command, value=None, exceptions=[]):
-
-        dataToSend = {'command': command, 'value': value}
-
-        if not hasattr(playerList, '__iter__'):
-
-            playerList = [playerList]
-
-        for exception in exceptions:
-
-            playerList.remove(exception)
-
-        for player in playerList:
-
-            try:
-
-                serializedData = pickle.dumps(dataToSend)
-                dataLength = len(serializedData)
-                packedLength = struct.pack('!I', dataLength)
-                self.clientSockets[player.ID].sendall(packedLength + serializedData)
-
-            except (socket.error, ConnectionResetError):
-
-                self.DisconnectClient(player.ID)
-                continue
-
-    def CreateRoom(self, mapName, basePoints):
-
-        self.roomID += 1
-        self.roomList[self.roomID] = Room(self.roomID, mapName, basePoints)
-
-    def LeaveRoom(self, player):
-        
-        room = player.room
-        
-        if room:
-            
-            player.LeaveRoom()
-            self.PrintLog(f"{player.name} ({player.IP}) is leaved room {room.ID}.")
-            self.PrintLog(f"Player count in room {room.ID} is now {str(len(room))}.")
-            self.SendData(player, "!LEAVE_ROOM", player)
-            
-            if len(room) == 0:
-
-                self.roomList.pop(room.ID)
-                self.PrintLog(f"Room {room.ID} is deleted.")
-
-            else:
-
-                room[0].isRuler = True
-
-                for roomMate in room:
-
-                    self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
-
-        
-
-    def SpawnMob(self, room, mob):
-
-        if hasattr(self, 'mobs'):
-            
-            self.mobs[mob.ID] = mob
-            self.SendData(room, '!SPAWN', mob)
-
-    def HandleRoom(self, room):
-
-        while len(room):
-
-            room.Update(self.SpawnMob)
-
-    def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
-
-        connected = True
-
-        try:
-
-            while connected:
-                
-                data = self.RecieveData(clientSocket, player)
-
-                if data:
-
-                    command = data['command']
-                    value = data['value'] if 'value' in data else None
-
-                    if command == '!SET_PLAYER':
-                        
-                        playerName, characterName = value
-                        player.SetName(playerName)
-                        player.SetCharacterName(characterName)
-                        self.PrintLog(f"{player.name} ({player.ID}) is entered to lobby.")
-                        
-                    elif command == '!JOIN_ROOM':
-
-                        roomID = value
-
-                        if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
-                            
-                            player.JoinRoom(self.roomList[roomID], False)
-                            self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
-
-                            for roomMate in player.room:
-
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
-
-                        else:
-
-                            self.SendData(player, "!UPDATE_ROOM", False)
-
-                    elif command == '!CREATE_ROOM':
-
-                        self.CreateRoom(*value)
-                        player.JoinRoom(self.roomList[self.roomID], True)
-                        self.SendData(player, "!UPDATE_ROOM", player)
-                        self.PrintLog(f"{player.name} ({player.ID}) is created a room {self.roomID}.")
-
-                    elif command == '!LEAVE_ROOM':
-
-                        self.LeaveRoom(player)
-
-                    elif command == '!GET_READY':
-                        
-                            player.isReady = True
-
-                            for roomMate in player.room:
-
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
-
-                    elif command == '!START_GAME':
-                        
-                        thread = threading.Thread(target= self.HandleRoom, args=(player.room, ))
-                        thread.start()
-                        self.SendData(player.room, '!START_GAME')
-
-                    elif command == '!UPDATE_PLAYER':
-
-                        for roomMate in player.room:
-                            
-                            if roomMate.ID != player.ID:
-                               
-                                self.SendData(roomMate, command, value)
-
-                    elif command == '!DISCONNECT':
-    
-                        connected = False
-                        self.DisconnectClient(player)
-
-                else:
-
-                    connected = False
-        
-        except(socket.error, ConnectionResetError):
-            
-            connected = False
-            self.DisconnectClient(player)
-        
-        finally:
-
-            clientSocket.close()
-
-    def DisconnectClient(self, player: PlayerInfo):
-        
-        self.clientSockets.pop(player.ID)
-        
-        self.LeaveRoom(player)
-
-        self.PrintLog(f"{player.name} ({player.IP}) is dissconnected.")
-        self.players.pop(player.ID)
-        self.PrintLog(f"Player count is now {str(len(self.players))}.")
-
-        self.SendData(list(self.players.values()), "!DISCONNECT", player.ID)
-
-    def Close(self):
-
-        self.PrintLog(f"Server is closing...")
-                
-        if hasattr(self, 'server'):
-
-            for player in self.players.values():
-
-                self.DisconnectClient(player)
-
-            self.server.close()
-
-        self.isRunning = False
 
 class Application(Tk):
 
@@ -497,7 +514,10 @@ class Application(Tk):
         self.commandLog.config(state='disabled')
         self.commandLog.yview(END)
 
+
 if __name__ == '__main__':
 
     app = Application()
     app.Start()
+
+#endregion

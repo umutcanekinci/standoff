@@ -25,7 +25,7 @@ class Client:
 
             self.client.connect(CLIENT_ADDR)
 
-        except ConnectionRefusedError as e:
+        except (ConnectionRefusedError, OSError) as e:
 
             self.game.DebugLog("[CLIENT] => An error occured while connecting to the server.")
             return
@@ -37,7 +37,7 @@ class Client:
         self.RecieveData()
         
     def RecieveData(self):
-
+        
         while self.isConnected:
 
             try:
@@ -64,8 +64,7 @@ class Client:
             self.client.sendall(packedLength + serializedData)
 
     def DisconnectFromServer(self):
-
-        self.SendData('!DISCONNECT')
+        
         self.isConnected = False
 
         if hasattr(self, 'client'):

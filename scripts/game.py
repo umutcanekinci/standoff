@@ -103,17 +103,31 @@ class Game(Application):
 
 		room = self.playerInfo.room
 	
-		self.menu.roomText.UpdateText("Room " + str(room.ID))
-		self.menu.OpenTab("roomMenu")
-		self.menu.UpdatePlayersInRoom(room)
+		if room:
 
-	def UpdatePlayerRect(self, playerID, playerRect: pygame.Rect):
+			self.menu.roomText.UpdateText("Room " + str(room.ID))
+			self.menu.OpenTab("roomMenu")
+			self.menu.UpdatePlayersInRoom(room)
 
-		self.players.GetPlayerWithID(playerID).UpdatePosition(playerRect.center)
+	def UpdatePlayerRect(self, playerID, delta: tuple):
+
+		self.players.GetPlayerWithID(playerID).delta = delta
 	
 	def UpdatePlayerAngle(self, playerID, angle):
 
-		self.players.GetPlayerWithID(playerID).Rotate(angle)
+		self.players.GetPlayerWithID(playerID).angle = angle
+
+	def Shoot(self):
+		
+		if self.player.isShooting:
+			
+			if self.mode == 'online':
+
+				self.client.SendData('!SHOOT', self.player.ID)
+
+			elif self.mode == 'offline':
+
+				self.player.Shoot()
 
 	def RemovePlayer(self, playerID):
 		
@@ -157,13 +171,24 @@ class Game(Application):
 				self.UpdatePlayerRect(value[0], value[1])
 				self.UpdatePlayerAngle(value[0], value[2])
 
+			elif command == '!SHOOT':
+
+				self.players.GetPlayerWithID(value).Shoot()
+
 			elif command == '!SPAWN':
 
 				self.SpawnMob(value)
 
 			elif command == '!DISCONNECT':
 
-				self.RemovePlayer(value)
+				if self.playerInfo.ID == value:
+
+					self.client.isConnected = False
+					self.Exit()
+				
+				else:
+
+					self.RemovePlayer(value)
 
 	def HandleEvents(self, event: pygame.event.Event) -> None:
 
@@ -175,7 +200,7 @@ class Game(Application):
 
 			self.player.HandleEvents(event, self.mousePosition, self.keys)
 
-		return super().HandleEvents(event)
+		super().HandleEvents(event)
 
 	def HandleExitEvents(self, event: pygame.event.Event) -> None:
 		
@@ -216,10 +241,16 @@ class Game(Application):
 						
 			self.allSprites.update()
 			self.camera.Follow(self.player.rect)
-		
+			self.Shoot()
+			
+			if hasattr(self, "player"):
+
+				self.player.RotateToMouse()
+				self.player.Move()
+
 			if self.mode == "online":
 
-				self.client.SendData("!UPDATE_PLAYER", [self.playerInfo.ID, self.player.rect, self.player.angle])
+				self.client.SendData("!UPDATE_PLAYER", [self.playerInfo.ID, self.player.delta, self.player.angle])
 
 			elif self.mode == "offline":
 
@@ -263,6 +294,13 @@ class Game(Application):
 		return super().Draw()
 
 	def Exit(self) -> None:
+		
+		if self.client.isConnected:
+			
+			self.client.SendData('!DISCONNECT')
 
-		self.client.DisconnectFromServer()
-		return super().Exit()
+		else:
+			
+			self.client.DisconnectFromServer()
+			
+			super().Exit()

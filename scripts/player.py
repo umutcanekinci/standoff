@@ -11,8 +11,10 @@ class Player(Entity):
 
 		super().__init__(ID, name, nameColor, position, size, ImagePath("gun", "characters/"+character), (game.players, game.allSprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
 		
+		# Shooting
 		self.isShooting = False
 		self.shootRate = SHOOT_RATE
+		self.lastShootTime = -1000
 
 		self.character, self.game = character, game
 		self.map, self.camera = game.map, game.camera
@@ -39,6 +41,7 @@ class Player(Entity):
 
 		# Rotation
 		self.forceRotation = Vec()
+		self.delta = Vec()
 		self.angle = 0
 		
 		# Weight (Kilogram)
@@ -62,7 +65,7 @@ class Player(Entity):
 		"""
 
 		self.angle = (Vec(self.game.mousePosition) - Vec(self.game.camera.Apply(self.rect).center)).angle_to(Vec(1,0)) # sthis calculating angle between difference vector and x apsis
-		self.Rotate(self.angle)
+		#self.Rotate(self.angle)
 
 	def Move(self):
 
@@ -138,15 +141,11 @@ class Player(Entity):
 		
 		self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
 
-		super().Move(self.delta)
+		#super().Move(self.delta)
 
 	def Shoot(self):
 
 		now = pygame.time.get_ticks()
-
-		if not hasattr(self, "lastShootTime"):
-
-			self.lastShootTime = -1000
 
 		if now - self.lastShootTime > self.shootRate:
 
@@ -160,8 +159,7 @@ class Player(Entity):
 			self.velocity = Vec(-KICKBACK, 0).rotate(-self.angle)
 
 			self.lastShootTime = now
-			
-			
+						
 	def HandleEvents(self, event, mousePosition, keys):
 		
 		if self.alive():
@@ -174,7 +172,7 @@ class Player(Entity):
 
 				else:
 
-					self.Shoot()
+					self.game.Shoot()
 
 			if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 
@@ -182,14 +180,8 @@ class Player(Entity):
 
 	def update(self):
 		
-		if hasattr(self.game, "player") and self.game.player.ID == self.ID:
-
-			if self.isShooting:
-
-				self.Shoot()
-
-			self.RotateToMouse()
-			self.Move()
+		self.Rotate(self.angle)
+		super().Move(self.delta)
 
 class Players(pygame.sprite.Group):
 

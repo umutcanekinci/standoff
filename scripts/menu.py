@@ -136,31 +136,38 @@ class Menu():
 
 			self.playerTexts.append(Text(("CENTER", (i+1)*60 + 23), text, 25, color=color, parentRect=self.panel.screenRect))
 
-		if self.game.playerInfo.isRuler:
-		
-			if hasattr(self, 'getReady'):
+		# firstly remove the existing button to update with new one
+		if hasattr(self, 'startGame'):
 
-				self.getReady.kill()
+			self.startGame.kill()
+
+		if hasattr(self, 'ready'):
+
+				self.ready.kill()
+
+		if hasattr(self, 'unready'):
+
+				self.unready.kill()
+
+		# if the client is ruler of the room it should have start button else ready button
+		if self.game.playerInfo.isRuler:
 
 			self.startGame = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Green, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="START GAME", textSize=40)
 
-			if not areAllReady:
+			if not areAllReady: # disable start button if others arent ready 
 
 				self.startGame.Disable()
 		
 		else:
+	
+			if self.game.playerInfo.isReady:
 
-			if hasattr(self, 'startGame'):
+				self.unready = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Red, Blue, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="UNREADY", textSize=40)
 
-				self.startGame.kill()
+			else:
 
-			self.getReady = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Blue, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="GET READY", textSize=40)
+				self.ready = EllipseButton(("CENTER", self.panel.rect.height-115), (300, 60), Green, Red, spriteGroups=self.tabs["roomMenu"], parentRect=self.panel.screenRect, text="READY", textSize=40)
 			
-			if not self.game.playerInfo.isReady:
-
-				self.getReady.Disable()
-
-
 	def HandleEvents(self, event, mousePosition, keys):
 
 		for sprite in self.tabs[self.tab]:
@@ -255,9 +262,17 @@ class Menu():
 
 			else:
 
-				if self.getReady.isMouseClick(event, mousePosition):
+				if self.game.playerInfo.isReady:
 
-					self.game.client.SendData("!GET_READY")
+					if self.unready.isMouseClick(event, mousePosition):
+
+						self.game.client.SendData("!GET_UNREADY")
+
+				else:
+
+					if self.ready.isMouseClick(event, mousePosition):
+
+						self.game.client.SendData("!GET_READY")
 
 			if self.leaveRoom.isMouseClick(event, mousePosition):
 
