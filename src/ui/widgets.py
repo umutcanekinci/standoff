@@ -16,7 +16,14 @@ _RADIUS = 25  # pill corner radius (matches the old EllipseButton)
 _DEPTH = 5    # 3D "lip" height (matches the old EllipseButton/TriangleButton)
 
 
-def _pill_surface(size, color, pressed=False):
+def _blit_centered(surf, face, text, font, text_color):
+    if not text or font is None:
+        return
+    ts = font.render(text, True, text_color)
+    surf.blit(ts, (face.centerx - ts.get_width() / 2, face.centery - ts.get_height() / 2))
+
+
+def _pill_surface(size, color, pressed=False, text="", font=None, text_color=White):
     w, h = size
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     up = pygame.Rect(0, 0, w, h - _DEPTH)
@@ -25,6 +32,7 @@ def _pill_surface(size, color, pressed=False):
     face = down if pressed else up                          # pressed => face sits low
     pygame.draw.rect(surf, color, face, 0, _RADIUS)         # raised (or pushed) face
     pygame.draw.rect(surf, Black, face, 2, _RADIUS)         # face border
+    _blit_centered(surf, face, text, font, text_color)      # label rides the face
     return surf
 
 
@@ -45,41 +53,58 @@ def _triangle_surface(size, color, rotation, pressed=False):
 
 
 class ShapeButton(HoverableStateObject):
-    """Vector-drawn pill or triangle button. States: None (normal) and
-    'disabled'; hover uses the mouse-over colour (keyboard focus reuses it).
-    While the mouse is held down over the button the face drops (press effect),
-    matching the old EllipseButton/TriangleButton. Clicks are suppressed while
-    disabled."""
+    """Vector-drawn pill or triangle button with a baked-in label. States: None
+    (normal) and 'disabled'; hover uses the mouse-over colour (keyboard focus
+    reuses it). While the mouse is held down over the button the face drops and
+    the label rides down with it (press effect), matching the old buttons.
+    Clicks are suppressed while disabled."""
 
     def __init__(self, parent, pos, size, *, normal_color=Red, hover_color=Blue,
                  disabled_color=Gray, shape="ellipse", rotation="RIGHT",
-                 enabled=True, anchor="top-left"):
+                 enabled=True, anchor="top-left", text="", text_size=40,
+                 text_color=White):
         super().__init__(parent=parent, pos=pos, size=size, image_path=None, anchor=anchor)
-        size = tuple(size)
-        if shape == "triangle":
-            draw = lambda c, pressed=False: _triangle_surface(size, c, rotation, pressed)
-        else:
-            draw = lambda c, pressed=False: _pill_surface(size, c, pressed)
-
-        self.add_surface(None, draw(normal_color))
-        self._hover_images[None] = draw(hover_color)
-        self.add_surface("disabled", draw(disabled_color))
-        self._hover_images["disabled"] = draw(disabled_color)  # disabled never highlights
-
-        # pressed variants (None state only — disabled buttons don't press)
-        self._pressed_image = draw(hover_color, pressed=True)
+        self._size = tuple(size)
+        self._shape = shape
+        self._rotation = rotation
+        self._normal_color = normal_color
+        self._hover_color = hover_color
+        self._disabled_color = disabled_color
+        self._text = text
+        self._font = pygame.font.Font(None, text_size) if text else None
+        self._text_color = text_color
         self._is_pressed = False
 
+        self._render_surfaces()
         self.enabled = enabled
         if not enabled:
             self.set_base_state("disabled")
+
+    def _draw(self, color, pressed=False):
+        if self._shape == "triangle":
+            return _triangle_surface(self._size, color, self._rotation, pressed)
+        return _pill_surface(self._size, color, pressed, self._text, self._font, self._text_color)
+
+    def _render_surfaces(self) -> None:
+        self.add_surface(None, self._draw(self._normal_color))
+        self._hover_images[None] = self._draw(self._hover_color)
+        self.add_surface("disabled", self._draw(self._disabled_color))
+        self._hover_images["disabled"] = self._draw(self._disabled_color)  # disabled never highlights
+        self._pressed_image = self._draw(self._hover_color, pressed=True)
+
+    def set_label(self, text: str) -> None:
+        self._text = text
+        if self._font is None:
+            self._font = pygame.font.Font(None, 40)
+        self._render_surfaces()
+        self._renderer.set_image(self._active_surface)
 
     def set_enabled(self, value: bool) -> None:
         if value == self.enabled:
             return
         self.enabled = value
         self._is_pressed = False
-        self.set_base_state(None if value else "disabled")
+        self.set_base_state("disabled" if not value else None)
 
     def handle_event(self, event, mouse_pos) -> None:
         super().handle_event(event, mouse_pos)  # MOUSEMOTION hover swap
@@ -150,6 +175,9 @@ def make_ellipse_button_factory():
             hover_color=tuple(cfg.get("hover_color", Blue)),
             enabled=cfg.get("is_active", True),
             anchor=cfg.get("anchor", "top-left"),
+            text=cfg.get("text", ""),
+            text_size=cfg.get("text_size", 40),
+            text_color=tuple(cfg.get("text_color", White)),
         )
     return factory
 

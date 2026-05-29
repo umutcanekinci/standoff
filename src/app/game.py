@@ -106,11 +106,8 @@ class Game(Application):
             self.room_slots.append(slot)
 
         self.room_action_button = ShapeButton(
-            room_bg, ("CENTER", 385), (300, 60), normal_color=Green, hover_color=Red)
+            room_bg, ("CENTER", 385), (300, 60), normal_color=Green, hover_color=Red, text="")
         pm.add_object("room_menu", "action_button", self.room_action_button)
-        self.room_action_text = TextObject(
-            self.room_action_button.rect, ("CENTER", "CENTER"), "", self._menu_font)
-        pm.add_object("room_menu", "action_text", self.room_action_text)
 
     def open_panel(self, name: str) -> None:
         self.panel_manager.current_panel = name
@@ -279,15 +276,15 @@ class Game(Application):
         me = self.player_info
         if me.is_ruler:
             self.room_action = "start"
-            self.room_action_text.set_text("START GAME")
+            self.room_action_button.set_label("START GAME")
             self.room_action_button.set_enabled(all_ready)
         elif me.is_ready:
             self.room_action = "unready"
-            self.room_action_text.set_text("UNREADY")
+            self.room_action_button.set_label("UNREADY")
             self.room_action_button.set_enabled(True)
         else:
             self.room_action = "ready"
-            self.room_action_text.set_text("READY")
+            self.room_action_button.set_label("READY")
             self.room_action_button.set_enabled(True)
 
     def update_player_rect(self, player_id, delta: tuple):
