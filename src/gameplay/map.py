@@ -21,7 +21,7 @@ class Map(TiledMap):
         for obj in self.tmx.objects:
             if "base" in obj.name:
                 self.base_points[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
-            if "spawn_point" in obj.name:
+            if "spawnPoint" in obj.name:  # matches the Tiled object names (spawnPoint1..N)
                 self.spawn_points[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
             if "wall" in obj.name:
                 Obstacle(self.game, (obj.x, obj.y), (obj.width, obj.height))

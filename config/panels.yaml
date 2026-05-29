@@ -1,0 +1,107 @@
+# config/panels.yaml — menu layout (static chrome).
+# Dynamic objects (character preview/name, room player list, room action button)
+# are added in code via panel_manager.add_object().
+#
+# Coords: panel_bg is a 400x500 box centred in the window; buttons/labels are
+# parented to it (positions match the old gui/menu.py layout). Title and the
+# player-count line are window-parented (drawn above/below the box).
+# Button labels are baked into the button (ride the press), not child objects.
+
+groups:
+  menu_chrome:
+    title:
+      position: [CENTER, 210]
+      type: text
+      font_size: 60
+      color: [255, 0, 0]
+      text: "CHOOSE YOUR WAY"
+    player_count_text:
+      position: [CENTER, 820]
+      type: text
+      font_size: 24
+      color: [255, 0, 0]
+      background_color: [0, 0, 0]
+      text: "You are playing in offline mode !"
+    panel_bg:
+      position: [CENTER, CENTER]
+      size: [400, 500]
+      color: [128, 128, 128, 100]
+
+object_templates:
+  pill:
+    type: ellipse_button
+    size: [300, 60]
+
+panels:
+  main_menu:
+    extends: [menu_chrome]
+    objects:
+      play:        { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "PLAY" }
+      achievments: { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "ACHIEVMENTS", is_active: false }
+      settings:    { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "SETTINGS", is_active: false }
+      credits:     { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREDITS", is_active: false }
+      exit:        { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "EXIT" }
+
+  player_menu:
+    extends: [menu_chrome]
+    objects:
+      player_name_label:
+        type: text
+        parent: panel_bg
+        position: [CENTER, 40]
+        font_size: 40
+        text: "PLAYER NAME"
+      name_input:
+        type: input
+        parent: panel_bg
+        position: [CENTER, 90]
+        size: [300, 40]
+        placeholder: "Please enter a player name..."
+      previous: { type: triangle_button, parent: panel_bg, position: [75, 185], size: [50, 50], rotation: LEFT }
+      next:     { type: triangle_button, parent: panel_bg, position: [275, 185], size: [50, 50], rotation: RIGHT }
+      confirm:  { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CONFIRM" }
+      back:     { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
+
+  game_type_menu:
+    extends: [menu_chrome]
+    objects:
+      new_game:    { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "NEW GAME" }
+      continue:    { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "CONTINUE", is_active: false }
+      create_room: { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "CREATE ROOM" }
+      connect:     { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CONNECT" }
+      back:        { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
+
+  create_room_menu:
+    extends: [menu_chrome]
+    objects:
+      create: { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREATE" }
+      back:   { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
+
+  connect_menu:
+    extends: [menu_chrome]
+    objects:
+      join_label:
+        type: text
+        parent: panel_bg
+        position: [CENTER, 100]
+        font_size: 40
+        text: "JOIN A ROOM"
+      room_id_input:
+        type: input
+        parent: panel_bg
+        position: [CENTER, 150]
+        size: [300, 40]
+        placeholder: "Please enter a room ID..."
+      join: { extends: pill, parent: panel_bg, position: [CENTER, 250], text: "JOIN" }
+      back: { extends: pill, parent: panel_bg, position: [CENTER, 320], text: "BACK" }
+
+  room_menu:
+    extends: [menu_chrome]
+    objects:
+      room_text:
+        type: text
+        parent: panel_bg
+        position: [CENTER, 20]
+        font_size: 40
+        text: "ROOM 0"
+      leave_room: { extends: pill, parent: panel_bg, position: [CENTER, 300], color: [0, 0, 255], hover_color: [255, 0, 0], text: "LEAVE ROOM" }
