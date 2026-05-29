@@ -2,44 +2,44 @@ from util.constants import *
 
 class PlayerInfo():
 
-    def __init__(self, ID=1, address=(0, 0), name="", characterName="") -> None:
+    def __init__(self, id=1, address=(0, 0), name="", character_name="") -> None:
         
-        self.ID = ID
+        self.id = id
         self.address = self.IP, self.PORT = address
         self.size = 1
-        self.SetName(name)
-        self.SetCharacterName(characterName)
+        self.set_name(name)
+        self.set_character_name(character_name)
 
         self.room = None
 
-    def SetName(self, name: str):
+    def set_name(self, name: str):
 
         self.name = name
 
-    def SetCharacterName(self, name: str):
+    def set_character_name(self, name: str):
 
-        self.characterName = name
+        self.character_name = name
 
-    def JoinRoom(self, room, isRuler):
+    def join_room(self, room, is_ruler):
         
-        self.isReady = isRuler
-        self.isRuler = isRuler
+        self.is_ready = is_ruler
+        self.is_ruler = is_ruler
         self.room = room
         room.append(self)
         # Take the first base point not already claimed by a room mate (len()-based
         # numbering breaks when a player leaves and another joins).
-        used = {mate.baseNumber for mate in room if mate is not self and hasattr(mate, 'baseNumber')}
-        self.baseNumber = next(number for number in room.basePoints if number not in used)
-        self.basePoint = self.room.basePoints[self.baseNumber]
+        used = {mate.base_number for mate in room if mate is not self and hasattr(mate, 'base_number')}
+        self.base_number = next(number for number in room.base_points if number not in used)
+        self.base_point = self.room.base_points[self.base_number]
 
-    def LeaveRoom(self):
+    def leave_room(self):
 
         self.room.remove(self)
         self.room = None
 
 class MobInfo:
 
-    def __init__(self, ID, room, targetBase, position, targetPlayer=None) -> None:
+    def __init__(self, id, room, target_base, position, target_player=None) -> None:
 
-        self.ID, self.room, self.targetBase, self.position, self.size, self.targetPlayer = ID, room, targetBase, position, 1, targetPlayer
+        self.id, self.room, self.target_base, self.position, self.size, self.target_player = id, room, target_base, position, 1, target_player
     

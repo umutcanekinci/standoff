@@ -1,45 +1,45 @@
 from util.constants import *
-from gui.object import Object, GetImage
+from gui.object import Object, get_image
 from gui.text import Text
-from gameplay.collision import Collide
+from gameplay.collision import collide
 
 class Entity(Object):
 
-	def __init__(self, ID, name, nameColor, position, size, imagePath, spriteGroups, HP, maxHP):
+	def __init__(self, id, name, name_color, position, size, image_path, sprite_groups, hp, max_hp):
 		
-		super().__init__((0, 0), (0, 0), imagePath, spriteGroups)
+		super().__init__((0, 0), (0, 0), image_path, sprite_groups)
 
 		self._layer = ENTITY_LAYER
-		self.ID = ID
+		self.id = id
 
-		self.SetName(name, nameColor)
-		self.SetMaxHP(maxHP)
-		self.SetHP(HP)
-		self.SetImage(imagePath, position, size)
+		self.set_name(name, name_color)
+		self.set_max_hp(max_hp)
+		self.set_hp(hp)
+		self.set_image(image_path, position, size)
 
-	def SetImage(self, imagePath, position, size):
+	def set_image(self, image_path, position, size):
 
-		self.imagePath = imagePath
+		self.image_path = image_path
 		
-		self.originalImage = GetImage(imagePath, (self.rect.width * size, self.rect.height * size))
-		self.image =self.originalImage.copy()
+		self.original_image = get_image(image_path, (self.rect.width * size, self.rect.height * size))
+		self.image =self.original_image.copy()
 		self.rect = self.image.get_rect(center=position)
 
-	def SetName(self, value: str, color):
+	def set_name(self, value: str, color):
 
 		self.name = value
-		self.nameText = Text((0, 0), self.name, 25, color=color)
+		self.name_text = Text((0, 0), self.name, 25, color=color)
 
-	def __RenderHealthBar(self):
+	def __render_health_bar(self):
 
-		self.healthBar = Object((0, 0), (HEALTH_BAR_SIZE))
-		self.healthBar.image.fill(White)
+		self.health_bar = Object((0, 0), (HEALTH_BAR_SIZE))
+		self.health_bar.image.fill(White)
 
-		if self.HP > self.maxHP * 70 * .01:
+		if self.hp > self.max_hp * 70 * .01:
 
 			color = Green
 
-		elif self.HP > self.maxHP * 35 * .01:
+		elif self.hp > self.max_hp * 35 * .01:
 
 			color = Yellow
 
@@ -47,73 +47,73 @@ class Entity(Object):
 
 			color = Red
 
-		pygame.draw.rect(self.healthBar.image, color, pygame.Rect(0, 0, self.healthBar.rect.width*self.HP/self.maxHP, self.healthBar.rect.height), 0)
-		pygame.draw.rect(self.healthBar.image, color, pygame.Rect((0, 0), self.healthBar.rect.size), 2)
+		pygame.draw.rect(self.health_bar.image, color, pygame.Rect(0, 0, self.health_bar.rect.width*self.hp/self.max_hp, self.health_bar.rect.height), 0)
+		pygame.draw.rect(self.health_bar.image, color, pygame.Rect((0, 0), self.health_bar.rect.size), 2)
 
-	def SetMaxHP(self, value):
+	def set_max_hp(self, value):
 
-		self.maxHP = value
+		self.max_hp = value
 
-		if hasattr(self, "HP"):
+		if hasattr(self, "hp"):
 			
-			self.__RenderHealthBar()
+			self.__render_health_bar()
 
-	def SetHP(self, value):
+	def set_hp(self, value):
 
-		self.HP = value
+		self.hp = value
 
-		if self.HP <= 0:
+		if self.hp <= 0:
 
 			self.kill()
 
-		if hasattr(self, "maxHP"):
+		if hasattr(self, "max_hp"):
 
-			self.__RenderHealthBar()
+			self.__render_health_bar()
 
-	def LoseHP(self, value):
+	def lose_hp(self, value):
 
-		self.SetHP(self.HP - value)
+		self.set_hp(self.hp - value)
 
-	def Rotate(self, angle: float):
+	def rotate(self, angle: float):
 
-		self.image = pygame.transform.rotate(self.originalImage, angle)
+		self.image = pygame.transform.rotate(self.original_image, angle)
 		self.rect = self.image.get_rect(center=self.rect.center)
 
-	def Move(self, delta):
+	def move(self, delta):
 
-		self.hitRect.centerx += delta.x
-		Collide(self, 'x', self.game.walls)
-		self.hitRect.centery += delta.y
-		Collide(self, 'y', self.game.walls)
+		self.hit_rect.centerx += delta.x
+		collide(self, 'x', self.game.walls)
+		self.hit_rect.centery += delta.y
+		collide(self, 'y', self.game.walls)
 				
-		self.UpdatePosition(self.hitRect.center)
+		self.update_position(self.hit_rect.center)
 
-	def UpdatePosition(self, position):
+	def update_position(self, position):
 
-		self.hitRect.center = self.rect.center = position
+		self.hit_rect.center = self.rect.center = position
 
-		if self.HP != self.maxHP:
+		if self.hp != self.max_hp:
 
-			self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 40)
+			self.name_text.rect.center = (self.hit_rect.centerx, self.hit_rect.top - 40)
 
 		else:
 
-			self.nameText.rect.center = (self.hitRect.centerx, self.hitRect.top - 30)
+			self.name_text.rect.center = (self.hit_rect.centerx, self.hit_rect.top - 30)
 
 
-		self.healthBar.rect.center = (self.hitRect.centerx, self.hitRect.top - 20)
+		self.health_bar.rect.center = (self.hit_rect.centerx, self.hit_rect.top - 20)
 
-	def DrawName(self, surface, camera):
+	def draw_name(self, surface, camera):
 
-		camera.Draw(surface, self.nameText)
+		camera.draw(surface, self.name_text)
 
-	def DrawRects(self, surface, camera):
+	def draw_rects(self, surface, camera):
 
-		pygame.draw.rect(surface, Red, camera.Apply(self.rect), 2)
-		pygame.draw.rect(surface, Blue, camera.Apply(self.hitRect), 2)
+		pygame.draw.rect(surface, Red, camera.apply(self.rect), 2)
+		pygame.draw.rect(surface, Blue, camera.apply(self.hit_rect), 2)
 
-	def DrawHealthBar(self, surface, camera):
+	def draw_health_bar(self, surface, camera):
 
-		if self.HP != self.maxHP:
+		if self.hp != self.max_hp:
 
-			camera.Draw(surface, self.healthBar)
+			camera.draw(surface, self.health_bar)

@@ -7,40 +7,40 @@ from random import uniform
 
 class Player(Entity):
 
-	def __init__(self, ID, name, nameColor, character, position, size, game) -> None:
+	def __init__(self, id, name, name_color, character, position, size, game) -> None:
 
-		super().__init__(ID, name, nameColor, position, size, ImagePath("gun", "characters/"+character), (game.players, game.allSprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
+		super().__init__(id, name, name_color, position, size, ImagePath("gun", "characters/"+character), (game.players, game.all_sprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
 		
 		# Shooting
-		self.isShooting = False
-		self.shootRate = SHOOT_RATE
-		self.lastShootTime = -1000
+		self.is_shooting = False
+		self.shoot_rate = SHOOT_RATE
+		self.last_shoot_time = -1000
 
 		self.character, self.game = character, game
 		self.map, self.camera = game.map, game.camera
 
 		# Hit rect for collisions
-		self.hitRect = PLAYER_HIT_RECT.copy()
-		self.hitRect.center = self.rect.center
-		self.autoShoot = True,
+		self.hit_rect = PLAYER_HIT_RECT.copy()
+		self.hit_rect.center = self.rect.center
+		self.auto_shoot = True,
 
 		#region Physical Variables
 
 		# Force (Newton)
 		self.force = Vec(3, 3)
-		self.frictionalForce = Vec(-1., -1.)
-		self.netForce = Vec()
+		self.frictional_force = Vec(-1., -1.)
+		self.net_force = Vec()
 
 		# Acceleration (m/s**2)
 		self.acceleration = Vec()
-		self.maxAcceleration = 5
+		self.max_acceleration = 5
 
 		# Velocity / Speed (m/s*2)
 		self.velocity = Vec()
-		self.maxspeed = 5
+		self.max_speed = 5
 
 		# Rotation
-		self.forceRotation = Vec()
+		self.force_rotation = Vec()
 		self.delta = Vec()
 		self.angle = 0
 		
@@ -50,86 +50,86 @@ class Player(Entity):
 
 		#endregion
 
-	def RotateToMouse(self):
+	def rotate_to_mouse(self):
 
 		"""
 		
 		# Also this works to calculate angel
 
-		distanceX = self.game.mousePosition[0] - self.game.camera.Apply(self.rect)[0]
-		distanceY = self.game.mousePosition[1] - self.game.camera.Apply(self.rect)[1]
+		distanceX = self.game.mouse_position[0] - self.game.camera.apply(self.rect)[0]
+		distanceY = self.game.mouse_position[1] - self.game.camera.apply(self.rect)[1]
 
 		self.angle = math.atan2(-distanceY, distanceX)
 		self.angle = math.degrees(self.angle)  # Convert radians to degrees
 
 		"""
 
-		self.angle = (Vec(self.game.mousePosition) - Vec(self.game.camera.Apply(self.rect).center)).angle_to(Vec(1,0)) # sthis calculating angle between difference vector and x apsis
-		#self.Rotate(self.angle)
+		self.angle = (Vec(self.game.mouse_position) - Vec(self.game.camera.apply(self.rect).center)).angle_to(Vec(1,0)) # sthis calculating angle between difference vector and x apsis
+		#self.rotate(self.angle)
 
-	def Move(self):
+	def move(self):
 
 		#region Get the rotation of force
 
 		if self.game.keys[pygame.K_LEFT] or self.game.keys[pygame.K_a]:
 
-			self.forceRotation.x = -1
+			self.force_rotation.x = -1
 
 		elif self.game.keys[pygame.K_RIGHT] or self.game.keys[pygame.K_d]:
 			
-			self.forceRotation.x = 1
+			self.force_rotation.x = 1
 
 		else:
 
-			self.forceRotation.x = 0
+			self.force_rotation.x = 0
 
 		if self.game.keys[pygame.K_UP] or self.game.keys[pygame.K_w]:
 			
-			self.forceRotation.y = -1
+			self.force_rotation.y = -1
 
 		elif self.game.keys[pygame.K_DOWN] or self.game.keys[pygame.K_s]:
 			
-			self.forceRotation.y = 1
+			self.force_rotation.y = 1
 
 		else:
 
-			self.forceRotation.y = 0
+			self.force_rotation.y = 0
 
 		#endregion
 
 		# Normalize force rotation
-		if self.forceRotation.length() != 0:
+		if self.force_rotation.length() != 0:
 		
-			self.forceRotation.normalize()
+			self.force_rotation.normalize()
 
 		# Calculate net force
-		self.netForce = self.force.elementwise() * self.forceRotation
+		self.net_force = self.force.elementwise() * self.force_rotation
 
 		# apply frictional force
 		if self.velocity.length() != 0:
 
-			if abs(self.netForce.x) > self.frictionalForce.x:
+			if abs(self.net_force.x) > self.frictional_force.x:
 
-				self.netForce.x += self.frictionalForce.x * self.velocity.normalize().x * self.game.deltaTime
+				self.net_force.x += self.frictional_force.x * self.velocity.normalize().x * self.game.delta_time
 
-			if abs(self.netForce.y) > self.frictionalForce.y:
+			if abs(self.net_force.y) > self.frictional_force.y:
 
-				self.netForce.y += self.frictionalForce.y * self.velocity.normalize().y * self.game.deltaTime
+				self.net_force.y += self.frictional_force.y * self.velocity.normalize().y * self.game.delta_time
 			
 		# Calculate acceleration
-		self.acceleration = self.netForce / self.weight
+		self.acceleration = self.net_force / self.weight
 
 		# Clamp acceleration
-		self.acceleration.x = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.x))
-		self.acceleration.y = max(-self.maxAcceleration, min(self.maxAcceleration, self.acceleration.y))
+		self.acceleration.x = max(-self.max_acceleration, min(self.max_acceleration, self.acceleration.x))
+		self.acceleration.y = max(-self.max_acceleration, min(self.max_acceleration, self.acceleration.y))
 
-		# Update velocity
-		self.velocity += self.acceleration * self.game.deltaTime
+		# update velocity
+		self.velocity += self.acceleration * self.game.delta_time
 
 		# Limit velocity to a maximum speed
-		if self.velocity.length() > self.maxspeed:
+		if self.velocity.length() > self.max_speed:
 
-			self.velocity.scale_to_length(self.maxspeed)
+			self.velocity.scale_to_length(self.max_speed)
 
 		if abs(self.velocity.x) < 0.01:
 
@@ -139,15 +139,15 @@ class Player(Entity):
 			
 			self.velocity.y = 0
 		
-		self.delta = (self.velocity * self.game.deltaTime) + (0.5 * self.acceleration * self.game.deltaTime * self.game.deltaTime)
+		self.delta = (self.velocity * self.game.delta_time) + (0.5 * self.acceleration * self.game.delta_time * self.game.delta_time)
 
-		#super().Move(self.delta)
+		#super().move(self.delta)
 
-	def Shoot(self):
+	def shoot(self):
 
 		now = pygame.time.get_ticks()
 
-		if now - self.lastShootTime > self.shootRate:
+		if now - self.last_shoot_time > self.shoot_rate:
 
 			spread = uniform(-GUN_SPREAD, GUN_SPREAD)
 			angle = self.angle + spread
@@ -158,30 +158,30 @@ class Player(Entity):
 
 			self.velocity = Vec(-KICKBACK, 0).rotate(-self.angle)
 
-			self.lastShootTime = now
+			self.last_shoot_time = now
 						
-	def HandleEvents(self, event, mousePosition, keys):
+	def handle_events(self, event, mouse_position, keys):
 		
 		if self.alive():
 			
 			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 			
-				if self.autoShoot:
+				if self.auto_shoot:
 
-					self.isShooting = True
+					self.is_shooting = True
 
 				else:
 
-					self.game.Shoot()
+					self.game.shoot()
 
 			if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
 
-				self.isShooting = False
+				self.is_shooting = False
 
 	def update(self):
 		
-		self.Rotate(self.angle)
-		super().Move(self.delta)
+		self.rotate(self.angle)
+		super().move(self.delta)
 
 class Players(pygame.sprite.Group):
 
@@ -190,14 +190,14 @@ class Players(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, playerInfo, nameColor):
+	def add_player(self, player_info, name_color):
 		
-		return Player(playerInfo.ID, playerInfo.name, nameColor, playerInfo.characterName, self.game.map.spawnPoints[playerInfo.baseNumber], playerInfo.size, self.game)
+		return Player(player_info.id, player_info.name, name_color, player_info.character_name, self.game.map.spawn_points[player_info.base_number], player_info.size, self.game)
 
-	def GetPlayerWithID(self, ID: int) -> Player:
+	def get_player_with_id(self, id: int) -> Player:
 
 		for player in self.sprites():
 
-			if player.ID == ID:
+			if player.id == id:
 
 				return player

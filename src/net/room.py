@@ -10,7 +10,7 @@ from net.player_info import MobInfo
 
 class Room(list[PlayerInfo]):
 
-    def __init__(self, ID, mapName, basePoints, isOnline=True):
+    def __init__(self, id, map_name, base_points, is_online=True):
 
         super().__init__()
 
@@ -18,38 +18,38 @@ class Room(list[PlayerInfo]):
 
             pygame.init()
 
-        self.ID = ID
-        self.size = min(MAX_ROOM_SIZE, len(basePoints))
-        self.mapName = mapName
-        self.basePoints = basePoints
-        self.isOnline = isOnline
+        self.id = id
+        self.size = min(MAX_ROOM_SIZE, len(base_points))
+        self.map_name = map_name
+        self.base_points = base_points
+        self.is_online = is_online
 
         # Mob spawner
-        self.mobID = 0
-        self.lastSpawn = 0
+        self.mob_id = 0
+        self.last_spawn = 0
 
-    def HandleSpawner(self, spawnFunc):
+    def handle_spawner(self, spawn_func):
 
         now = pygame.time.get_ticks()
 
-        if now - self.lastSpawn >= SPAWN_RATE:
+        if now - self.last_spawn >= SPAWN_RATE:
 
             for player in self:
 
-                self.mobID += 1
-                spawnPoint = player.basePoint[0] + random.choice([-1, +1]) * random.randint(10*TILE_WIDTH, 20*TILE_WIDTH), player.basePoint[1] + random.choice([-1, +1]) * random.randint(10*TILE_HEIGHT, 20*TILE_HEIGHT)
-                mobInfo = MobInfo(self.mobID, self, player.basePoint, spawnPoint)
+                self.mob_id += 1
+                spawn_point = player.base_point[0] + random.choice([-1, +1]) * random.randint(10*TILE_WIDTH, 20*TILE_WIDTH), player.base_point[1] + random.choice([-1, +1]) * random.randint(10*TILE_HEIGHT, 20*TILE_HEIGHT)
+                mob_info = MobInfo(self.mob_id, self, player.base_point, spawn_point)
 
-                if self.isOnline:
+                if self.is_online:
 
-                    spawnFunc(self, mobInfo)
+                    spawn_func(self, mob_info)
 
                 else:
 
-                    spawnFunc(mobInfo)
+                    spawn_func(mob_info)
 
-            self.lastSpawn = now
+            self.last_spawn = now
 
-    def Update(self, spawnFunc):
+    def update(self, spawn_func):
         
-        self.HandleSpawner(spawnFunc)
+        self.handle_spawner(spawn_func)

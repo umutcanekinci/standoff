@@ -6,17 +6,17 @@ class MuzzleFlash(Object):
 
 	def __init__(self, game, position: tuple, angle):
 
-		self.spawnTime = pygame.time.get_ticks()
+		self.spawn_time = pygame.time.get_ticks()
 		size = randint(20, 50)
 		size = size, size
 
-		super().__init__(position, size, choice(game.gunFlashes), (game.allSprites))
+		super().__init__(position, size, choice(game.gun_flashes), (game.all_sprites))
 		self._layer = EFFECT_LAYER
 		self.rect.center = position
 		
-		self.Rotate(angle)
+		self.rotate(angle)
 
-	def Rotate(self, angle):
+	def rotate(self, angle):
 
 		self.image = pygame.transform.rotate(self.image, angle)
 		self.rect = self.image.get_rect(center=self.rect.center)
@@ -25,6 +25,6 @@ class MuzzleFlash(Object):
 
 		now = pygame.time.get_ticks()
 
-		if now - self.spawnTime > FLASH_DURATOION:
+		if now - self.spawn_time > FLASH_DURATOION:
 
 			self.kill()

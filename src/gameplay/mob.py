@@ -3,25 +3,25 @@ from pygame_core.asset_path import ImagePath
 from random import choice
 from gameplay.entity import Entity
 
-def CollideHitRect(one, two):
+def collide_hit_rect(one, two):
 	
-	return one.hitRect.colliderect(two.rect)
+	return one.hit_rect.colliderect(two.rect)
 
 class Mob(Entity):
 	
-	def __init__(self, ID, name, position, size, targetBase, character, game) -> None:
+	def __init__(self, id, name, position, size, target_base, character, game) -> None:
 
-		super().__init__(ID, name, Red, position, size, ImagePath("idle", "characters/"+character), (), MOB_MAX_HP, MOB_MAX_HP)
+		super().__init__(id, name, Red, position, size, ImagePath("idle", "characters/"+character), (), MOB_MAX_HP, MOB_MAX_HP)
 
-		self.targetBase, self.character, self.game = targetBase, character, game
+		self.target_base, self.character, self.game = target_base, character, game
 		self.map, self.camera = game.map, game.camera
 		self.damage = 10
 		self.range = RANGE_RADIUS
 
 		# Hit rect for collisions
 		self.rect.center = position
-		self.hitRect = MOB_HIT_RECT.copy()
-		self.hitRect.center = self.rect.center
+		self.hit_rect = MOB_HIT_RECT.copy()
+		self.hit_rect.center = self.rect.center
 
 		#region Physical Variables
 
@@ -33,20 +33,20 @@ class Mob(Entity):
 
 		#endregion
 		
-		self.add(game.allSprites, game.mobs)
+		self.add(game.all_sprites, game.mobs)
 
-	def CheckRange(self):
+	def check_range(self):
 
 		if self.game.players:
 		
 			self.target = min([player.rect.center for player in self.game.players], key=lambda x: (Vec(x) - Vec(self.rect.center)).length())
-			self.target = self.target if (Vec(self.target) - Vec(self.rect.center)).length() < self.range else self.targetBase
+			self.target = self.target if (Vec(self.target) - Vec(self.rect.center)).length() < self.range else self.target_base
 
 		else:
 
-			self.target = self.targetBase
+			self.target = self.target_base
 
-	def RotateToTarget(self):
+	def rotate_to_target(self):
 		
 		"""
 
@@ -61,9 +61,9 @@ class Mob(Entity):
 		"""
 
 		self.angle = (Vec(self.target) - Vec(self.rect.center)).angle_to(Vec(1,0)) # sthis calculating angle between difference vector and x apsis
-		self.Rotate(self.angle)
+		self.rotate(self.angle)
 
-	def AvoidMobs(self):
+	def avoid_mobs(self):
 
 		for mob in self.game.mobs:
 
@@ -75,38 +75,38 @@ class Mob(Entity):
 
 					self.acceleration += distance.normalize()
 
-	def Move(self):
+	def move(self):
 		
 		self.acceleration = Vec(1, 0).rotate(-self.angle)
-		self.AvoidMobs()
+		self.avoid_mobs()
 		self.acceleration *= self.speed
 		self.acceleration += self.velocity * -1
-		self.velocity += self.acceleration * self.game.deltaTime
-		self.delta = self.velocity * self.game.deltaTime + .5 * self.acceleration * self.game.deltaTime ** 2
-		super().Move(self.delta)
+		self.velocity += self.acceleration * self.game.delta_time
+		self.delta = self.velocity * self.game.delta_time + .5 * self.acceleration * self.game.delta_time ** 2
+		super().move(self.delta)
 
 	def update(self):
 		
-		self.CheckRange()
-		self.RotateToTarget()
-		self.Move()
+		self.check_range()
+		self.rotate_to_target()
+		self.move()
 
 		now = pygame.time.get_ticks()
 
-		if not hasattr(self, "lastAttack"):
+		if not hasattr(self, "last_attack"):
 
-			self.lastAttack = -1000
+			self.last_attack = -1000
 
-		if now - self.lastAttack > 1000:
+		if now - self.last_attack > 1000:
 		
-			hits = pygame.sprite.spritecollide(self, self.game.players, False, CollideHitRect)
+			hits = pygame.sprite.spritecollide(self, self.game.players, False, collide_hit_rect)
 
 			for player in hits:
 
-				player.LoseHP(self.damage)
+				player.lose_hp(self.damage)
 				player.velocity = Vec()
-				player.UpdatePosition(Vec(player.rect.center) + Vec(MOB_KNOCKBACK, 0).rotate(-self.angle))
-				self.lastAttack = now
+				player.update_position(Vec(player.rect.center) + Vec(MOB_KNOCKBACK, 0).rotate(-self.angle))
+				self.last_attack = now
 				break
 
 class Mobs(pygame.sprite.Group):
@@ -116,14 +116,14 @@ class Mobs(pygame.sprite.Group):
 		super().__init__()
 		self.game = game
 
-	def Add(self, mobInfo, character='zombie'):
+	def add_mob(self, mob_info, character='zombie'):
 		
-		Mob(mobInfo.ID, 'Mob ' + str(mobInfo.ID), mobInfo.position, mobInfo.size, mobInfo.targetBase, character, self.game)
+		Mob(mob_info.id, 'Mob ' + str(mob_info.id), mob_info.position, mob_info.size, mob_info.target_base, character, self.game)
 		
-	def GetMobFromID(self, ID: int) -> Mob:
+	def get_mob_from_id(self, id: int) -> Mob:
 
 		for mob in self.sprites():
 
-			if mob.ID == ID:
+			if mob.id == id:
 
 				return mob

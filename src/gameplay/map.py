@@ -14,24 +14,24 @@ class Map(TiledMap):
         super().__init__(tmx_path)
         self.game = game
         self.border_width = border_width
-        self.basePoints, self.spawnPoints = {}, {}
-        self.GetObjects()
+        self.base_points, self.spawn_points = {}, {}
+        self.get_objects()
 
-    def GetObjects(self) -> None:
+    def get_objects(self) -> None:
         for obj in self.tmx.objects:
             if "base" in obj.name:
-                self.basePoints[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
-            if "spawnPoint" in obj.name:
-                self.spawnPoints[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
+                self.base_points[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
+            if "spawn_point" in obj.name:
+                self.spawn_points[int(obj.name[-1:])] = obj.x + TILE_WIDTH / 2, obj.y + TILE_HEIGHT / 2
             if "wall" in obj.name:
                 Obstacle(self.game, (obj.x, obj.y), (obj.width, obj.height))
 
-    def Render(self):
+    def render(self):
         self.image = self.pre_render(alpha=True)
         self.rect = self.image.get_rect()
-        self.DrawGrid()
+        self.draw_grid()
 
-    def DrawGrid(self):
+    def draw_grid(self):
         for column in range(self.cols + 1):
             x = column * self.tile_size
             pygame.draw.line(self.image, Gray, (x, 0), (x, self.rect.height), self.border_width)

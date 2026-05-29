@@ -1,7 +1,7 @@
 from util.constants import *
 from pygame_core.asset_path import ImagePath
 
-def GetImage(path: ImagePath, size=(0, 0)):
+def get_image(path: ImagePath, size=(0, 0)):
 
 	image = pygame.image.load(path).convert_alpha()
 
@@ -13,25 +13,25 @@ def GetImage(path: ImagePath, size=(0, 0)):
 
 class Object(pygame.sprite.Sprite):
 
-	def __init__(self, position: tuple=("CENTER", "CENTER"), size: tuple=(0, 0), imagePath: ImagePath=None, spriteGroups=[], parentRect: pygame.Rect = WINDOW_RECT):
+	def __init__(self, position: tuple=("CENTER", "CENTER"), size: tuple=(0, 0), image_path: ImagePath=None, sprite_groups=[], parent_rect: pygame.Rect = WINDOW_RECT):
 
-		super().__init__(spriteGroups)
+		super().__init__(sprite_groups)
 
 		self.image = pygame.Surface(size, pygame.SRCALPHA)
 		self.rect = self.image.get_rect()
-		self.screenRect = self.rect.copy()
-		self.isMouseHolding = False
+		self.screen_rect = self.rect.copy()
+		self.is_mouse_holding = False
 		
-		self.LoadImage(imagePath)
-		self.SetparentRect(parentRect)
-		self.SetPosition(position)
-		self.SetVisible(True)
+		self.load_image(image_path)
+		self.set_parent_rect(parent_rect)
+		self.set_position(position)
+		self.set_visible(True)
 		
-	def SetVisible(self, value):
+	def set_visible(self, value):
 		
-		self.isVisible = value
+		self.is_visible = value
 		
-		if self.isVisible:
+		if self.is_visible:
 
 			if hasattr(self, '_image'):
 
@@ -44,39 +44,39 @@ class Object(pygame.sprite.Sprite):
 				self._image = self.image
 				self.image = None
 
-	def Rerender(self):
+	def rerender(self):
 
 		self.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
-		self.LoadImage(self.imagePath)
+		self.load_image(self.image_path)
 
-	def LoadImage(self, imagePath):
+	def load_image(self, image_path):
 		
-		self.imagePath = imagePath
+		self.image_path = image_path
 
-		if imagePath:	
+		if image_path:	
 			
-			image = GetImage(imagePath, self.rect.size)
+			image = get_image(image_path, self.rect.size)
 
 			if not self.rect.size == image.get_rect().size:
 
-				self.screenRect.size = self.rect.size = image.get_rect().size
+				self.screen_rect.size = self.rect.size = image.get_rect().size
 
 			self.image.blit(image, (0, 0))
 
-	def SetparentRect(self, rect: pygame.Rect):
+	def set_parent_rect(self, rect: pygame.Rect):
 
-		self.parentRect = rect
+		self.parent_rect = rect
 
-	def SetPosition(self, position: tuple) -> None:
+	def set_position(self, position: tuple) -> None:
 
-		self.SetX(position[0])
-		self.SetY(position[1])
+		self.set_x(position[0])
+		self.set_y(position[1])
 		
-	def SetX(self, x: int) -> None:
+	def set_x(self, x: int) -> None:
 
 		if x == "CENTER":
 		
-			self.rect.centerx = self.parentRect.width / 2
+			self.rect.centerx = self.parent_rect.width / 2
 			
 		elif x == "LEFT":
 
@@ -84,19 +84,19 @@ class Object(pygame.sprite.Sprite):
 
 		elif x == "RIGHT":
 
-			self.rect.x = self.parentRect.width - self.rect.width
+			self.rect.x = self.parent_rect.width - self.rect.width
 
 		else:
 
 			self.rect.x = x
 
-		self.screenRect.x = self.parentRect.x + self.rect.x # image rect is the screen rect of the parent
+		self.screen_rect.x = self.parent_rect.x + self.rect.x # image rect is the screen rect of the parent
 
-	def SetY(self, y: int) -> None:
+	def set_y(self, y: int) -> None:
 
 		if y == "CENTER":
 		
-			self.rect.centery = self.parentRect.height / 2
+			self.rect.centery = self.parent_rect.height / 2
 			
 		elif y == "TOP":
 
@@ -104,49 +104,49 @@ class Object(pygame.sprite.Sprite):
 
 		elif y == "BOTTOM":
 
-			self.rect.y = self.parentRect.height - self.rect.height
+			self.rect.y = self.parent_rect.height - self.rect.height
 
 		else:
 
 			self.rect.y = y
 
-		self.screenRect.y = self.parentRect.y + self.rect.y # image rect is the screen rect of the parent
+		self.screen_rect.y = self.parent_rect.y + self.rect.y # image rect is the screen rect of the parent
 
-	def HandleEvents(self, event, mousePosition, keys):
+	def handle_events(self, event, mouse_position, keys):
 
 		if event.type == pygame.MOUSEBUTTONUP:
 
-			if not self.isMouseButtonUp(event, mousePosition):
+			if not self.is_mouse_button_up(event, mouse_position):
 
-				self.isMouseHolding = False
+				self.is_mouse_holding = False
 
-		if self.isMouseButtonDown(event, mousePosition):
+		if self.is_mouse_button_down(event, mouse_position):
 
-			self.isMouseHolding = True
+			self.is_mouse_holding = True
 
-	def isMouseOver(self, mousePosition: tuple) -> bool:
+	def is_mouse_over(self, mouse_position: tuple) -> bool:
 		
-		return mousePosition != None and self.screenRect.collidepoint(mousePosition)
+		return mouse_position != None and self.screen_rect.collidepoint(mouse_position)
 
-	def isMouseButtonDown(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+	def is_mouse_button_down(self, event: pygame.event.Event, mouse_position: tuple) -> bool:
 
-		return self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONDOWN
+		return self.is_mouse_over(mouse_position) and event.type == pygame.MOUSEBUTTONDOWN
 
-	def isMouseButtonUp(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+	def is_mouse_button_up(self, event: pygame.event.Event, mouse_position: tuple) -> bool:
 
-		return self.isMouseOver(mousePosition) and event.type == pygame.MOUSEBUTTONUP
+		return self.is_mouse_over(mouse_position) and event.type == pygame.MOUSEBUTTONUP
 
-	def isMouseClick(self, event: pygame.event.Event, mousePosition: tuple) -> bool:
+	def is_mouse_click(self, event: pygame.event.Event, mouse_position: tuple) -> bool:
 		
-		if self.isMouseButtonUp(event, mousePosition) and self.isMouseHolding:
+		if self.is_mouse_button_up(event, mouse_position) and self.is_mouse_holding:
 			
-			self.isMouseHolding = False
+			self.is_mouse_holding = False
 			return True
 		
 		return False
 
-	def Draw(self, image: pygame.Surface):
+	def draw(self, image: pygame.Surface):
 
-		if self.isVisible:
+		if self.is_visible:
 			
 			image.blit(self.image, self.rect)

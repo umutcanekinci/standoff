@@ -17,29 +17,29 @@ class Server:
 
     def __init__(self, application) -> None:
         
-        self.isRunning = False
+        self.is_running = False
         self.application = application
 
-    def PrintLog(self, text: str):
+    def print_log(self, text: str):
 
-        self.application.PrintLog("[SERVER] => " + text + "\n")
+        self.application.print_log("[SERVER] => " + text + "\n")
 
-    def Start(self):
+    def start(self):
 
-        self.isRunning = True
-        self.clientSockets = {} # id : clientSocket
-        self.roomList = {} # id : playerList
-        self.players = {} # playerId : player
+        self.is_running = True
+        self.client_sockets = {} # id : client_socket
+        self.room_list = {} # id : player_list
+        self.players = {} # player_id : player
         self.mobs = {}
 
         # Creating a server socket and providing the address family (socket.AF_INET) and type of connection (socket.SOCK_STREAM), i.e. using TCP connection.
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
-        self.PrintLog("Server is started.")
+        self.print_log("Server is started.")
         
-        self.Bind()
+        self.bind()
 
-    def Bind(self):
+    def bind(self):
 
         try:
 
@@ -48,57 +48,57 @@ class Server:
 
         except socket.error as error:
 
-            self.PrintLog("An error occured during connecting to server: " + str(error))
+            self.print_log("An error occured during connecting to server: " + str(error))
 
         else:
 
-            self.PrintLog("Server is binded.")
-            self.Listen()
+            self.print_log("Server is binded.")
+            self.listen()
 
-    def Listen(self):
+    def listen(self):
 
         self.server.listen()
-        self.PrintLog(f"Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
-        playerID, self.roomID = 0, 0
+        self.print_log(f"Server is listening on IP = {SERVER_IP} at PORT = {SERVER_PORT}")
+        player_id, self.room_id = 0, 0
 
         # running an infinite loop to accept continuous client requests.
-        while self.isRunning:
+        while self.is_running:
 
             # Making the server listen to new connections. when a new connection has detected codes will continue 
             try:
 
-                clientSocket, address = self.server.accept()
+                client_socket, address = self.server.accept()
 
-                playerID += 1
+                player_id += 1
 
-                self.clientSockets[playerID] = clientSocket
-                player = PlayerInfo(playerID, address)
-                self.players[playerID] = player
+                self.client_sockets[player_id] = client_socket
+                player = PlayerInfo(player_id, address)
+                self.players[player_id] = player
 
-                self.PrintLog(f"{player.IP} is connected from PORT = {player.PORT}.")
-                self.PrintLog(f"Player count is now {str(len(self.players))}.")
+                self.print_log(f"{player.IP} is connected from PORT = {player.PORT}.")
+                self.print_log(f"Player count is now {str(len(self.players))}.")
 
-                self.SendData(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
-                self.SendData(player, "!UPDATE_ROOM", player)
+                self.send_data(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
+                self.send_data(player, "!UPDATE_ROOM", player)
 
                 # starting a new thread
-                thread = threading.Thread(target=self.HandleClient, args=(clientSocket, player))
+                thread = threading.Thread(target=self.handle_client, args=(client_socket, player))
                 thread.start()
 
             except socket.error as e:
             
-                if self.isRunning:
+                if self.is_running:
 
-                    self.PrintLog(f"Error accepting client connection: {e}")
+                    self.print_log(f"Error accepting client connection: {e}")
 
-    def RecvAll(self, clientSocket, length):
+    def recv_all(self, client_socket, length):
 
         # TCP recv can return fewer bytes than requested; loop until we have all of them.
         data = bytearray()
 
         while len(data) < length:
 
-            packet = clientSocket.recv(length - len(data))
+            packet = client_socket.recv(length - len(data))
 
             if not packet:
 
@@ -108,101 +108,101 @@ class Server:
 
         return bytes(data)
 
-    def RecieveData(self, clientSocket, player):
+    def recieve_data(self, client_socket, player):
 
         try:
 
-            packedLength = self.RecvAll(clientSocket, HEADER)
+            packed_length = self.recv_all(client_socket, HEADER)
 
-            if not packedLength:
+            if not packed_length:
 
-                self.DisconnectClient(player)
+                self.disconnect_client(player)
                 return None
 
-            dataLength = struct.unpack('!I', packedLength)[0]
-            serializedData = self.RecvAll(clientSocket, dataLength)
+            data_length = struct.unpack('!I', packed_length)[0]
+            serialized_data = self.recv_all(client_socket, data_length)
 
-            if not serializedData:
+            if not serialized_data:
 
-                self.DisconnectClient(player)
+                self.disconnect_client(player)
                 return None
 
-            return pickle.loads(serializedData)
+            return pickle.loads(serialized_data)
 
         except (socket.error, ConnectionResetError, struct.error):
 
-            self.DisconnectClient(player)
+            self.disconnect_client(player)
 
-    def SendData(self, playerList, command, value=None, exceptions=None):
+    def send_data(self, player_list, command, value=None, exceptions=None):
 
-        dataToSend = {'command': command, 'value': value}
+        data_to_send = {'command': command, 'value': value}
 
-        if not hasattr(playerList, '__iter__'):
+        if not hasattr(player_list, '__iter__'):
 
-            playerList = [playerList]
+            player_list = [player_list]
 
         # Copy so we never mutate the caller's list (e.g. a Room), and avoid a mutable default.
-        playerList = [player for player in playerList if player not in (exceptions or [])]
+        player_list = [player for player in player_list if player not in (exceptions or [])]
 
-        for player in playerList:
+        for player in player_list:
 
             try:
 
-                serializedData = pickle.dumps(dataToSend)
-                dataLength = len(serializedData)
-                packedLength = struct.pack('!I', dataLength)
-                self.clientSockets[player.ID].sendall(packedLength + serializedData)
+                serialized_data = pickle.dumps(data_to_send)
+                data_length = len(serialized_data)
+                packed_length = struct.pack('!I', data_length)
+                self.client_sockets[player.id].sendall(packed_length + serialized_data)
 
             except (socket.error, ConnectionResetError):
 
-                self.DisconnectClient(player)
+                self.disconnect_client(player)
                 continue
 
-    def CreateRoom(self, mapName, basePoints):
+    def create_room(self, map_name, base_points):
 
-        self.roomID += 1
-        self.roomList[self.roomID] = Room(self.roomID, mapName, basePoints)
+        self.room_id += 1
+        self.room_list[self.room_id] = Room(self.room_id, map_name, base_points)
 
-    def LeaveRoom(self, player):
+    def leave_room(self, player):
  
         room = player.room
         
         if room:
             
-            player.LeaveRoom()
-            self.PrintLog(f"{player.name} ({player.IP}) is leaved Room {room.ID}.")
-            self.PrintLog(f"Player count in Room {room.ID} is now {str(len(room))}.")
+            player.leave_room()
+            self.print_log(f"{player.name} ({player.IP}) is leaved Room {room.id}.")
+            self.print_log(f"Player count in Room {room.id} is now {str(len(room))}.")
 
             if len(room) == 0:
 
-                self.roomList.pop(room.ID)
-                self.PrintLog(f"Room {room.ID} is deleted.")
+                self.room_list.pop(room.id)
+                self.print_log(f"Room {room.id} is deleted.")
 
             else:
 
-                room[0].isRuler = True
+                room[0].is_ruler = True
 
-                for roomMate in room:
+                for room_mate in room:
 
-                    self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                    self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
-            self.SendData(player, "!LEAVE_ROOM", player)
+            self.send_data(player, "!LEAVE_ROOM", player)
      
-    def SpawnMob(self, room, mob):
+    def spawn_mob(self, room, mob):
 
         if hasattr(self, 'mobs'):
             
-            self.mobs[mob.ID] = mob
-            self.SendData(room, '!SPAWN', mob)
+            self.mobs[mob.id] = mob
+            self.send_data(room, '!SPAWN', mob)
 
-    def HandleRoom(self, room):
+    def handle_room(self, room):
 
-        while room.ID in self.roomList:
+        while room.id in self.room_list:
 
-            room.Update(self.SpawnMob)
+            room.update(self.spawn_mob)
             time.sleep(0.01)
 
-    def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
+    def handle_client(self, client_socket: socket.socket, player: PlayerInfo):
 
         connected = True
 
@@ -210,7 +210,7 @@ class Server:
 
             while connected:
                 
-                data = self.RecieveData(clientSocket, player)
+                data = self.recieve_data(client_socket, player)
 
                 if data:
 
@@ -219,76 +219,76 @@ class Server:
 
                     if command == '!SET_PLAYER':
                         
-                        playerName, characterName = value
-                        player.SetName(playerName)
-                        player.SetCharacterName(characterName)
-                        self.PrintLog(f"{player.name} ({player.ID}) is entered to lobby.")
+                        player_name, character_name = value
+                        player.set_name(player_name)
+                        player.set_character_name(character_name)
+                        self.print_log(f"{player.name} ({player.id}) is entered to lobby.")
                         
                     elif command == '!JOIN_ROOM':
 
-                        roomID = value
+                        room_id = value
 
-                        if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
+                        if len(self.room_list) > 0 and room_id in self.room_list.keys() and self.room_list[room_id].size > len(self.room_list[room_id]):
                             
-                            player.JoinRoom(self.roomList[roomID], False)
-                            self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
+                            player.join_room(self.room_list[room_id], False)
+                            self.print_log(f"{player.name} ({player.id}) is joined a room {room_id}.")
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                         else:
 
-                            self.SendData(player, "!UPDATE_ROOM", False)
+                            self.send_data(player, "!UPDATE_ROOM", False)
 
                     elif command == '!CREATE_ROOM':
 
-                        self.CreateRoom(*value)
-                        player.JoinRoom(self.roomList[self.roomID], True)
-                        self.SendData(player, "!UPDATE_ROOM", player)
-                        self.PrintLog(f"{player.name} ({player.ID}) is created a room {self.roomID}.")
+                        self.create_room(*value)
+                        player.join_room(self.room_list[self.room_id], True)
+                        self.send_data(player, "!UPDATE_ROOM", player)
+                        self.print_log(f"{player.name} ({player.id}) is created a room {self.room_id}.")
 
                     elif command == '!LEAVE_ROOM':
 
-                        self.LeaveRoom(player)
+                        self.leave_room(player)
 
                     elif command == '!GET_READY':
                         
-                            player.isReady = True
+                            player.is_ready = True
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                     elif command == '!GET_UNREADY':
                         
-                            player.isReady = False
+                            player.is_ready = False
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                     elif command == '!START_GAME':
                         
-                        self.SendData(player.room, command)
+                        self.send_data(player.room, command)
 
-                        thread = threading.Thread(target= self.HandleRoom, args=(player.room, ))
+                        thread = threading.Thread(target= self.handle_room, args=(player.room, ))
                         thread.start()
 
                     elif command == '!SHOOT':
 
-                        self.SendData(player.room, command, value)
+                        self.send_data(player.room, command, value)
 
                     elif command == '!UPDATE_PLAYER':
 
-                        for roomMate in player.room:
+                        for room_mate in player.room:
                                
-                            self.SendData(roomMate, command, value)
+                            self.send_data(room_mate, command, value)
 
                     elif command == '!DISCONNECT':
     
                         connected = False
-                        self.DisconnectClient(player)
+                        self.disconnect_client(player)
 
                 else:
 
@@ -297,41 +297,41 @@ class Server:
         except(socket.error, ConnectionResetError):
             
             connected = False
-            self.DisconnectClient(player)
+            self.disconnect_client(player)
         
         finally:
 
-            clientSocket.close()
+            client_socket.close()
 
-    def DisconnectClient(self, player: PlayerInfo):
+    def disconnect_client(self, player: PlayerInfo):
 
-        if player in self.players.values() and player.ID in self.clientSockets.keys():
+        if player in self.players.values() and player.id in self.client_sockets.keys():
 
             if player.room:
 
-                self.LeaveRoom(player)
+                self.leave_room(player)
             
-            self.SendData(list(self.players.values()), "!DISCONNECT", player.ID)
+            self.send_data(list(self.players.values()), "!DISCONNECT", player.id)
 
-            self.clientSockets.pop(player.ID)
-            self.players.pop(player.ID)
+            self.client_sockets.pop(player.id)
+            self.players.pop(player.id)
 
-            self.PrintLog(f"{player.name} ({player.IP}) is dissconnected.")
-            self.PrintLog(f"Player count is now {str(len(self.players))}.")
+            self.print_log(f"{player.name} ({player.IP}) is dissconnected.")
+            self.print_log(f"Player count is now {str(len(self.players))}.")
 
-    def Close(self):
+    def close(self):
 
-        self.PrintLog(f"Server is closing...")
+        self.print_log(f"Server is closing...")
                 
         if hasattr(self, 'server'):
 
             for player in list(self.players.values()):
 
-                self.DisconnectClient(player)
+                self.disconnect_client(player)
 
             self.server.close()
 
-        self.isRunning = False
+        self.is_running = False
 
 #region Tkinter
 
@@ -363,7 +363,7 @@ class Grip:
 
             self.disable = disable.lower()
 
-        self.releaseCMD = releasecmd
+        self.release_cmd = releasecmd
 
         self.parent.bind('<Button-1>', self.relative_position)
         self.parent.bind('<ButtonRelease-1>', self.drag_unbind)
@@ -372,9 +372,9 @@ class Grip:
 
         cx, cy = self.parent.winfo_pointerxy()
         geo = self.root.geometry().split("+")
-        self.oriX, self.oriY = int(geo[1]), int(geo[2])
-        self.relX = cx - self.oriX
-        self.relY = cy - self.oriY
+        self.ori_x, self.ori_y = int(geo[1]), int(geo[2])
+        self.rel_x = cx - self.ori_x
+        self.rel_y = cy - self.ori_y
 
         self.parent.bind('<Motion>', self.drag_wid)
 
@@ -382,16 +382,16 @@ class Grip:
 
         cx, cy = self.parent.winfo_pointerxy()
         d = self.disable
-        x = cx - self.relX
-        y = cy - self.relY
+        x = cx - self.rel_x
+        y = cy - self.rel_y
 
         if d == 'x':
 
-            x = self.oriX
+            x = self.ori_x
 
         elif d == 'y':
 
-            y = self.oriY
+            y = self.ori_y
 
         self.root.geometry('+%i+%i' % (x, y))
 
@@ -399,9 +399,9 @@ class Grip:
 
         self.parent.unbind('<Motion>')
         
-        if self.releaseCMD != None :
+        if self.release_cmd != None :
 
-            self.releaseCMD()
+            self.release_cmd()
 
 class Application(Tk):
 
@@ -411,59 +411,59 @@ class Application(Tk):
 
         self.server = Server(self)
 
-        self.SetWindowTitle(SERVER_TITLE)
-        self.SetSize(SERVER_SIZE)
-        self.CenterWindow()
-        self.MakeUnresizable()
-        self.MakeBorderless()
-        self.ShowInTaskBar()
+        self.set_window_title(SERVER_TITLE)
+        self.set_size(SERVER_SIZE)
+        self.center_window()
+        self.make_unresizable()
+        self.make_borderless()
+        self.show_in_task_bar()
 
-        mainFrame = Frame(bg="grey", width= self.width, height=self.height)
-        mainFrame.pack_propagate(0)
-        mainFrame.pack(fill=BOTH, expand=1)
+        main_frame = Frame(bg="grey", width= self.width, height=self.height)
+        main_frame.pack_propagate(0)
+        main_frame.pack(fill=BOTH, expand=1)
 
-        topFrame = Frame(mainFrame, bg="#505050")
-        topFrame.place(x=0, y=0, anchor="nw", width=self.width, height=40)
-        Grip(topFrame)
+        top_frame = Frame(main_frame, bg="#505050")
+        top_frame.place(x=0, y=0, anchor="nw", width=self.width, height=40)
+        Grip(top_frame)
 
-        Label(topFrame, bg="#505050", fg='white', font=("Comic Sans MS", 15), text=SERVER_TITLE).pack()
+        Label(top_frame, bg="#505050", fg='white', font=("Comic Sans MS", 15), text=SERVER_TITLE).pack()
 
-        Button(topFrame, text="X", bg="#FF6666", fg="white", command=self.Exit).place(x=self.width-75, y=0, anchor="nw", width=75, height=40)
+        Button(top_frame, text="X", bg="#FF6666", fg="white", command=self.exit).place(x=self.width-75, y=0, anchor="nw", width=75, height=40)
 
-        Label(mainFrame, text="Command Log", font=("Comic Sans MS", 13)).place(x=20, y=60, anchor="nw")
+        Label(main_frame, text="Command Log", font=("Comic Sans MS", 13)).place(x=20, y=60, anchor="nw")
 
-        self.commandLog = Text(mainFrame, bg='white', fg='green', font=("Comic Sans MS", 12))
-        self.commandLog.config(state='disabled')
-        self.commandLog.place(x=20, y=110, anchor="nw", width=self.width - 160, height=self.height - 250)
+        self.command_log = Text(main_frame, bg='white', fg='green', font=("Comic Sans MS", 12))
+        self.command_log.config(state='disabled')
+        self.command_log.place(x=20, y=110, anchor="nw", width=self.width - 160, height=self.height - 250)
 
-        self.startButton = Button(mainFrame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='START', command=self.StartServer)
-        self.startButton.place(x=self.width - 120, y=110, anchor="nw", width=100, height=50)
+        self.start_button = Button(main_frame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='START', command=self.start_server)
+        self.start_button.place(x=self.width - 120, y=110, anchor="nw", width=100, height=50)
 
-        self.restartButton = Button(mainFrame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='RESTART', command=self.RestartServer)
-        self.restartButton.place(x=self.width - 120, y=170, anchor="nw", width=100, height=50)
+        self.restart_button = Button(main_frame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='RESTART', command=self.restart_server)
+        self.restart_button.place(x=self.width - 120, y=170, anchor="nw", width=100, height=50)
 
-        self.closeButton = Button(mainFrame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='CLOSE', command=self.CloseServer)
-        self.closeButton.place(x=self.width - 120, y=230, anchor="nw", width=100, height=50)
+        self.close_button = Button(main_frame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='CLOSE', command=self.close_server)
+        self.close_button.place(x=self.width - 120, y=230, anchor="nw", width=100, height=50)
 
-        Label(mainFrame, text="Command Entry", font=("Comic Sans MS", 13)).place(x=20, y=self.height - 120, anchor="nw")
+        Label(main_frame, text="Command Entry", font=("Comic Sans MS", 13)).place(x=20, y=self.height - 120, anchor="nw")
 
-        self.commandEntry = Entry(mainFrame)
-        self.commandEntry.place(x=20, y=self.height - 70, anchor="nw", width=self.width - 160, height=50)
+        self.command_entry = Entry(main_frame)
+        self.command_entry.place(x=20, y=self.height - 70, anchor="nw", width=self.width - 160, height=50)
 
-        self.sendButton = Button(mainFrame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='SEND', command=self.SendCommand)
-        self.sendButton.place(x=self.width - 120, y=self.height - 70, anchor="nw", width=100, height=50)
+        self.send_button = Button(main_frame, bg='orange', fg='white', font=("Comic Sans MS", 12), text='SEND', command=self.send_command)
+        self.send_button.place(x=self.width - 120, y=self.height - 70, anchor="nw", width=100, height=50)
 
-        self.startButton["state"] = "normal"
-        self.restartButton["state"] = "disabled"
-        self.closeButton["state"] = "disabled"
-        self.sendButton["state"] = "disabled"
+        self.start_button["state"] = "normal"
+        self.restart_button["state"] = "disabled"
+        self.close_button["state"] = "disabled"
+        self.send_button["state"] = "disabled"
 
-    def Start(self):
+    def start(self):
 
-        self.StartServer()
+        self.start_server()
         self.mainloop()
 
-    def CenterWindow(self):
+    def center_window(self):
 
         self.update_idletasks()
         width = self.winfo_width()
@@ -477,47 +477,47 @@ class Application(Tk):
         self.geometry('{}x{}+{}+{}'.format(width, height, x, y))
         self.deiconify()
 
-    def ShowInTaskBar(self):
+    def show_in_task_bar(self):
 
         self.after(10, set_appwindow, self)
 
-    def SetWindowTitle(self, text: str):
+    def set_window_title(self, text: str):
 
         self.wm_title(text)
 
-    def SetSize(self, size):
+    def set_size(self, size):
 
         self.size = self.width, self.height = size
         self.geometry(str(self.width) + "x" + str(self.height))
 
-    def MakeUnresizable(self):
+    def make_unresizable(self):
 
         self.resizable(0, 0)
 
-    def MakeBorderless(self):
+    def make_borderless(self):
 
         self.overrideredirect(True)
 
-    def Exit(self):
+    def exit(self):
 
-        self.CloseServer()
+        self.close_server()
         self.destroy()
 
-    def StartServer(self):
+    def start_server(self):
 
-        if not self.server.isRunning:
+        if not self.server.is_running:
 
-            thread = threading.Thread(target=self.server.Start)
+            thread = threading.Thread(target=self.server.start)
             thread.start()
 
-            self.startButton["state"] = "disabled"
-            self.restartButton["state"] = "normal"
-            self.closeButton["state"] = "normal"
-            self.sendButton["state"] = "normal"
+            self.start_button["state"] = "disabled"
+            self.restart_button["state"] = "normal"
+            self.close_button["state"] = "normal"
+            self.send_button["state"] = "normal"
 
-    def SendCommand(self):
+    def send_command(self):
 
-        text = self.commandEntry.get()
+        text = self.command_entry.get()
         parts = text.split()
 
         if not parts:
@@ -526,35 +526,35 @@ class Application(Tk):
 
         command = parts[0]
         value = parts[1] if len(parts) > 1 else None
-        self.server.SendData(list(self.server.players.values()), command, value)
+        self.server.send_data(list(self.server.players.values()), command, value)
 
-    def RestartServer(self):
+    def restart_server(self):
 
-        self.CloseServer()
-        self.StartServer()
+        self.close_server()
+        self.start_server()
 
-    def CloseServer(self):
+    def close_server(self):
 
         if hasattr(self, 'server'):
 
-            self.server.Close()
+            self.server.close()
 
-            self.startButton["state"] = "normal"
-            self.restartButton["state"] = "disabled"
-            self.closeButton["state"] = "disabled"
-            self.sendButton["state"] = "disabled"
+            self.start_button["state"] = "normal"
+            self.restart_button["state"] = "disabled"
+            self.close_button["state"] = "disabled"
+            self.send_button["state"] = "disabled"
 
-    def PrintLog(self, text):
+    def print_log(self, text):
 
-        self.commandLog.config(state='normal')
-        self.commandLog.insert(END, text)
-        self.commandLog.config(state='disabled')
-        self.commandLog.yview(END)
+        self.command_log.config(state='normal')
+        self.command_log.insert(END, text)
+        self.command_log.config(state='disabled')
+        self.command_log.yview(END)
 
 
 if __name__ == '__main__':
 
     app = Application()
-    app.Start()
+    app.start()
 
 #endregion

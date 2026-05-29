@@ -9,7 +9,7 @@ class Database():
 
         self.name = name
     
-    def Connect(self) -> bool:
+    def connect(self) -> bool:
         
         try:
         
@@ -25,15 +25,15 @@ class Database():
 
             return True
         
-    def GetCursor(self):
+    def get_cursor(self):
 
         return self.connection.cursor()
     
-    def Execute(self, sql):
+    def execute(self, sql):
         
         try:
             
-            return self.GetCursor().execute(sql)
+            return self.get_cursor().execute(sql)
             
         except Exception as error:
 
@@ -41,10 +41,10 @@ class Database():
             
             return sys.exit()
 
-    def Commit(self):
+    def commit(self):
 
         self.connection.commit()
 
-    def Disconnect(self):
+    def disconnect(self):
 
         self.connection.close()

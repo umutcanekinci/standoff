@@ -6,25 +6,25 @@ from util.constants import *
 
 class Tile(Object):
 
-    def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
-        super().__init__((TILE_SIZE * columnNumber, TILE_SIZE * rowNumber), (TILE_SIZE, TILE_SIZE), ImagePath("tile_" + str(tileType), "tiles"), spriteGroups)
+    def __init__(self, tile_type, row_number, column_number, sprite_groups) -> None:
+        super().__init__((TILE_SIZE * column_number, TILE_SIZE * row_number), (TILE_SIZE, TILE_SIZE), ImagePath("tile_" + str(tile_type), "tiles"), sprite_groups)
 
 
 class Wall(Tile):
 
-    def __init__(self, tileType, rowNumber, columnNumber, spriteGroups) -> None:
-        super().__init__(tileType, rowNumber, columnNumber, spriteGroups)
+    def __init__(self, tile_type, row_number, column_number, sprite_groups) -> None:
+        super().__init__(tile_type, row_number, column_number, sprite_groups)
 
 
 class Tree(Tile):
 
-    def __init__(self, rowNumber, columnNumber, spriteGroups) -> None:
-        super().__init__(rowNumber, columnNumber, spriteGroups)
-        self.HP = 100
+    def __init__(self, row_number, column_number, sprite_groups) -> None:
+        super().__init__(row_number, column_number, sprite_groups)
+        self.hp = 100
 
-    def LoseHP(self, value):
-        self.HP -= value
-        if self.HP <= 0:
+    def lose_hp(self, value):
+        self.hp -= value
+        if self.hp <= 0:
             self.kill()
 
 
@@ -32,7 +32,7 @@ class Obstacle(Object):
 
     def __init__(self, game, position, size) -> None:
         self.game = game
-        super().__init__(position, size, None, spriteGroups=game.walls)
+        super().__init__(position, size, None, sprite_groups=game.walls)
 
-    def DrawRect(self, surface):
-        pygame.draw.rect(surface, Yellow, self.game.camera.Apply(self.rect), 2)
+    def draw_rect(self, surface):
+        pygame.draw.rect(surface, Yellow, self.game.camera.apply(self.rect), 2)

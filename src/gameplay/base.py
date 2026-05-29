@@ -1,40 +1,40 @@
 from pygame import Rect
-from gui.object import Object, GetImage
+from gui.object import Object, get_image
 from pygame_core.asset_path import ImagePath
 from util.constants import *
 from gui.text import Text
 
 class Base(Object):
 
-	def __init__(self, ID, game, position: tuple, size: tuple, imagePath: ImagePath = None, spriteGroups = (), parentRect: Rect = WINDOW_RECT):
+	def __init__(self, id, game, position: tuple, size: tuple, image_path: ImagePath = None, sprite_groups = (), parent_rect: Rect = WINDOW_RECT):
 		
-		super().__init__(position, size, imagePath, spriteGroups, parentRect)
+		super().__init__(position, size, image_path, sprite_groups, parent_rect)
 
-		self.ID, self.name, self.game = ID, "Base " + ID, game
+		self.id, self.name, self.game = id, "Base " + id, game
 
-		super().__init__(position, size, imagePath, (game.allSprites))
+		super().__init__(position, size, image_path, (game.all_sprites))
 		
-		self.maxHp = PLAYER_MAX_HP
-		self.SetHP(self.maxHp)
+		self.max_hp = PLAYER_MAX_HP
+		self.set_hp(self.max_hp)
 
-		self.nameText = Text((0, 0), self.name, 25, color=Yellow)
+		self.name_text = Text((0, 0), self.name, 25, color=Yellow)
 
 		# Hit rect for collisions
-		self.hitRect = PLAYER_HIT_RECT.copy()
-		self.hitRect.center = self.rect.center = self.spawnPoint
+		self.hit_rect = PLAYER_HIT_RECT.copy()
+		self.hit_rect.center = self.rect.center = self.spawn_point
 
 
-	def SetHP(self, value):
+	def set_hp(self, value):
 
 		self.hp = value
-		self.healthBar = Object((0, 0), (HEALTH_BAR_SIZE))
-		self.healthBar.image.fill(White)
+		self.health_bar = Object((0, 0), (HEALTH_BAR_SIZE))
+		self.health_bar.image.fill(White)
 
-		if self.hp > self.maxHp * 70 * .01:
+		if self.hp > self.max_hp * 70 * .01:
 
 			color = Green
 
-		elif self.hp > self.maxHp * 35 * .01:
+		elif self.hp > self.max_hp * 35 * .01:
 
 			color = Yellow
 
@@ -42,29 +42,29 @@ class Base(Object):
 
 			color = Red
 
-		pygame.draw.rect(self.healthBar.image, color, pygame.Rect(0, 0, self.healthBar.rect.width*self.hp/self.maxHp, self.healthBar.rect.height), 0)
-		pygame.draw.rect(self.healthBar.image, color, pygame.Rect((0, 0), self.healthBar.rect.size), 2)
+		pygame.draw.rect(self.health_bar.image, color, pygame.Rect(0, 0, self.health_bar.rect.width*self.hp/self.max_hp, self.health_bar.rect.height), 0)
+		pygame.draw.rect(self.health_bar.image, color, pygame.Rect((0, 0), self.health_bar.rect.size), 2)
 			
 		if self.hp <= 0:
 
 			self.kill()
 
-	def LoseHP(self, value):
+	def lose_hp(self, value):
 
-		self.SetHP(self.hp - value)
+		self.set_hp(self.hp - value)
 
 
-	def DrawName(self, surface):
+	def draw_name(self, surface):
 
-		self.game.camera.Draw(surface, [self.nameText])
+		self.game.camera.draw(surface, [self.name_text])
 
-	def DrawRects(self, surface):
+	def draw_rects(self, surface):
 
-		pygame.draw.rect(surface, Red, self.game.camera.Apply(self.rect), 2)
-		pygame.draw.rect(surface, Blue, self.game.camera.Apply(self.hitRect), 2)
+		pygame.draw.rect(surface, Red, self.game.camera.apply(self.rect), 2)
+		pygame.draw.rect(surface, Blue, self.game.camera.apply(self.hit_rect), 2)
 
-	def DrawHealthBar(self, surface):
+	def draw_health_bar(self, surface):
 
-		if self.hp != self.maxHp:
+		if self.hp != self.max_hp:
 
-			self.game.camera.Draw(surface, [self.healthBar])
+			self.game.camera.draw(surface, [self.health_bar])

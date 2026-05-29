@@ -9,18 +9,18 @@ class Camera():
 		self.map = map
 		self.map.camera = self
 		
-	def Follow(self, targetRect):
+	def follow(self, target_rect):
 		
-		self.rect.x, self.rect.y = -targetRect.centerx + (self.rect.width / 2), -targetRect.centery + (self.rect.height / 2)
+		self.rect.x, self.rect.y = -target_rect.centerx + (self.rect.width / 2), -target_rect.centery + (self.rect.height / 2)
 		
 		self.rect.x = max(self.rect.width - self.map.rect.width, min(0, self.rect.x))
 		self.rect.y = max(self.rect.height - self.map.rect.height, min(0, self.rect.y))
 
-	def Apply(self, rect: pygame.Rect):
+	def apply(self, rect: pygame.Rect):
 		
 		return pygame.Rect((self.rect.x + rect.x, self.rect.y + rect.y), rect.size)
 
-	def Draw(self, image, objects):
+	def draw(self, image, objects):
 
 		if not hasattr(objects, '__iter__'):
 
@@ -28,4 +28,4 @@ class Camera():
 
 		for object in objects:
 			
-			image.blit(object.image, self.Apply(object.rect))
+			image.blit(object.image, self.apply(object.rect))

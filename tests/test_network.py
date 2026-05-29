@@ -45,8 +45,8 @@ def main() -> int:
     host = Network(lambda data: received.append(("host", data)))
     client = Network(lambda data: received.append(("client", data)))
 
-    # 1. Host starts (bind + listen).
-    if host.Host() == 1 and host.isConnected:
+    # 1. host starts (bind + listen).
+    if host.host() == 1 and host.is_connected:
         print("PASS: host started (bound + listening)")
     else:
         failures.append("host failed to start")
@@ -56,8 +56,8 @@ def main() -> int:
 
     # 2. Client connects.
     local_ip = socket.gethostbyname(socket.gethostname())
-    if client.Connect(local_ip) == 1:
-        print("PASS: client Connect() reported success")
+    if client.connect(local_ip) == 1:
+        print("PASS: client connect() reported success")
     else:
         failures.append("client failed to connect")
         print("FAIL: client failed to connect")
@@ -70,8 +70,8 @@ def main() -> int:
         failures.append("server did not register the connecting client")
         print(f"FAIL: server did not register the client (players={host.players})")
 
-    # 4. (Informational) client receive loop. Exposes a known bug: Connect()
-    #    never sets client.isConnected = True, so __RecieveFromServer exits
+    # 4. (Informational) client receive loop. Exposes a known bug: connect()
+    #    never sets client.is_connected = True, so __recieve_from_server exits
     #    immediately and the client never reads the server's !SET_PLAYER.
     got_client_data = wait_until(
         lambda: any(side == "client" for side, _ in received), timeout=1.0
@@ -80,16 +80,16 @@ def main() -> int:
         print("INFO: client received server data:",
               [d for s, d in received if s == "client"])
     else:
-        print("WARN: client received nothing - Connect() does not set "
-              "isConnected=True, so the client receive thread never runs.")
+        print("WARN: client received nothing - connect() does not set "
+              "is_connected=True, so the client receive thread never runs.")
 
     # Cleanup.
     try:
-        client.Close()
+        client.close()
     except Exception:
         pass
     try:
-        host.Close()
+        host.close()
     except Exception:
         pass
 

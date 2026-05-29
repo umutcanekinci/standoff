@@ -3,18 +3,18 @@ from util.constants import HEADER, CLIENT_PORT as PORT
 
 class Network:
 
-    def __init__(self, onRecieveData) -> None:
+    def __init__(self, on_recieve_data) -> None:
 
-        self.playerID = 0
+        self.player_id = 0
         self.players = {}
-        self.isConnected = False
+        self.is_connected = False
 
-        self.onRecieveData = onRecieveData
+        self.on_recieve_data = on_recieve_data
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.status = '[CLIENT] => Socket has been created'
 
-    def Connect(self, ip, port=PORT) -> int:
+    def connect(self, ip, port=PORT) -> int:
 
         try:
 
@@ -27,26 +27,26 @@ class Network:
 
         except socket.error as e:
 
-            self.status += '\n' + 'Failed to Connect to Server with IP: ' + self.server + ' and Port: ' + str(port) + ' => ' + str(e)
+            self.status += '\n' + 'Failed to connect to Server with IP: ' + self.server + ' and Port: ' + str(port) + ' => ' + str(e)
             return 0
 
         else:
 
-            threading.Thread(target=self.__RecieveFromServer, args=(self.socket,)).start()
+            threading.Thread(target=self.__recieve_from_server, args=(self.socket,)).start()
             return 1
 
-    def Host(self, port=PORT) -> int:
+    def host(self, port=PORT) -> int:
 
         self.server = socket.gethostbyname(socket.gethostname())
         self.port = port
         self.address = (self.server, self.port)
 
-        self.players[self.playerID] = self.server
+        self.players[self.player_id] = self.server
 
         try:
 
-            self.Bind()
-            self.Listen()
+            self.bind()
+            self.listen()
 
             return 1
 
@@ -54,7 +54,7 @@ class Network:
 
             return 0
 
-    def Bind(self) -> None:
+    def bind(self) -> None:
 
         try:
 
@@ -62,43 +62,43 @@ class Network:
 
         except:
 
-            self.status += '\n' + 'Failed to Bind to IP: ' + self.server + ' and Port: ' + str(self.port)
+            self.status += '\n' + 'Failed to bind to IP: ' + self.server + ' and Port: ' + str(self.port)
 
         else:
 
             self.status += '\n' + 'Binded to IP: ' + self.server + ' and Port: ' + str(self.port)
 
-    def Listen(self) -> None:
+    def listen(self) -> None:
 
         try:
 
             self.socket.listen()
             self.status += '\n' + 'Server is Listening on IP: ' + self.server + ' and Port: ' + str(self.port)
-            self.isConnected = True
+            self.is_connected = True
 
         except:
 
-            self.status += '\n' + 'Failed to Listen on IP: ' + self.server + ' and Port: ' + str(self.port)
+            self.status += '\n' + 'Failed to listen on IP: ' + self.server + ' and Port: ' + str(self.port)
 
         else:
 
-            threading.Thread(target=self.__Accept).start()
+            threading.Thread(target=self.__accept).start()
 
-    def __Accept(self) -> None:
+    def __accept(self) -> None:
 
-        while self.isConnected:
+        while self.is_connected:
 
             try:
 
                 socket, address = self.socket.accept()
 
-                playerID = len(self.players)
-                self.players[playerID] = address
+                player_id = len(self.players)
+                self.players[player_id] = address
 
-                self.status += '\n' + 'Connected to IP: ' + address[0] + ' and Port: ' + str(address[1]) + ' as Player ' + str(playerID)
+                self.status += '\n' + 'Connected to IP: ' + address[0] + ' and Port: ' + str(address[1]) + ' as Player ' + str(player_id)
                 self.status += '\n' + 'Player count is ' + str(len(self.players))
 
-                self.Send(socket, '!SET_PLAYER', ('Player name', 'Character Name'))
+                self.send(socket, '!SET_PLAYER', ('Player name', 'Character Name'))
 
             except:
 
@@ -106,15 +106,15 @@ class Network:
 
             else:
 
-                threading.Thread(target=self.__HandleClient, args=(socket, playerID,)).start()
+                threading.Thread(target=self.__handle_client, args=(socket, player_id,)).start()
 
-    def __HandleClient(self, socket: socket.socket, playerID) -> None:
+    def __handle_client(self, socket: socket.socket, player_id) -> None:
 
-        while self.isConnected:
+        while self.is_connected:
 
             try:
 
-                data = self.__RecieveFromClient(socket, playerID)
+                data = self.__recieve_from_client(socket, player_id)
 
                 if data:
 
@@ -127,70 +127,70 @@ class Network:
 
                     elif command == '!DISCONNECT':
 
-                        self.DisconnectClient(playerID)
+                        self.disconnect_client(player_id)
                         break
 
                     """
                     if command == '!SET_PLAYER':
 
-                        playerName, characterName = value
-                        player.SetName(playerName)
-                        player.SetCharacterName(characterName)
-                        self.PrintLog(f"{player.name} ({player.ID}) is entered to lobby.")
+                        player_name, character_name = value
+                        player.set_name(player_name)
+                        player.set_character_name(character_name)
+                        self.print_log(f"{player.name} ({player.id}) is entered to lobby.")
 
                     elif command == '!JOIN_ROOM':
 
-                        roomID = value
+                        room_id = value
 
-                        if len(self.roomList) > 0 and roomID in self.roomList.keys() and self.roomList[roomID].size > len(self.roomList[roomID]):
+                        if len(self.room_list) > 0 and room_id in self.room_list.keys() and self.room_list[room_id].size > len(self.room_list[room_id]):
 
-                            player.JoinRoom(self.roomList[roomID], False)
-                            self.PrintLog(f"{player.name} ({player.ID}) is joined a room {roomID}.")
+                            player.join_room(self.room_list[room_id], False)
+                            self.print_log(f"{player.name} ({player.id}) is joined a room {room_id}.")
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                         else:
 
-                            self.SendData(player, "!UPDATE_ROOM", False)
+                            self.send_data(player, "!UPDATE_ROOM", False)
 
                     elif command == '!LEAVE_ROOM':
 
-                        self.LeaveRoom(player)
+                        self.leave_room(player)
 
                     elif command == '!GET_READY':
 
-                            player.isReady = True
+                            player.is_ready = True
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                     elif command == '!GET_UNREADY':
 
-                            player.isReady = False
+                            player.is_ready = False
 
-                            for roomMate in player.room:
+                            for room_mate in player.room:
 
-                                self.SendData(roomMate, "!UPDATE_ROOM", roomMate)
+                                self.send_data(room_mate, "!UPDATE_ROOM", room_mate)
 
                     elif command == '!START_GAME':
 
-                        self.SendData(player.room, command)
+                        self.send_data(player.room, command)
 
-                        thread = threading.Thread(target= self.HandleRoom, args=(player.room, ))
+                        thread = threading.Thread(target= self.handle_room, args=(player.room, ))
                         thread.start()
 
                     elif command == '!SHOOT':
 
-                        self.SendData(player.room, command, value)
+                        self.send_data(player.room, command, value)
 
                     elif command == '!UPDATE_PLAYER':
 
-                        for roomMate in player.room:
+                        for room_mate in player.room:
 
-                            self.SendData(roomMate, command, value)
+                            self.send_data(room_mate, command, value)
 
                     """
 
@@ -202,7 +202,7 @@ class Network:
 
             except:
 
-                self.DisconnectClient(playerID)
+                self.disconnect_client(player_id)
                 break
 
             finally:
@@ -216,81 +216,81 @@ class Network:
 
 
 
-    def __Recieve(self, socket) -> dict | None:
+    def __recieve(self, socket) -> dict | None:
 
         try:
 
-            packedLength = socket.recv(HEADER)
-            dataLength = struct.unpack('!I', packedLength)[0]
-            serializedData = socket.recv(dataLength)
-            return pickle.loads(serializedData)
+            packed_length = socket.recv(HEADER)
+            data_length = struct.unpack('!I', packed_length)[0]
+            serialized_data = socket.recv(data_length)
+            return pickle.loads(serialized_data)
 
         except (socket.error, ConnectionResetError) as e:
 
             self.status += '\n' + 'Failed to Recieve Data' + ' => ' + str(e)
             return None
 
-    def __RecieveFromClient(self, socket, player) -> dict | None:
+    def __recieve_from_client(self, socket, player) -> dict | None:
 
-        data = self.__Recieve(socket)
+        data = self.__recieve(socket)
 
         if data: return data
 
-        self.DisconnectClient(player)
+        self.disconnect_client(player)
         return None
 
-    def __RecieveFromServer(self, socket) -> None:
+    def __recieve_from_server(self, socket) -> None:
 
-        while self.isConnected:
+        while self.is_connected:
 
-            data = self.__Recieve(socket)
+            data = self.__recieve(socket)
 
             if data:
 
-                self.onRecieveData(data)
+                self.on_recieve_data(data)
 
             else:
 
-                self.Close()
+                self.close()
                 break
 
-    def Send(self, socket, command, value=None) -> None:
+    def send(self, socket, command, value=None) -> None:
 
         try:
 
-            dataToSend = {'command': command, 'value': value}
+            data_to_send = {'command': command, 'value': value}
 
-            if self.isConnected:
+            if self.is_connected:
 
-                serializedData = pickle.dumps(dataToSend)
-                dataLength = len(serializedData)
-                packedLength = struct.pack('!I', dataLength)
-                socket.sendall(packedLength + serializedData)
+                serialized_data = pickle.dumps(data_to_send)
+                data_length = len(serialized_data)
+                packed_length = struct.pack('!I', data_length)
+                socket.sendall(packed_length + serialized_data)
 
         except socket.error as e:
 
-            self.status += '\n' + 'Failed to Send Data' + ' => ' + str(e)
+            self.status += '\n' + 'Failed to send Data' + ' => ' + str(e)
 
-    def SendList(self, playerList, command, value=None, exceptions=[]) -> None:
+    def send_list(self, player_list, command, value=None, exceptions=[]) -> None:
 
-        if not hasattr(playerList, '__iter__'): playerList = [playerList]
-        for exception in exceptions: playerList.remove(exception)
-        for player in playerList:
+        if not hasattr(player_list, '__iter__'): player_list = [player_list]
+        for exception in exceptions: player_list.remove(exception)
+        for player in player_list:
 
-            self.SendData(player, command, value)
+            self.send_data(player, command, value)
 
-    def DisconnectClient(self, player) -> None:
+    def disconnect_client(self, player) -> None:
 
         self.players.pop(player)
-        self.Send(player, {'command': '!DISCONNECT'})
+        self.send(player, {'command': '!DISCONNECT'})
         self.status += '\n' + 'Player ' + str(player) + ' has disconnected'
         self.status += '\n' + 'Player count is ' + str(len(self.players))
 
-    def Close(self) -> None:
+    def close(self) -> None:
 
-        self.isConnected = False
+        self.is_connected = False
         self.socket.close()
 
     def __del__(self) -> None:
 
-        self.Close()
+        self.close()

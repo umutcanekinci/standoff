@@ -7,19 +7,19 @@ class Client:
 
     def __init__(self, game):
 
-        self.isConnected = False
+        self.is_connected = False
         self.game = game
 
-    def Start(self):
+    def start(self):
 
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.recieveThread = threading.Thread(target=self.ConnectToServer)
-        self.recieveThread.start()        
+        self.recieve_thread = threading.Thread(target=self.connect_to_server)
+        self.recieve_thread.start()        
         
-    def ConnectToServer(self):
+    def connect_to_server(self):
 
-        self.game.DebugLog("[CLIENT] => Connecting to server.")
+        self.game.debug_log("[CLIENT] => Connecting to server.")
 
         try:
 
@@ -27,16 +27,16 @@ class Client:
 
         except (ConnectionRefusedError, OSError) as e:
 
-            self.game.DebugLog("[CLIENT] => An error occured while connecting to the server.")
+            self.game.debug_log("[CLIENT] => An error occured while connecting to the server.")
             return
 
-        self.isConnected = True
+        self.is_connected = True
 
-        self.game.DebugLog("[CLIENT] => Connected to server.")
+        self.game.debug_log("[CLIENT] => Connected to server.")
         
-        self.RecieveData()
+        self.recieve_data()
         
-    def RecvAll(self, length):
+    def recv_all(self, length):
 
         # TCP recv can return fewer bytes than requested; loop until we have all of them.
         data = bytearray()
@@ -53,48 +53,48 @@ class Client:
 
         return bytes(data)
 
-    def RecieveData(self):
+    def recieve_data(self):
 
-        while self.isConnected:
+        while self.is_connected:
 
             try:
 
-                packedLength = self.RecvAll(HEADER)
+                packed_length = self.recv_all(HEADER)
 
-                if not packedLength:
+                if not packed_length:
 
-                    self.isConnected = False
+                    self.is_connected = False
                     break
 
-                dataLength = struct.unpack('!I', packedLength)[0]
-                serializedData = self.RecvAll(dataLength)
+                data_length = struct.unpack('!I', packed_length)[0]
+                serialized_data = self.recv_all(data_length)
 
-                if not serializedData:
+                if not serialized_data:
 
-                    self.isConnected = False
+                    self.is_connected = False
                     break
 
-                self.game.GetData(pickle.loads(serializedData))
+                self.game.get_data(pickle.loads(serialized_data))
 
             except(socket.error, ConnectionResetError, struct.error):
 
-                self.isConnected = False
+                self.is_connected = False
                 break
 
-    def SendData(self, command, value=None):
+    def send_data(self, command, value=None):
 
-        dataToSend = {'command': command, 'value': value}
+        data_to_send = {'command': command, 'value': value}
 
-        if self.isConnected:
+        if self.is_connected:
             
-            serializedData = pickle.dumps(dataToSend)
-            dataLength = len(serializedData)
-            packedLength = struct.pack('!I', dataLength)
-            self.client.sendall(packedLength + serializedData)
+            serialized_data = pickle.dumps(data_to_send)
+            data_length = len(serialized_data)
+            packed_length = struct.pack('!I', data_length)
+            self.client.sendall(packed_length + serialized_data)
 
-    def DisconnectFromServer(self):
+    def disconnect_from_server(self):
         
-        self.isConnected = False
+        self.is_connected = False
 
         if hasattr(self, 'client'):
 
