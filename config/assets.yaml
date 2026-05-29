@@ -1,0 +1,32 @@
+# config/assets.yaml
+# Manifest-driven asset registry (loaded by pygame_core.AssetManager).
+# Keys are looked up in code as f"char_{name}_idle" / f"char_{name}_gun" / f"muzzle_{n}".
+
+images:
+  # ── Character idle sprites (mob + menu preview) ───────────────────────
+  char_hitman_idle:      {folder: characters/hitman,      name: idle}
+  char_man_blue_idle:    {folder: characters/man_blue,    name: idle}
+  char_man_brown_idle:   {folder: characters/man_brown,   name: idle}
+  char_man_old_idle:     {folder: characters/man_old,     name: idle}
+  char_robot_idle:       {folder: characters/robot,       name: idle}
+  char_solider_idle:     {folder: characters/solider,     name: idle}
+  char_survivor_idle:    {folder: characters/survivor,    name: idle}
+  char_woman_green_idle: {folder: characters/woman_green, name: idle}
+  char_zombie_idle:      {folder: characters/zombie,      name: idle}
+
+  # ── Character gun sprites (player) ────────────────────────────────────
+  char_hitman_gun:       {folder: characters/hitman,      name: gun}
+  char_man_blue_gun:     {folder: characters/man_blue,    name: gun}
+  char_man_brown_gun:    {folder: characters/man_brown,   name: gun}
+  char_man_old_gun:      {folder: characters/man_old,     name: gun}
+  char_robot_gun:        {folder: characters/robot,       name: gun}
+  char_solider_gun:      {folder: characters/solider,     name: gun}
+  char_survivor_gun:     {folder: characters/survivor,    name: gun}
+  char_woman_green_gun:  {folder: characters/woman_green, name: gun}
+
+  # ── Muzzle flashes ────────────────────────────────────────────────────
+  muzzle_1: {folder: effects/muzzle_flashes, name: muzzle_01}
+  muzzle_2: {folder: effects/muzzle_flashes, name: muzzle_02}
+  muzzle_3: {folder: effects/muzzle_flashes, name: muzzle_03}
+  muzzle_4: {folder: effects/muzzle_flashes, name: muzzle_04}
+  muzzle_5: {folder: effects/muzzle_flashes, name: muzzle_05}

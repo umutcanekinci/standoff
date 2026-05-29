@@ -1,5 +1,4 @@
 from util.constants import *
-from pygame_core.asset_path import ImagePath
 from gameplay.bullet import Bullet
 from gameplay.entity import Entity
 from gameplay.muzzle_flash import MuzzleFlash
@@ -9,7 +8,7 @@ class Player(Entity):
 
 	def __init__(self, id, name, name_color, character, position, size, game) -> None:
 
-		super().__init__(id, name, name_color, position, size, ImagePath("gun", "characters/"+character), (game.players, game.all_sprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
+		super().__init__(id, name, name_color, position, size, game.assets.image_path(f"char_{character}_gun"), (game.players, game.all_sprites), PLAYER_MAX_HP, PLAYER_MAX_HP)
 		
 		# Shooting
 		self.is_shooting = False

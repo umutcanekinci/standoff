@@ -3,7 +3,6 @@ from gui.object import Object
 from gui.input_box import InputBox
 from gui.button import TriangleButton, EllipseButton
 from gui.text import Text
-from pygame_core.asset_path import ImagePath
 
 class Menu():
 
@@ -35,7 +34,7 @@ class Menu():
 
 		for character_name in CHARACTER_LIST:
 
-			self.characters.append(Object(("CENTER", 195), CHARACTER_SIZE, ImagePath("idle", "characters/"+character_name), parent_rect=self.panel.screen_rect))
+			self.characters.append(Object(("CENTER", 195), CHARACTER_SIZE, self.game.assets.image_path(f"char_{character_name}_idle"), parent_rect=self.panel.screen_rect))
 
 			words = character_name.split("_")
 			character_name = ""

@@ -1,5 +1,4 @@
 from util.constants import *
-from pygame_core.asset_path import ImagePath
 from random import choice
 from gameplay.entity import Entity
 
@@ -11,7 +10,7 @@ class Mob(Entity):
 	
 	def __init__(self, id, name, position, size, target_base, character, game) -> None:
 
-		super().__init__(id, name, Red, position, size, ImagePath("idle", "characters/"+character), (), MOB_MAX_HP, MOB_MAX_HP)
+		super().__init__(id, name, Red, position, size, game.assets.image_path(f"char_{character}_idle"), (), MOB_MAX_HP, MOB_MAX_HP)
 
 		self.target_base, self.character, self.game = target_base, character, game
 		self.map, self.camera = game.map, game.camera

@@ -3,7 +3,8 @@ from typing import override
 
 from util.constants import *
 from pygame_core.application import Application
-from pygame_core.asset_path import ImagePath, AssetPath
+from pygame_core.asset_manager import AssetManager
+from pygame_core.asset_path import AssetPath
 from pygame_core.debug import Debug
 
 from net.client import Client
@@ -22,13 +23,19 @@ class Game(Application):
     def __init__(self) -> None:
         super().__init__(WINDOW_SIZE, WINDOW_TITLE, FPS)
 
+        self.assets = AssetManager()
+        self.assets.load_manifest("config/assets.yaml")
+        missing = self.assets.validate()
+        if missing:
+            raise FileNotFoundError("Missing assets:\n  " + "\n  ".join(missing))
+
         self._debug_text = ""
         self.debug_font = pygame.font.Font(None, 25)
 
         self.window.fill(BACKGROUND_COLORS['menu'])
         pygame.display.update()
 
-        self.gun_flashes = [ImagePath('muzzle_0' + str(i + 1), 'effects/muzzle_flashes') for i in range(5)]
+        self.gun_flashes = [self.assets.image_path(f"muzzle_{i + 1}") for i in range(5)]
 
         self.is_game_started = False
 
