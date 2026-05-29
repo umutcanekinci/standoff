@@ -2,6 +2,7 @@
 
 import socket
 import threading
+import time
 import pickle
 from util.constants import *
 import struct
@@ -90,20 +91,49 @@ class Server:
 
                     self.PrintLog(f"Error accepting client connection: {e}")
 
+    def RecvAll(self, clientSocket, length):
+
+        # TCP recv can return fewer bytes than requested; loop until we have all of them.
+        data = bytearray()
+
+        while len(data) < length:
+
+            packet = clientSocket.recv(length - len(data))
+
+            if not packet:
+
+                return None
+
+            data.extend(packet)
+
+        return bytes(data)
+
     def RecieveData(self, clientSocket, player):
 
         try:
 
-            packedLength = clientSocket.recv(HEADER)
+            packedLength = self.RecvAll(clientSocket, HEADER)
+
+            if not packedLength:
+
+                self.DisconnectClient(player)
+                return None
+
             dataLength = struct.unpack('!I', packedLength)[0]
-            serializedData = clientSocket.recv(dataLength)
+            serializedData = self.RecvAll(clientSocket, dataLength)
+
+            if not serializedData:
+
+                self.DisconnectClient(player)
+                return None
+
             return pickle.loads(serializedData)
 
-        except (socket.error, ConnectionResetError):
+        except (socket.error, ConnectionResetError, struct.error):
 
             self.DisconnectClient(player)
 
-    def SendData(self, playerList, command, value=None, exceptions=[]):
+    def SendData(self, playerList, command, value=None, exceptions=None):
 
         dataToSend = {'command': command, 'value': value}
 
@@ -111,9 +141,8 @@ class Server:
 
             playerList = [playerList]
 
-        for exception in exceptions:
-
-            playerList.remove(exception)
+        # Copy so we never mutate the caller's list (e.g. a Room), and avoid a mutable default.
+        playerList = [player for player in playerList if player not in (exceptions or [])]
 
         for player in playerList:
 
@@ -168,9 +197,10 @@ class Server:
 
     def HandleRoom(self, room):
 
-        while len(self.roomList[room.ID]):
+        while room.ID in self.roomList:
 
             room.Update(self.SpawnMob)
+            time.sleep(0.01)
 
     def HandleClient(self, clientSocket: socket.socket, player: PlayerInfo):
 
@@ -295,7 +325,7 @@ class Server:
                 
         if hasattr(self, 'server'):
 
-            for player in self.players.values():
+            for player in list(self.players.values()):
 
                 self.DisconnectClient(player)
 
@@ -488,8 +518,15 @@ class Application(Tk):
     def SendCommand(self):
 
         text = self.commandEntry.get()
-        command, value = text.split()
-        self.server.SendData(self.server.players, command, value)
+        parts = text.split()
+
+        if not parts:
+
+            return
+
+        command = parts[0]
+        value = parts[1] if len(parts) > 1 else None
+        self.server.SendData(list(self.server.players.values()), command, value)
 
     def RestartServer(self):
 

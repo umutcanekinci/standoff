@@ -144,7 +144,7 @@ class Game(Application):
             elif command == '!SPAWN':
                 self.SpawnMob(value)
             elif command == '!DISCONNECT':
-                if self.playerInfo.ID == value:
+                if getattr(self, 'playerInfo', None) and self.playerInfo.ID == value:
                     self.client.isConnected = False
                     self.exit()
                 else:
@@ -247,10 +247,11 @@ class Game(Application):
 
     @override
     def exit(self) -> None:
+        # Best-effort notify the server, then always tear down the socket and exit -
+        # don't depend on the server echoing !DISCONNECT back to close the window.
         if self.client.isConnected:
             self.client.SendData('!DISCONNECT')
-        else:
-            self.client.DisconnectFromServer()
-            super().exit()
+        self.client.DisconnectFromServer()
+        super().exit()
 
     # endregion

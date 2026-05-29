@@ -5,7 +5,7 @@ class PlayerInfo():
     def __init__(self, ID=1, address=(0, 0), name="", characterName="") -> None:
         
         self.ID = ID
-        self.adress = self.IP, self.PORT = address
+        self.address = self.IP, self.PORT = address
         self.size = 1
         self.SetName(name)
         self.SetCharacterName(characterName)
@@ -26,7 +26,10 @@ class PlayerInfo():
         self.isRuler = isRuler
         self.room = room
         room.append(self)
-        self.baseNumber = len(self.room)
+        # Take the first base point not already claimed by a room mate (len()-based
+        # numbering breaks when a player leaves and another joins).
+        used = {mate.baseNumber for mate in room if mate is not self and hasattr(mate, 'baseNumber')}
+        self.baseNumber = next(number for number in room.basePoints if number not in used)
         self.basePoint = self.room.basePoints[self.baseNumber]
 
     def LeaveRoom(self):

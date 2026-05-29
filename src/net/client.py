@@ -36,17 +36,46 @@ class Client:
         
         self.RecieveData()
         
+    def RecvAll(self, length):
+
+        # TCP recv can return fewer bytes than requested; loop until we have all of them.
+        data = bytearray()
+
+        while len(data) < length:
+
+            packet = self.client.recv(length - len(data))
+
+            if not packet:
+
+                return None
+
+            data.extend(packet)
+
+        return bytes(data)
+
     def RecieveData(self):
-        
+
         while self.isConnected:
 
             try:
 
-                packedLength = self.client.recv(HEADER)
+                packedLength = self.RecvAll(HEADER)
+
+                if not packedLength:
+
+                    self.isConnected = False
+                    break
+
                 dataLength = struct.unpack('!I', packedLength)[0]
-                serializedData = self.client.recv(dataLength)
+                serializedData = self.RecvAll(dataLength)
+
+                if not serializedData:
+
+                    self.isConnected = False
+                    break
+
                 self.game.GetData(pickle.loads(serializedData))
-            
+
             except(socket.error, ConnectionResetError, struct.error):
 
                 self.isConnected = False
