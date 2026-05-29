@@ -1,3 +1,3 @@
 @echo off
-
-python scripts/server.py
+cd /d "%~dp0"
+python server.py

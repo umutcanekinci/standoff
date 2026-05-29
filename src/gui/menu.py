@@ -1,9 +1,9 @@
-from settings import *
-from object import Object
-from input_box import InputBox
-from button import TriangleButton, EllipseButton
-from text import Text
-from path import ImagePath
+from util.constants import *
+from gui.object import Object
+from gui.input_box import InputBox
+from gui.button import TriangleButton, EllipseButton
+from gui.text import Text
+from pygame_core.asset_path import ImagePath
 
 class Menu():
 

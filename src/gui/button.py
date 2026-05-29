@@ -1,8 +1,7 @@
-from settings import *
-from object import Object
-from path import ImagePath
-from text import Text
-from path import *
+from util.constants import *
+from gui.object import Object
+from pygame_core.asset_path import ImagePath
+from gui.text import Text
 
 class Button(Object):
 

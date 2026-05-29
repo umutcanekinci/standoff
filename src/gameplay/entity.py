@@ -1,7 +1,7 @@
-from settings import *
-from object import Object, GetImage
-from text import Text
-from map import Collide
+from util.constants import *
+from gui.object import Object, GetImage
+from gui.text import Text
+from gameplay.collision import Collide
 
 class Entity(Object):
 

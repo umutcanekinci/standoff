@@ -1,3 +1,3 @@
 @echo off
-
-python scripts/__main__.py
+cd /d "%~dp0"
+python __main__.py

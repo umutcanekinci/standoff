@@ -1,8 +1,8 @@
 from pygame import Rect
-from object import Object, GetImage
-from path import ImagePath
-from settings import *
-from text import Text
+from gui.object import Object, GetImage
+from pygame_core.asset_path import ImagePath
+from util.constants import *
+from gui.text import Text
 
 class Base(Object):
 

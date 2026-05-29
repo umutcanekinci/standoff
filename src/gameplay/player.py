@@ -1,8 +1,8 @@
-from settings import *
-from path import ImagePath
-from bullet import Bullet
-from entity import Entity
-from muzzle_flash import MuzzleFlash
+from util.constants import *
+from pygame_core.asset_path import ImagePath
+from gameplay.bullet import Bullet
+from gameplay.entity import Entity
+from gameplay.muzzle_flash import MuzzleFlash
 from random import uniform
 
 class Player(Entity):

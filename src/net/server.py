@@ -3,10 +3,10 @@
 import socket
 import threading
 import pickle
-from settings import *
+from util.constants import *
 import struct
-from player_info import PlayerInfo, MobInfo
-from room import Room
+from net.player_info import PlayerInfo, MobInfo
+from net.room import Room
 from tkinter import Tk, Label, Text, Button, Frame, Entry, BOTH, END
 from ctypes import windll
 

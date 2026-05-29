@@ -1,5 +1,5 @@
-from settings import * 
-from object import Object
+from util.constants import *
+from gui.object import Object
 from random import randint, choice
 
 class MuzzleFlash(Object):

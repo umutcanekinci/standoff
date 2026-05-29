@@ -1,4 +1,4 @@
-from settings import *
+from util.constants import *
 
 class PlayerInfo():
 

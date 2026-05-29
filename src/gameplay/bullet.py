@@ -1,6 +1,6 @@
 
-from object import Object
-from settings import *
+from gui.object import Object
+from util.constants import *
 
 class Bullets(pygame.sprite.Group):
 

@@ -1,5 +1,5 @@
-from settings import *
-from map import Map
+from util.constants import *
+from gameplay.map import Map
 
 class Camera():
 

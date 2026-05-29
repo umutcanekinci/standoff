@@ -1,5 +1,5 @@
-from settings import *
-from path import ImagePath
+from util.constants import *
+from pygame_core.asset_path import ImagePath
 
 def GetImage(path: ImagePath, size=(0, 0)):
 

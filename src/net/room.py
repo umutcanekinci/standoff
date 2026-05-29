@@ -1,10 +1,10 @@
 #region Importing Packages
 
-from player_info import PlayerInfo
+from net.player_info import PlayerInfo
 import pygame
 import random
-from settings import *
-from player_info import MobInfo
+from util.constants import *
+from net.player_info import MobInfo
 
 #endregion
 

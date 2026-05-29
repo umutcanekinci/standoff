@@ -1,7 +1,7 @@
-from settings import *
-from path import ImagePath
+from util.constants import *
+from pygame_core.asset_path import ImagePath
 from random import choice
-from entity import Entity
+from gameplay.entity import Entity
 
 def CollideHitRect(one, two):
 	
