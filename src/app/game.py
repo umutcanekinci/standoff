@@ -22,7 +22,8 @@ from gameplay.bullet import Bullets
 from net.player_info import PlayerInfo
 from net.room import Room
 from ui.widgets import (ShapeButton, make_ellipse_button_factory,
-                        make_triangle_button_factory, make_input_factory)
+                        make_triangle_button_factory, make_input_factory,
+                        make_text_factory)
 
 
 class Game(Application):
@@ -39,6 +40,7 @@ class Game(Application):
         self._debug_text = ""
         self.debug_font = pygame.font.Font(None, 25)
         self._menu_font = pygame.font.Font(None, 40)
+        self._slot_font = pygame.font.Font(None, 25)
 
         self.window.fill(BACKGROUND_COLORS['menu'])
         pygame.display.update()
@@ -73,7 +75,7 @@ class Game(Application):
         self.panel_manager = PanelManager(starting_tab="main_menu")
         loader = PanelLoaderExt(self.panel_manager, Transform((0, 0), self.size), self.assets)
         loader.register("object", panel_factory.make_factory(self.assets), default=True)
-        loader.register("text", panel_factory.make_text_factory(self.assets))
+        loader.register("text", make_text_factory())
         loader.register("ellipse_button", make_ellipse_button_factory())
         loader.register("triangle_button", make_triangle_button_factory())
         loader.register("input", make_input_factory())
@@ -98,7 +100,7 @@ class Game(Application):
         room_bg = pm["room_menu"]["panel_bg"].rect
         self.room_slots = []
         for i in range(MAX_ROOM_SIZE):
-            slot = TextObject(room_bg, ("CENTER", (i + 1) * 60 + 23), "", self._menu_font)
+            slot = TextObject(room_bg, ("CENTER", (i + 1) * 60 + 23), "", self._slot_font)
             slot.active = False
             pm.add_object("room_menu", f"player_slot_{i}", slot)
             self.room_slots.append(slot)
