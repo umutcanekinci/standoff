@@ -288,10 +288,14 @@ class Game(Application):
             self.room_action_button.set_enabled(True)
 
     def update_player_rect(self, player_id, delta: tuple):
-        self.players.get_player_with_id(player_id).delta = delta
+        player = self.players.get_player_with_id(player_id)
+        if player:  # may have just left; server can still relay stale updates
+            player.delta = delta
 
     def update_player_angle(self, player_id, angle):
-        self.players.get_player_with_id(player_id).angle = angle
+        player = self.players.get_player_with_id(player_id)
+        if player:
+            player.angle = angle
 
     def shoot(self):
         if self.player.is_shooting:
@@ -302,7 +306,9 @@ class Game(Application):
 
     def remove_player(self, player_id):
         if self.is_game_started:
-            self.players.remove(self.players.get_player_with_id(player_id))
+            player = self.players.get_player_with_id(player_id)
+            if player:
+                self.players.remove(player)
 
     def spawn_mob(self, mob_info):
         self.mobs.add_mob(mob_info)
@@ -327,7 +333,9 @@ class Game(Application):
                 self.update_player_rect(value[0], value[1])
                 self.update_player_angle(value[0], value[2])
             elif command == '!SHOOT':
-                self.players.get_player_with_id(value).shoot()
+                player = self.players.get_player_with_id(value)
+                if player:
+                    player.shoot()
             elif command == '!SPAWN':
                 self.spawn_mob(value)
             elif command == '!DISCONNECT':
