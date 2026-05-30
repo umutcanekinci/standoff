@@ -13,7 +13,8 @@ from pygame_core.ecs.components.transform import Transform
 from pygame_core.ecs.state_object import StateObject
 from pygame_core.ui_widgets.text_object import TextObject
 
-from net.client import Client
+from net.transport import BaseClient
+from net.protocol import Protocol, PickleCodec
 from gameplay.map import Map
 from gameplay.camera import Camera
 from gameplay.player import Players
@@ -213,9 +214,9 @@ class Game(Application):
                 "ready": "!GET_READY",
                 "unready": "!GET_UNREADY",
             }[self.room_action]
-            self.client.send_data(command)
+            self.client.send(command)
         if self._clicked(panel["leave_room"], event):
-            self.client.send_data("!LEAVE_ROOM")
+            self.client.send("!LEAVE_ROOM")
 
     # endregion
 
@@ -226,25 +227,37 @@ class Game(Application):
         self._debug_text = str(text)
 
     def start_client(self) -> None:
-        self.client = Client(self)
-        self.client.start()
+        # The transport client is game-unaware: it just pumps decoded messages
+        # to get_data and connection status to debug_log. Connect off-thread so a
+        # slow/refused connect never blocks the game loop.
+        # Must use the same codec as the server (GameServer uses pickle, since it
+        # sends whole PlayerInfo/Room/MobInfo objects). Keep these two in lockstep.
+        self.client = BaseClient(
+            on_message=self.get_data,
+            on_disconnect=lambda: self.debug_log("[CLIENT] connection lost"),
+            on_status=self.debug_log,
+            protocol=Protocol(PickleCodec()),
+        )
+        threading.Thread(
+            target=self.client.connect, args=(CLIENT_ADDR,), daemon=True
+        ).start()
 
     def set_player(self, name, character_name) -> None:
         self.player_info = PlayerInfo(name=name, character_name=character_name)
-        self.client.send_data("!SET_PLAYER", [name, character_name])
+        self.client.send("!SET_PLAYER", [name, character_name])
 
     def create_room(self, map_name):
         base_points = Map(self, AssetPath(map_name, "maps", "tmx"), 2).base_points
 
         if self.mode == "online":
-            self.client.send_data("!CREATE_ROOM", (map_name, base_points))
+            self.client.send("!CREATE_ROOM", (map_name, base_points))
         elif self.mode == "offline":
             self.player_info.join_room(Room(1, map_name, base_points, False), True)
             self.start()
 
     def join_room(self, room_id):
         if self.mode == "online":
-            self.client.send_data("!JOIN_ROOM", room_id)
+            self.client.send("!JOIN_ROOM", room_id)
 
     def start(self):
         self.walls = []
@@ -333,7 +346,7 @@ class Game(Application):
     def shoot(self):
         if self.player.is_shooting:
             if self.mode == "online":
-                self.client.send_data("!SHOOT", self.player.id)
+                self.client.send("!SHOOT", self.player.id)
             elif self.mode == "offline":
                 self.player.shoot()
 
@@ -373,7 +386,9 @@ class Game(Application):
                 self.spawn_mob(value)
             elif command == "!DISCONNECT":
                 if getattr(self, "player_info", None) and self.player_info.id == value:
-                    self.client.is_connected = False
+                    # Server told us we're gone: drop the socket first so exit()
+                    # doesn't try to send a redundant !DISCONNECT back.
+                    self.client.disconnect()
                     self.exit()
                 else:
                     self.remove_player(value)
@@ -444,7 +459,7 @@ class Game(Application):
                 self.player.move()
 
             if self.mode == "online":
-                self.client.send_data(
+                self.client.send(
                     "!UPDATE_PLAYER",
                     [self.player_info.id, self.player.delta, self.player.angle],
                 )
@@ -502,8 +517,8 @@ class Game(Application):
         # Best-effort notify the server, then always tear down the socket and exit -
         # don't depend on the server echoing !DISCONNECT back to close the window.
         if self.client.is_connected:
-            self.client.send_data("!DISCONNECT")
-        self.client.disconnect_from_server()
+            self.client.send("!DISCONNECT")
+        self.client.disconnect()
         super().exit()
 
     # endregion

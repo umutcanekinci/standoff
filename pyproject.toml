@@ -11,3 +11,27 @@ dependencies = [
 
 [tool.uv.sources]
 pygame-core = { path = "src/pygame_core", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=8", "pre-commit>=4"]
+
+[tool.pytest.ini_options]
+# Put the source roots on sys.path so tests can `import net.*` / `app.*`
+# without per-file path hacks.
+pythonpath = ["src", "src/pygame_core"]
+testpaths = ["tests"]
+# Categories so the pre-commit hook can run the fast (unit) tests only, leaving
+# the socket-backed tests to CI:  pytest -m "not integration and not e2e"
+markers = [
+    "integration: real-socket loopback tests (slower)",
+    "e2e: full-stack end-to-end tests (slowest)",
+]
+
+[tool.ruff]
+# pygame_core is a vendored sub-package with its own tooling — don't lint it here.
+extend-exclude = ["src/pygame_core"]
+
+[tool.ruff.lint]
+# This codebase intentionally uses `from util.constants import *` in 12 modules,
+# and conftest imports after a sys.path tweak. Don't fight either.
+ignore = ["F403", "F405", "E402"]

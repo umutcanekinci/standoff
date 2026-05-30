@@ -69,10 +69,33 @@ src/util/              Constants, database helper
 src/pygame_core/       Engine submodule (Application, GameObject/ECS, PanelLoaderExt, ...)
 config/                YAML: assets, panels
 assets/                Images, Tiled maps
-tests/                 Headless network smoke test
+tests/                 Test suite — protocol/transport/game-server, unit → e2e
 ```
 
 The game runs on the shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine: `Game` extends `pygame_core.Application`, the menu is panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
+
+## Testing
+
+Tests are organized as a pyramid over the networking stack:
+
+- **Unit** (`test_protocol.py`, `test_game_server.py`) — no sockets. Framing/codec edge cases and game-server command dispatch via fakes. Fast.
+- **Integration** (`test_transport.py`, marked `integration`) — real `BaseClient`/`BaseServer` over loopback.
+- **End-to-end** (`test_e2e.py`, marked `e2e`) — full `GameServer` + clients.
+
+```bash
+uv run --group dev pytest                              # everything
+uv run --group dev pytest -m "not integration and not e2e"   # fast unit tests only
+```
+
+CI (GitHub Actions, `.github/workflows/tests.yml`) runs the **full** suite on every push and on PRs into `main`.
+
+A [pre-commit](https://pre-commit.com/) hook runs ruff (lint + format) and the **fast** tests on each commit, leaving the socket-backed tests to CI. Enable it once per clone:
+
+```bash
+uv run pre-commit install
+```
+
+Bypass a hook run with `git commit --no-verify`; run all hooks manually with `uv run pre-commit run --all-files`.
 
 ## Credits
 
@@ -82,9 +105,10 @@ Character and tile art from [Kenney](https://www.kenney.nl/) — [Topdown Shoote
 
 1. Fork this repository.
 2. Clone your fork: `git clone --recurse-submodules https://github.com/<you>/choose-your-way.git`
-3. Create a branch: `git checkout -b feature/<your-feature>`
-4. Commit + push: `git commit -am "<message>" && git push origin feature/<your-feature>`
-5. Open a pull request.
+3. Set up dev tooling: `uv sync` then `uv run pre-commit install` (runs lint/format + fast tests on commit).
+4. Create a branch: `git checkout -b feature/<your-feature>`
+5. Commit + push: `git commit -am "<message>" && git push origin feature/<your-feature>`
+6. Open a pull request.
 
 ## Author
 

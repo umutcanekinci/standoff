@@ -1,0 +1,32 @@
+# Runs on `git commit` (after `pre-commit install`). Keep these FAST — slow hooks
+# get bypassed. The full socket/e2e suite lives in CI, not here.
+#   Manual full run:   uv run pre-commit run --all-files
+#   Bypass once:       git commit --no-verify
+
+# Don't touch the vendored sub-package (it has its own tooling).
+exclude: '^src/pygame_core/'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff # lint
+        args: [--fix]
+      - id: ruff-format # format
+
+  - repo: local
+    hooks:
+      - id: fast-tests
+        name: fast tests (unit only; full suite runs in CI)
+        entry: uv run --group dev pytest -m "not integration and not e2e" -q
+        language: system
+        types: [python]
+        pass_filenames: false
