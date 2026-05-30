@@ -1,5 +1,6 @@
 from util.constants import *
 from gameplay.map import Map
+from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
 
 class Camera():
 
@@ -27,5 +28,25 @@ class Camera():
 			objects = [objects]
 
 		for object in objects:
-			
-			image.blit(object.image, self.apply(object.rect))
+
+			surface = self._surface_of(object)
+
+			if surface is not None:
+
+				image.blit(surface, self.apply(object.rect))
+
+	@staticmethod
+	def _surface_of(obj):
+
+		# GameSprite exposes `.image` (a property); the old gui.Object set it as an
+		# attribute; engine TextObject/GameObjects keep their surface on a
+		# SpriteRenderer2D component. Support all three so the camera can draw any.
+		image = getattr(obj, 'image', None)
+
+		if image is not None:
+
+			return image
+
+		renderer = obj.get_component(SpriteRenderer2D) if hasattr(obj, 'get_component') else None
+
+		return renderer.image if renderer else None
