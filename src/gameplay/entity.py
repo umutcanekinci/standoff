@@ -20,8 +20,7 @@ def _name_font():
 
 
 class Entity(GameSprite):
-
-    game: Any              # set by Player/Mob subclasses
+    game: Any  # set by Player/Mob subclasses
     hit_rect: pygame.Rect  # set by Player/Mob subclasses
 
     def __init__(self, id, name, name_color, position, size, image_path, hp, max_hp):
@@ -41,7 +40,9 @@ class Entity(GameSprite):
 
     def set_name(self, value: str, color):
         self.name = value
-        self.name_text = TextObject(Transform((0, 0), (0, 0)), (0, 0), self.name, _name_font(), color)
+        self.name_text = TextObject(
+            Transform((0, 0), (0, 0)), (0, 0), self.name, _name_font(), color
+        )
 
     def __render_health_bar(self):
         if not hasattr(self, "health_bar"):
@@ -51,14 +52,16 @@ class Entity(GameSprite):
         surface = pygame.Surface(HEALTH_BAR_SIZE, pygame.SRCALPHA)
         surface.fill(White)
 
-        if self.hp > self.max_hp * 70 * .01:
+        if self.hp > self.max_hp * 70 * 0.01:
             color = Green
-        elif self.hp > self.max_hp * 35 * .01:
+        elif self.hp > self.max_hp * 35 * 0.01:
             color = Yellow
         else:
             color = Red
 
-        pygame.draw.rect(surface, color, pygame.Rect(0, 0, w * self.hp / self.max_hp, h), 0)
+        pygame.draw.rect(
+            surface, color, pygame.Rect(0, 0, w * self.hp / self.max_hp, h), 0
+        )
         pygame.draw.rect(surface, color, pygame.Rect((0, 0), HEALTH_BAR_SIZE), 2)
         self.health_bar.set_image(surface)
 
@@ -81,9 +84,9 @@ class Entity(GameSprite):
 
     def move(self, delta):
         self.hit_rect.centerx += delta.x
-        collide(self, 'x', self.game.walls)
+        collide(self, "x", self.game.walls)
         self.hit_rect.centery += delta.y
-        collide(self, 'y', self.game.walls)
+        collide(self, "y", self.game.walls)
         self.update_position(self.hit_rect.center)
 
     def update_position(self, position):

@@ -6,6 +6,7 @@ Transform, i.e. a pygame.Rect subclass) so `camera.draw(surface, sprite)` blits
 it unchanged. Adds world-space `position`, cheap `rotate`, a draw `layer`, and an
 `alive` flag (replacing pygame Sprite.kill()).
 """
+
 import pygame
 from typing import cast
 from pygame.math import Vector2
@@ -16,8 +17,13 @@ from pygame_core.image import load_image
 
 
 class GameSprite(GameObject):
-
-    def __init__(self, position: tuple | Vector2 = (0, 0), size: tuple = (0, 0), image_path=None, layer=0):
+    def __init__(
+        self,
+        position: tuple | Vector2 = (0, 0),
+        size: tuple = (0, 0),
+        image_path=None,
+        layer=0,
+    ):
         super().__init__()
         self._renderer = self.add_component(SpriteRenderer2D)
         self.layer = layer

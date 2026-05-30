@@ -20,13 +20,16 @@ from gameplay.player import Players
 from gameplay.mob import Mobs
 from net.player_info import PlayerInfo
 from net.room import Room
-from ui.widgets import (ShapeButton, make_ellipse_button_factory,
-                        make_triangle_button_factory, make_input_factory,
-                        make_text_factory)
+from ui.widgets import (
+    ShapeButton,
+    make_ellipse_button_factory,
+    make_triangle_button_factory,
+    make_input_factory,
+    make_text_factory,
+)
 
 
 class Game(Application):
-
     def __init__(self) -> None:
         super().__init__(WINDOW_SIZE, WINDOW_TITLE, FPS)
 
@@ -41,7 +44,7 @@ class Game(Application):
         self._menu_font = pygame.font.Font(None, 40)
         self._slot_font = pygame.font.Font(None, 25)
 
-        self.window.fill(BACKGROUND_COLORS['menu'])
+        self.window.fill(BACKGROUND_COLORS["menu"])
         pygame.display.update()
 
         self.gun_flashes = [self.assets.image_path(f"muzzle_{i + 1}") for i in range(5)]
@@ -56,12 +59,12 @@ class Game(Application):
         self._load_panels()
         self._build_dynamic_objects()
         self.handlers = {
-            "main_menu":        self._handle_main_menu,
-            "player_menu":      self._handle_player_menu,
-            "game_type_menu":   self._handle_game_type_menu,
+            "main_menu": self._handle_main_menu,
+            "player_menu": self._handle_player_menu,
+            "game_type_menu": self._handle_game_type_menu,
             "create_room_menu": self._handle_create_room_menu,
-            "connect_menu":     self._handle_connect_menu,
-            "room_menu":        self._handle_room_menu,
+            "connect_menu": self._handle_connect_menu,
+            "room_menu": self._handle_room_menu,
         }
 
         self.start_client()
@@ -71,7 +74,9 @@ class Game(Application):
 
     def _load_panels(self) -> None:
         self.panel_manager = PanelManager(starting_tab="main_menu")
-        loader = PanelLoaderExt(self.panel_manager, Transform((0, 0), self.size), self.assets)
+        loader = PanelLoaderExt(
+            self.panel_manager, Transform((0, 0), self.size), self.assets
+        )
         loader.register("object", panel_factory.make_factory(self.assets), default=True)
         loader.register("text", make_text_factory())
         loader.register("ellipse_button", make_ellipse_button_factory())
@@ -84,27 +89,43 @@ class Game(Application):
 
         # Character carousel (player_menu): a preview image + a name label.
         player_bg = pm["player_menu"]["panel_bg"].rect
-        self.character_preview = StateObject(parent=player_bg, pos=("CENTER", 195), size=CHARACTER_SIZE)
+        self.character_preview = StateObject(
+            parent=player_bg, pos=("CENTER", 195), size=CHARACTER_SIZE
+        )
         for character in CHARACTER_LIST:
-            self.character_preview.add_state(character, self.assets.image_path(f"char_{character}_idle"))
+            self.character_preview.add_state(
+                character, self.assets.image_path(f"char_{character}_idle")
+            )
         self.character_preview.set_base_state(CHARACTER_LIST[0])
         pm.add_object("player_menu", "character_preview", self.character_preview)
 
         self.character_name_text = TextObject(
-            player_bg, ("CENTER", 145), self._display_name(CHARACTER_LIST[0]), self._menu_font)
+            player_bg,
+            ("CENTER", 145),
+            self._display_name(CHARACTER_LIST[0]),
+            self._menu_font,
+        )
         pm.add_object("player_menu", "character_name", self.character_name_text)
 
         # Room player-slot pool + the start/ready/unready action button (room_menu).
         room_bg = pm["room_menu"]["panel_bg"].rect
         self.room_slots = []
         for i in range(MAX_ROOM_SIZE):
-            slot = TextObject(room_bg, ("CENTER", (i + 1) * 60 + 23), "", self._slot_font)
+            slot = TextObject(
+                room_bg, ("CENTER", (i + 1) * 60 + 23), "", self._slot_font
+            )
             slot.active = False
             pm.add_object("room_menu", f"player_slot_{i}", slot)
             self.room_slots.append(slot)
 
         self.room_action_button = ShapeButton(
-            room_bg, ("CENTER", 385), (300, 60), normal_color=Green, hover_color=Red, text="")
+            room_bg,
+            ("CENTER", 385),
+            (300, 60),
+            normal_color=Green,
+            hover_color=Red,
+            text="",
+        )
         pm.add_object("room_menu", "action_button", self.room_action_button)
 
     def open_panel(self, name: str) -> None:
@@ -148,7 +169,9 @@ class Game(Application):
                 self.selected_character += 1
                 self._refresh_character()
         elif self._clicked(panel["confirm"], event):
-            self.set_player(panel["name_input"].text, CHARACTER_LIST[self.selected_character])
+            self.set_player(
+                panel["name_input"].text, CHARACTER_LIST[self.selected_character]
+            )
             self.open_panel("game_type_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("main_menu")
@@ -185,7 +208,11 @@ class Game(Application):
     def _handle_room_menu(self, event) -> None:
         panel = self.panel_manager["room_menu"]
         if self.room_action and self._clicked(panel["action_button"], event):
-            command = {"start": "!START_GAME", "ready": "!GET_READY", "unready": "!GET_UNREADY"}[self.room_action]
+            command = {
+                "start": "!START_GAME",
+                "ready": "!GET_READY",
+                "unready": "!GET_UNREADY",
+            }[self.room_action]
             self.client.send_data(command)
         if self._clicked(panel["leave_room"], event):
             self.client.send_data("!LEAVE_ROOM")
@@ -221,7 +248,9 @@ class Game(Application):
 
     def start(self):
         self.walls = []
-        self.map = Map(self, AssetPath(self.player_info.room.map_name, "maps", "tmx"), 2)
+        self.map = Map(
+            self, AssetPath(self.player_info.room.map_name, "maps", "tmx"), 2
+        )
         self.map.render()
         self.players = Players(self)
         self.mobs = Mobs(self)
@@ -237,7 +266,9 @@ class Game(Application):
                     self.players.add_player(player, Yellow)
 
         elif self.mode == "offline":
-            thread = threading.Thread(target=self.player_info.room.handle_spawner, args=(self.spawn_mob,))
+            thread = threading.Thread(
+                target=self.player_info.room.handle_spawner, args=(self.spawn_mob,)
+            )
             thread.start()
 
         self.is_game_started = True
@@ -251,7 +282,9 @@ class Game(Application):
     def update_room(self):
         room = self.player_info.room
         if room:
-            self.panel_manager["room_menu"]["room_text"].set_text("Room " + str(room.id))
+            self.panel_manager["room_menu"]["room_text"].set_text(
+                "Room " + str(room.id)
+            )
             self.open_panel("room_menu")
             self.update_players_in_room(room)
 
@@ -299,9 +332,9 @@ class Game(Application):
 
     def shoot(self):
         if self.player.is_shooting:
-            if self.mode == 'online':
-                self.client.send_data('!SHOOT', self.player.id)
-            elif self.mode == 'offline':
+            if self.mode == "online":
+                self.client.send_data("!SHOOT", self.player.id)
+            elif self.mode == "offline":
                 self.player.shoot()
 
     def remove_player(self, player_id):
@@ -315,31 +348,31 @@ class Game(Application):
 
     def get_data(self, data) -> None:
         if data:
-            command = data['command']
-            value = data['value'] if 'value' in data else None
+            command = data["command"]
+            value = data["value"] if "value" in data else None
 
             print(command, value)
 
-            if command == '!SET_PLAYER_COUNT':
+            if command == "!SET_PLAYER_COUNT":
                 self.update_player_count(value)
-            elif command == '!UPDATE_ROOM' and value:
+            elif command == "!UPDATE_ROOM" and value:
                 self.player_info = value
                 self.update_room()
-            elif command == '!LEAVE_ROOM':
+            elif command == "!LEAVE_ROOM":
                 self.open_panel("game_type_menu")
-            elif command == '!START_GAME':
+            elif command == "!START_GAME":
                 self.start()
-            elif command == '!UPDATE_PLAYER':
+            elif command == "!UPDATE_PLAYER":
                 self.update_player_rect(value[0], value[1])
                 self.update_player_angle(value[0], value[2])
-            elif command == '!SHOOT':
+            elif command == "!SHOOT":
                 player = self.players.get_player_with_id(value)
                 if player:
                     player.shoot()
-            elif command == '!SPAWN':
+            elif command == "!SPAWN":
                 self.spawn_mob(value)
-            elif command == '!DISCONNECT':
-                if getattr(self, 'player_info', None) and self.player_info.id == value:
+            elif command == "!DISCONNECT":
+                if getattr(self, "player_info", None) and self.player_info.id == value:
                     self.client.is_connected = False
                     self.exit()
                 else:
@@ -353,7 +386,9 @@ class Game(Application):
     def _handle_core_event(self, event: pygame.event.Event) -> None:
         # Esc/QUIT drive menu/in-game back-navigation (not a hard exit), matching the
         # original game; keep F1 (debug) and F11 (fullscreen) from the base.
-        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+        if event.type == pygame.QUIT or (
+            event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+        ):
             self._handle_back()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F1:
@@ -388,7 +423,7 @@ class Game(Application):
     @override
     def update(self) -> None:
         # Compat attributes the gameplay/networking code reads via self.game.*
-        self.delta_time = self.clock.get_time() * .001 * FPS
+        self.delta_time = self.clock.get_time() * 0.001 * FPS
         self.mouse_position = self.mouse.position
 
         if not self.is_game_started:
@@ -409,14 +444,17 @@ class Game(Application):
                 self.player.move()
 
             if self.mode == "online":
-                self.client.send_data("!UPDATE_PLAYER", [self.player_info.id, self.player.delta, self.player.angle])
+                self.client.send_data(
+                    "!UPDATE_PLAYER",
+                    [self.player_info.id, self.player.delta, self.player.angle],
+                )
             elif self.mode == "offline":
                 self.player_info.room.update(self.spawn_mob)
 
     @override
     def draw(self) -> None:
         if not self.is_game_started:
-            self.window.fill(BACKGROUND_COLORS['menu'])
+            self.window.fill(BACKGROUND_COLORS["menu"])
             self.panel_manager.draw(self.window)
         else:
             self.camera.draw(self.window, [self.map])
@@ -443,21 +481,28 @@ class Game(Application):
 
     @override
     def draw_debug(self) -> None:
-        Debug.draw(self.window, self.debug_font, [
-            ("Application", {
-                "FPS": round(self.clock.get_fps()),
-                "Mouse": self.mouse.position,
-                "Game started": self.is_game_started,
-            }),
-            ("Client", {"Log": self._debug_text}),
-        ])
+        Debug.draw(
+            self.window,
+            self.debug_font,
+            [
+                (
+                    "Application",
+                    {
+                        "FPS": round(self.clock.get_fps()),
+                        "Mouse": self.mouse.position,
+                        "Game started": self.is_game_started,
+                    },
+                ),
+                ("Client", {"Log": self._debug_text}),
+            ],
+        )
 
     @override
     def exit(self) -> None:
         # Best-effort notify the server, then always tear down the socket and exit -
         # don't depend on the server echoing !DISCONNECT back to close the window.
         if self.client.is_connected:
-            self.client.send_data('!DISCONNECT')
+            self.client.send_data("!DISCONNECT")
         self.client.disconnect_from_server()
         super().exit()
 

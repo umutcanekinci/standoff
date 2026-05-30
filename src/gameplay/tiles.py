@@ -5,7 +5,6 @@ from gameplay.game_sprite import GameSprite
 
 
 class Obstacle(GameSprite):
-
     def __init__(self, game, position, size) -> None:
         self.game = game
         # Map passes a top-left position; GameSprite is centred, so offset by half-size.

@@ -77,11 +77,15 @@ def main() -> int:
         lambda: any(side == "client" for side, _ in received), timeout=1.0
     )
     if got_client_data:
-        print("INFO: client received server data:",
-              [d for s, d in received if s == "client"])
+        print(
+            "INFO: client received server data:",
+            [d for s, d in received if s == "client"],
+        )
     else:
-        print("WARN: client received nothing - connect() does not set "
-              "is_connected=True, so the client receive thread never runs.")
+        print(
+            "WARN: client received nothing - connect() does not set "
+            "is_connected=True, so the client receive thread never runs."
+        )
 
     # Cleanup.
     try:

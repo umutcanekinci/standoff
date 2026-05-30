@@ -6,6 +6,7 @@ register with PanelLoaderExt). The engine has no button/input widget — buttons
 there are image assets — so we vector-draw the pill/triangle look the project
 already uses and register the surfaces via StateObject.add_surface().
 """
+
 import pygame
 
 from util.constants import Red, Blue, Gray, Black, White
@@ -13,14 +14,16 @@ from pygame_core.ecs.state_object import StateObject, HoverableStateObject
 from pygame_core.ui_widgets.text_object import TextObject
 
 _RADIUS = 25  # pill corner radius (matches the old EllipseButton)
-_DEPTH = 5    # 3D "lip" height (matches the old EllipseButton/TriangleButton)
+_DEPTH = 5  # 3D "lip" height (matches the old EllipseButton/TriangleButton)
 
 
 def _blit_centered(surf, face, text, font, text_color):
     if not text or font is None:
         return
     ts = font.render(text, True, text_color)
-    surf.blit(ts, (face.centerx - ts.get_width() / 2, face.centery - ts.get_height() / 2))
+    surf.blit(
+        ts, (face.centerx - ts.get_width() / 2, face.centery - ts.get_height() / 2)
+    )
 
 
 def _pill_surface(size, color, pressed=False, text="", font=None, text_color=White):
@@ -28,11 +31,11 @@ def _pill_surface(size, color, pressed=False, text="", font=None, text_color=Whi
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
     up = pygame.Rect(0, 0, w, h - _DEPTH)
     down = pygame.Rect(0, _DEPTH, w, h - _DEPTH)
-    pygame.draw.rect(surf, Black, down, 0, _RADIUS)        # bottom lip / shadow
-    face = down if pressed else up                          # pressed => face sits low
-    pygame.draw.rect(surf, color, face, 0, _RADIUS)         # raised (or pushed) face
-    pygame.draw.rect(surf, Black, face, 2, _RADIUS)         # face border
-    _blit_centered(surf, face, text, font, text_color)      # label rides the face
+    pygame.draw.rect(surf, Black, down, 0, _RADIUS)  # bottom lip / shadow
+    face = down if pressed else up  # pressed => face sits low
+    pygame.draw.rect(surf, color, face, 0, _RADIUS)  # raised (or pushed) face
+    pygame.draw.rect(surf, Black, face, 2, _RADIUS)  # face border
+    _blit_centered(surf, face, text, font, text_color)  # label rides the face
     return surf
 
 
@@ -59,11 +62,26 @@ class ShapeButton(HoverableStateObject):
     the label rides down with it (press effect), matching the old buttons.
     Clicks are suppressed while disabled."""
 
-    def __init__(self, parent, pos, size, *, normal_color=Red, hover_color=Blue,
-                 disabled_color=Gray, shape="ellipse", rotation="RIGHT",
-                 enabled=True, anchor="top-left", text="", text_size=40,
-                 text_color=White):
-        super().__init__(parent=parent, pos=pos, size=size, image_path=None, anchor=anchor)
+    def __init__(
+        self,
+        parent,
+        pos,
+        size,
+        *,
+        normal_color=Red,
+        hover_color=Blue,
+        disabled_color=Gray,
+        shape="ellipse",
+        rotation="RIGHT",
+        enabled=True,
+        anchor="top-left",
+        text="",
+        text_size=40,
+        text_color=White,
+    ):
+        super().__init__(
+            parent=parent, pos=pos, size=size, image_path=None, anchor=anchor
+        )
         self._size = tuple(size)
         self._shape = shape
         self._rotation = rotation
@@ -83,13 +101,17 @@ class ShapeButton(HoverableStateObject):
     def _draw(self, color, pressed=False):
         if self._shape == "triangle":
             return _triangle_surface(self._size, color, self._rotation, pressed)
-        return _pill_surface(self._size, color, pressed, self._text, self._font, self._text_color)
+        return _pill_surface(
+            self._size, color, pressed, self._text, self._font, self._text_color
+        )
 
     def _render_surfaces(self) -> None:
         self.add_surface(None, self._draw(self._normal_color))
         self._hover_images[None] = self._draw(self._hover_color)
         self.add_surface("disabled", self._draw(self._disabled_color))
-        self._hover_images["disabled"] = self._draw(self._disabled_color)  # disabled never highlights
+        self._hover_images["disabled"] = self._draw(
+            self._disabled_color
+        )  # disabled never highlights
         self._pressed_image = self._draw(self._hover_color, pressed=True)
 
     def set_label(self, text: str) -> None:
@@ -110,8 +132,11 @@ class ShapeButton(HoverableStateObject):
         super().handle_event(event, mouse_pos)  # MOUSEMOTION hover swap
         if not self.enabled:
             return
-        if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
-                and self.is_mouse_over(mouse_pos)):
+        if (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and event.button == 1
+            and self.is_mouse_over(mouse_pos)
+        ):
             self._is_pressed = True
             self._renderer.set_image(self._pressed_image)
         elif event.type == pygame.MOUSEBUTTONUP and self._is_pressed:
@@ -126,10 +151,22 @@ class InputObject(StateObject):
     """Single-line text input as a panel widget (ports gui/input_box.py):
     click to focus, type to edit, placeholder shown when empty + unfocused."""
 
-    def __init__(self, parent, pos, size, *, font_size=32, placeholder="",
-                 active_color=Blue, inactive_color=Gray, text_color=White,
-                 anchor="top-left"):
-        super().__init__(parent=parent, pos=pos, size=size, image_path=None, anchor=anchor)
+    def __init__(
+        self,
+        parent,
+        pos,
+        size,
+        *,
+        font_size=32,
+        placeholder="",
+        active_color=Blue,
+        inactive_color=Gray,
+        text_color=White,
+        anchor="top-left",
+    ):
+        super().__init__(
+            parent=parent, pos=pos, size=size, image_path=None, anchor=anchor
+        )
         self.font = pygame.font.Font(None, font_size)
         self.text = ""
         self.placeholder = placeholder
@@ -166,10 +203,13 @@ class InputObject(StateObject):
 
 # ── panel-loader factories ────────────────────────────────────────────────────
 
+
 def make_ellipse_button_factory():
     def factory(cfg, parent):
         return ShapeButton(
-            parent, tuple(cfg["position"]), tuple(cfg["size"]),
+            parent,
+            tuple(cfg["position"]),
+            tuple(cfg["size"]),
             shape="ellipse",
             normal_color=tuple(cfg.get("color", Red)),
             hover_color=tuple(cfg.get("hover_color", Blue)),
@@ -179,13 +219,16 @@ def make_ellipse_button_factory():
             text_size=cfg.get("text_size", 40),
             text_color=tuple(cfg.get("text_color", White)),
         )
+
     return factory
 
 
 def make_triangle_button_factory():
     def factory(cfg, parent):
         return ShapeButton(
-            parent, tuple(cfg["position"]), tuple(cfg["size"]),
+            parent,
+            tuple(cfg["position"]),
+            tuple(cfg["size"]),
             shape="triangle",
             rotation=cfg.get("rotation", "RIGHT"),
             normal_color=tuple(cfg.get("color", Blue)),
@@ -193,23 +236,28 @@ def make_triangle_button_factory():
             enabled=cfg.get("is_active", True),
             anchor=cfg.get("anchor", "top-left"),
         )
+
     return factory
 
 
 def make_input_factory():
     def factory(cfg, parent):
         return InputObject(
-            parent, tuple(cfg["position"]), tuple(cfg["size"]),
+            parent,
+            tuple(cfg["position"]),
+            tuple(cfg["size"]),
             font_size=cfg.get("font_size", 32),
             placeholder=cfg.get("placeholder", ""),
             anchor=cfg.get("anchor", "top-left"),
         )
+
     return factory
 
 
 def make_text_factory():
     """Text factory using pygame's default font (Font(None, size)) to match the
     original menu — the engine's load_font() falls back to SysFont('Arial')."""
+
     def factory(cfg, parent):
         return TextObject(
             parent,
@@ -222,4 +270,5 @@ def make_text_factory():
             anchor=cfg.get("anchor", "top-left"),
             states=cfg.get("states"),
         )
+
     return factory
