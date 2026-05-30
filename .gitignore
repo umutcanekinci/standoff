@@ -399,5 +399,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-# JetBrains Rider
+# JetBrains IDEs (PyCharm/Rider)
+.idea/
 *.sln.iml

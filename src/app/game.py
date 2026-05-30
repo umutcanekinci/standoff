@@ -18,7 +18,6 @@ from gameplay.map import Map
 from gameplay.camera import Camera
 from gameplay.player import Players
 from gameplay.mob import Mobs
-from gameplay.bullet import Bullets
 from net.player_info import PlayerInfo
 from net.room import Room
 from ui.widgets import (ShapeButton, make_ellipse_button_factory,
@@ -52,8 +51,7 @@ class Game(Application):
         self.selected_character = 0
         self.room_action = None  # 'start' | 'ready' | 'unready'
 
-        self.all_sprites = pygame.sprite.LayeredUpdates()
-        self.walls = pygame.sprite.Group()
+        self.walls = []
 
         self._load_panels()
         self._build_dynamic_objects()
@@ -222,12 +220,14 @@ class Game(Application):
             self.client.send_data("!JOIN_ROOM", room_id)
 
     def start(self):
+        self.walls = []
         self.map = Map(self, AssetPath(self.player_info.room.map_name, "maps", "tmx"), 2)
         self.map.render()
         self.players = Players(self)
         self.mobs = Mobs(self)
         self.camera = Camera(self.size, self.map)
-        self.bullets = Bullets()
+        self.bullets = []
+        self.effects = []
 
         self.player = self.players.add_player(self.player_info, Green)
 
@@ -394,7 +394,13 @@ class Game(Application):
         if not self.is_game_started:
             self.panel_manager.update()
         else:
-            self.all_sprites.update()
+            for entity in (*self.players, *self.mobs, *self.bullets, *self.effects):
+                entity.update()
+            self.players[:] = [p for p in self.players if p.alive]
+            self.mobs[:] = [m for m in self.mobs if m.alive]
+            self.bullets[:] = [b for b in self.bullets if b.alive]
+            self.effects[:] = [e for e in self.effects if e.alive]
+
             self.camera.follow(self.player.rect)
             self.shoot()
 
@@ -414,7 +420,10 @@ class Game(Application):
             self.panel_manager.draw(self.window)
         else:
             self.camera.draw(self.window, [self.map])
-            self.camera.draw(self.window, self.all_sprites)
+            self.camera.draw(self.window, self.mobs)
+            self.camera.draw(self.window, self.players)
+            self.camera.draw(self.window, self.bullets)
+            self.camera.draw(self.window, self.effects)
 
             for mob in self.mobs:
                 mob.draw_name(self.window, self.camera)

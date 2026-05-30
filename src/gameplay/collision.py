@@ -1,29 +1,25 @@
-import pygame
+"""Axis-resolved collision against a list of wall objects (ECS, no pygame.sprite)."""
 
 
-def is_collide(one, two):
+def is_collide(one, two) -> bool:
     return one.hit_rect.colliderect(two.rect)
 
 
-def collide(object, direction: str, sprite_group: pygame.sprite.Group) -> None:
-    hits = pygame.sprite.spritecollide(object, sprite_group, False, is_collide)
+def collide(obj, direction: str, walls) -> None:
+    hit = next((w for w in walls if w is not obj and obj.hit_rect.colliderect(w.rect)), None)
+    if hit is None:
+        return
 
-    if hits and hits[0] != object:
+    if direction == 'x':
+        if obj.rect.x < hit.rect.x:
+            obj.hit_rect.right = hit.rect.left - .001
+        else:
+            obj.hit_rect.left = hit.rect.right + .001
+        obj.velocity.x = 0
 
-        if direction == 'x':
-
-            if object.rect.x < hits[0].rect.x:
-                object.hit_rect.right = hits[0].rect.left - .001
-            else:
-                object.hit_rect.left = hits[0].rect.right + .001
-
-            object.velocity.x = 0
-
-        if direction == 'y':
-
-            if object.rect.y < hits[0].rect.y:
-                object.hit_rect.bottom = hits[0].rect.top - .001
-            else:
-                object.hit_rect.top = hits[0].rect.bottom + .001
-
-            object.velocity.y = 0
+    if direction == 'y':
+        if obj.rect.y < hit.rect.y:
+            obj.hit_rect.bottom = hit.rect.top - .001
+        else:
+            obj.hit_rect.top = hit.rect.bottom + .001
+        obj.velocity.y = 0
