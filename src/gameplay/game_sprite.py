@@ -7,6 +7,7 @@ it unchanged. Adds world-space `position`, cheap `rotate`, a draw `layer`, and a
 `alive` flag (replacing pygame Sprite.kill()).
 """
 import pygame
+from typing import cast
 from pygame.math import Vector2
 
 from pygame_core.ecs.game_object import GameObject
@@ -16,18 +17,18 @@ from pygame_core.image import load_image
 
 class GameSprite(GameObject):
 
-    def __init__(self, position=(0, 0), size=(0, 0), image_path=None, layer=0):
+    def __init__(self, position: tuple | Vector2 = (0, 0), size: tuple = (0, 0), image_path=None, layer=0):
         super().__init__()
         self._renderer = self.add_component(SpriteRenderer2D)
         self.layer = layer
         self.alive = True
         self.position = Vector2(position)
-        self.original_image = None
-        self.rotated_image = None
+        self.original_image: pygame.Surface
+        self.rotated_image: pygame.Surface | None = None
         self.is_rotated = False
 
         if image_path is not None:
-            self.set_image(load_image(image_path, size))
+            self.set_image(cast(pygame.Surface, load_image(image_path, size)))
         else:
             self.set_image(pygame.Surface(size, pygame.SRCALPHA))
 
@@ -46,7 +47,7 @@ class GameSprite(GameObject):
     def image(self) -> pygame.Surface | None:
         return self.rotated_image if self.is_rotated else self.original_image
 
-    def set_position(self, position) -> None:
+    def set_position(self, position: tuple | Vector2) -> None:
         self.position = Vector2(position)
         self.rect.center = self._int_pos()
 

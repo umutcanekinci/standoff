@@ -1,4 +1,5 @@
 import pygame
+from typing import Any, cast
 
 from util.constants import *
 from gameplay.game_sprite import GameSprite
@@ -20,6 +21,9 @@ def _name_font():
 
 class Entity(GameSprite):
 
+    game: Any              # set by Player/Mob subclasses
+    hit_rect: pygame.Rect  # set by Player/Mob subclasses
+
     def __init__(self, id, name, name_color, position, size, image_path, hp, max_hp):
         super().__init__(position=position, layer=ENTITY_LAYER)
         self.id = id
@@ -30,7 +34,7 @@ class Entity(GameSprite):
         self.set_entity_image(image_path, position, size)
 
     def set_entity_image(self, image_path, position, size):
-        native = load_image(image_path)
+        native = cast(pygame.Surface, load_image(image_path))
         w, h = native.get_size()
         self.set_image(pygame.transform.scale(native, (int(w * size), int(h * size))))
         self.set_position(position)

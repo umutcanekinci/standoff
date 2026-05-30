@@ -5,7 +5,7 @@ from random import randint, choice
 
 class MuzzleFlash(GameSprite):
 
-	def __init__(self, game, position: tuple, angle):
+	def __init__(self, game, position, angle):
 
 		self.game = game
 		self.spawn_time = pygame.time.get_ticks()
