@@ -92,10 +92,7 @@ class Mob(Entity):
                 p for p in self.game.players if self.hit_rect.colliderect(p.rect)
             ]:
                 player.lose_hp(self.damage)
-                player.velocity = Vec()
-                player.update_position(
-                    Vec(player.rect.center) + Vec(MOB_KNOCKBACK, 0).rotate(-self.angle)
-                )
+                player.apply_knockback(Vec(1, 0).rotate(-self.angle), MOB_KNOCKBACK)
                 self.last_attack = now
                 break
 

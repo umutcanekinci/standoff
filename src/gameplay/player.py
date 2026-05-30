@@ -49,6 +49,7 @@ class Player(Entity):
         # Rotation
         self.force_rotation = Vec()
         self.delta = Vec()
+        self.knockback = Vec()
         self.angle = 0
 
         # Weight (Kilogram)
@@ -138,6 +139,19 @@ class Player(Entity):
         self.delta = (self.velocity * self.game.delta_time) + (
             0.5 * self.acceleration * self.game.delta_time * self.game.delta_time
         )
+
+        # Smooth, decaying knockback — applied through movement so it eases out
+        # and still collides with walls (instead of an instant teleport).
+        self.delta += self.knockback
+        self.knockback *= KNOCKBACK_DECAY
+        if self.knockback.length() < 0.1:
+            self.knockback = Vec()
+
+    def apply_knockback(self, direction, distance):
+        if direction.length() == 0:
+            return
+        # Initial impulse sized so the decaying per-frame series sums to ~distance px.
+        self.knockback = direction.normalize() * distance * (1 - KNOCKBACK_DECAY)
 
     def shoot(self):
         now = pygame.time.get_ticks()

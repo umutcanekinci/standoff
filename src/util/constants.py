@@ -107,7 +107,8 @@ SPAWN_RATE = 2000
 RANGE_RADIUS = 5 * TILE_WIDTH  # for attract by players
 AVOID_RADIUS = 50
 MOB_SPEEDS = [1.2, 1.3, 1.4, 1.1]
-MOB_KNOCKBACK = 20
+MOB_KNOCKBACK = 20  # total knockback distance (px), spread smoothly over frames
+KNOCKBACK_DECAY = 0.8  # per-frame falloff of the knockback impulse (0..1)
 
 # -# Sprite Layers #-#
 WALL_LAYER = 1
