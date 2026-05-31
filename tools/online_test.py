@@ -66,14 +66,19 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
 
     # The engine opens fullscreen in Application.__init__; we need windowed so four
     # clients tile on screen. Replace that one method (this process only) with a
-    # single windowed SCALED set_mode — calling set_mode a *second* time to leave
-    # fullscreen segfaults SDL, so we never go fullscreen at all. SCALED keeps the
-    # logical 1920x1080 render and fits it to the smaller window.
+    # single windowed set_mode at the quarter size — calling set_mode a *second*
+    # time to leave fullscreen segfaults SDL, so we never go fullscreen at all.
+    #
+    # The quarter is used as BOTH the window and the logical size: the gameplay
+    # camera follows game.size, so it renders a correct, native (smaller) view. We
+    # don't use SCALED because it only scales by integer factors and so can't shrink
+    # 1920x1080 into a 960x540 window. The menu is laid out for 1920x1080 and looks
+    # off at this size, but the autopilot drives the lobby directly (no clicking).
+    qw, qh = rect[2], rect[3]
+
     def _windowed(self) -> None:
-        self.set_size(self.minimized_size)
-        self.window = pygame.display.set_mode(
-            self.size, pygame.SCALED | pygame.RESIZABLE
-        )
+        self.set_size((qw, qh))
+        self.window = pygame.display.set_mode((qw, qh))
 
     Application.full_screen = _windowed
 
