@@ -1,13 +1,11 @@
 import pygame
 from colorama import Fore
 import socket
+from enum import StrEnum
 from pygame.math import Vector2 as Vec
 
 # TODO
-# collision with obstacles
-# shooting improvments
-# online position fix
-# lose hp
+# shooting improvements
 # mobs
 # sounds
 # pause screen
@@ -54,9 +52,16 @@ BACKGROUND_COLORS = {"menu": CustomBlue}
 DEVELOP_MODE = False
 FPS = 60
 
+
 # Play modes (Game.mode)
-MODE_ONLINE = "online"
-MODE_OFFLINE = "offline"
+class Mode(StrEnum):
+    """How a session is played. StrEnum members are real strings, so a Mode
+    compares equal to its value and still serializes/logs as 'online'/'offline'."""
+
+    ONLINE = "online"
+    OFFLINE = "offline"
+
+
 MAX_ROOM_SIZE = 4
 HEALTH_BAR_SIZE = (60, 15)
 

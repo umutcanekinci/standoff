@@ -17,8 +17,7 @@ from util.constants import (
     MAX_ROOM_SIZE,
     CHARACTER_LIST,
     CHARACTER_SIZE,
-    MODE_ONLINE,
-    MODE_OFFLINE,
+    Mode,
     Red,
     Green,
     Yellow,
@@ -214,13 +213,13 @@ class LobbyScene(Scene):
     def _handle_game_type_menu(self, event) -> None:
         panel = self.panel_manager["game_type_menu"]
         if self._clicked(panel["new_game"], event):
-            self.game.mode = MODE_OFFLINE
+            self.game.mode = Mode.OFFLINE
             self.open_panel("create_room_menu")
         elif self._clicked(panel["create_room"], event):
-            self.game.mode = MODE_ONLINE
+            self.game.mode = Mode.ONLINE
             self.open_panel("create_room_menu")
         elif self._clicked(panel["connect"], event):
-            self.game.mode = MODE_ONLINE
+            self.game.mode = Mode.ONLINE
             self.open_panel("connect_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("player_menu")
@@ -265,14 +264,14 @@ class LobbyScene(Scene):
         sink = SimpleNamespace(walls=[])
         base_points = Map(sink, AssetPath(map_name, "maps", "tmx"), 2).base_points
 
-        if self.game.mode == MODE_ONLINE:
+        if self.game.mode == Mode.ONLINE:
             self.game.client.send(Command.CREATE_ROOM, (map_name, base_points))
-        elif self.game.mode == MODE_OFFLINE:
+        elif self.game.mode == Mode.OFFLINE:
             self.game.player_info.join_room(Room(1, map_name, base_points, False), True)
             self.game.start()
 
     def join_room(self, room_id):
-        if self.game.mode == MODE_ONLINE:
+        if self.game.mode == Mode.ONLINE:
             self.game.client.send(Command.JOIN_ROOM, room_id)
 
     # Lobby state updates (called by Game's network message router)

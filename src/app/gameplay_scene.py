@@ -20,8 +20,7 @@ from util.constants import (
     TILE_WIDTH,
     TILE_HEIGHT,
     AVOID_RADIUS,
-    MODE_ONLINE,
-    MODE_OFFLINE,
+    Mode,
     Green,
     Yellow,
 )
@@ -68,12 +67,12 @@ class GameplayScene(Scene):
 
         self.player = self.players.add_player(game.player_info, Green)
 
-        if game.mode == MODE_ONLINE:
+        if game.mode == Mode.ONLINE:
             for player in game.player_info.room:
                 if player.id != self.player.id:
                     self.players.add_player(player, Yellow)
 
-        elif game.mode == MODE_OFFLINE:
+        elif game.mode == Mode.OFFLINE:
             threading.Thread(
                 target=game.player_info.room.handle_spawner, args=(self.spawn_mob,)
             ).start()
@@ -112,12 +111,12 @@ class GameplayScene(Scene):
         self.player.rotate_to_mouse()
         self.player.update_movement()
 
-        if self.game.mode == MODE_ONLINE:
+        if self.game.mode == Mode.ONLINE:
             self.game.client.send(
                 Command.UPDATE_PLAYER,
                 [self.game.player_info.id, self.player.delta, self.player.angle],
             )
-        elif self.game.mode == MODE_OFFLINE:
+        elif self.game.mode == Mode.OFFLINE:
             self.game.player_info.room.update(self.spawn_mob)
 
     def draw(self) -> None:
@@ -150,9 +149,9 @@ class GameplayScene(Scene):
 
     def shoot(self) -> None:
         if self.player.is_shooting:
-            if self.game.mode == MODE_ONLINE:
+            if self.game.mode == Mode.ONLINE:
                 self.game.client.send(Command.SHOOT, self.player.id)
-            elif self.game.mode == MODE_OFFLINE:
+            elif self.game.mode == Mode.OFFLINE:
                 self.player.shoot()
 
     def spawn_mob(self, mob_info) -> None:

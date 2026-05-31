@@ -9,6 +9,7 @@ from util.constants import (
     BACKGROUND_COLORS,
     FPS,
     CLIENT_ADDR,
+    Mode,
 )
 from pygame_core.application import Application
 from pygame_core.asset_manager import AssetManager
@@ -40,7 +41,7 @@ class Game(Application):
         pygame.display.update()
 
         # Session state shared across scenes.
-        self.mode = None
+        self.mode: Mode | None = None
         self.player_info = None
 
         # Game owns the active scene and forwards the loop to it. The lobby is
