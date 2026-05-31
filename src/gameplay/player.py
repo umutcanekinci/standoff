@@ -1,5 +1,6 @@
 from util.constants import (
     PLAYER_MAX_HP,
+    PLAYER_FRICTION,
     SHOOT_RATE,
     GUN_SPREAD,
     BARREL_OFFSET,
@@ -46,7 +47,6 @@ class Player(Entity):
         self.auto_shoot = True
 
         self.force = Vec(3, 3)
-        self.frictional_force = Vec(-1.0, -1.0)
         self.net_force = Vec()
 
         self.acceleration = Vec()
@@ -89,25 +89,19 @@ class Player(Entity):
             self.force_rotation.y = 0
 
         if self.force_rotation.length() != 0:
-            self.force_rotation.normalize()
+            # normalize() returns a new vector; mutate in place so diagonals are a
+            # unit direction (otherwise diagonal input is ~41% stronger).
+            self.force_rotation.normalize_ip()
 
     def _apply_friction(self):
-        if self.velocity.length() == 0:
-            return
-
-        if abs(self.net_force.x) > self.frictional_force.x:
-            self.net_force.x += (
-                self.frictional_force.x
-                * self.velocity.normalize().x
-                * self.world.delta_time
-            )
-
-        if abs(self.net_force.y) > self.frictional_force.y:
-            self.net_force.y += (
-                self.frictional_force.y
-                * self.velocity.normalize().y
-                * self.world.delta_time
-            )
+        # Brake any axis the player isn't actively driving so releasing the keys
+        # stops you promptly instead of coasting (drag, not a force). Exponential
+        # and scaled by delta_time, so the feel is frame-rate independent.
+        damping = PLAYER_FRICTION**self.world.delta_time
+        if self.force_rotation.x == 0:
+            self.velocity.x *= damping
+        if self.force_rotation.y == 0:
+            self.velocity.y *= damping
 
     def _decay_knockback(self):
         # Smooth, decaying knock-back — applied through movement so it eases out
@@ -121,7 +115,6 @@ class Player(Entity):
         self._update_force_rotation()
 
         self.net_force = self.force.elementwise() * self.force_rotation
-        self._apply_friction()
 
         self.acceleration = self.net_force / self.weight
         self.acceleration.x = max(
@@ -132,6 +125,7 @@ class Player(Entity):
         )
 
         self.velocity += self.acceleration * self.world.delta_time
+        self._apply_friction()  # brake undriven axes (drag on velocity)
         if self.velocity.length() > self.max_speed:
             self.velocity.scale_to_length(self.max_speed)
 

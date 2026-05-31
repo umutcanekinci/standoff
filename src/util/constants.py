@@ -17,26 +17,15 @@ from pygame.math import Vector2 as Vec
 # effects
 # takımlar birbiine saldırabilecek
 # aynı takımdakiler birbirine saldıramayacak
-# takımdaki oyuncular oyuna aynı anda mı girmeli / istedikleri zaman mı
 
 # Colors
 Black = (0, 0, 0)
 White = (255, 255, 255)
 Red = (255, 0, 0)
-LightRed = (255, 127, 127)
-Lime = (0, 255, 0)
 Blue = (0, 0, 255)
 Yellow = (255, 255, 0)
-Cyan = (0, 255, 255)
-Magenta = (255, 0, 255)
-Silver = (192, 192, 192)
 Gray = (128, 128, 128)
-Maroon = (128, 0, 0)
-Olive = (128, 128, 0)
 Green = (0, 128, 0)
-Purple = (128, 0, 128)
-Teal = (0, 128, 128)
-Navy = (0, 0, 128)
 CustomBlue = (72, 218, 233)
 
 SERVER_PREFIX = f"{Fore.CYAN}[SERVER] {Fore.RED}=> {Fore.YELLOW}"
@@ -75,6 +64,9 @@ PLAYER_MAX_HP = 100
 PLAYER_SIZE = TILE_SIZE
 CHARACTER_SIZE = 48, 48
 PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
+# Per-(60fps)frame velocity retained on an axis with no input (0..1). Lower
+# brakes faster (less ice-skating); 1.0 would coast frictionlessly.
+PLAYER_FRICTION = 0.8
 CHARACTER_LIST = [
     "hitman",
     "man_blue",
