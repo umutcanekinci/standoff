@@ -10,6 +10,11 @@ from pygame_core.ecs.components.transform import Transform
 
 _NAME_FONT = None
 
+# Identical entities (every "zombie", say) ask for the same scaled surface. Cache
+# it so they SHARE one source Surface — that keeps the rotation cache in
+# GameSprite small (keyed by source identity) instead of per-instance.
+_SCALED_IMAGE_CACHE: dict[tuple, pygame.Surface] = {}
+
 
 def _name_font():
     # Lazy: this module is imported before pygame.init() runs in Game.__init__.
@@ -33,9 +38,14 @@ class Entity(GameSprite):
         self.set_entity_image(image_path, position, size)
 
     def set_entity_image(self, image_path, position, size):
-        native = cast(pygame.Surface, load_image(image_path))
-        w, h = native.get_size()
-        self.set_image(pygame.transform.scale(native, (int(w * size), int(h * size))))
+        key = (image_path, round(size, 4))
+        surface = _SCALED_IMAGE_CACHE.get(key)
+        if surface is None:
+            native = cast(pygame.Surface, load_image(image_path))
+            w, h = native.get_size()
+            surface = pygame.transform.scale(native, (int(w * size), int(h * size)))
+            _SCALED_IMAGE_CACHE[key] = surface
+        self.set_image(surface)
         self.set_position(position)
 
     def set_name(self, value: str, color):
@@ -83,10 +93,13 @@ class Entity(GameSprite):
     # rotate() is inherited from GameSprite.
 
     def move(self, delta):
+        # Only collide against walls in nearby grid cells, not the whole map.
+        grid = getattr(self.game, "wall_grid", None)
+        walls = list(grid.query_rect(self.hit_rect)) if grid else self.game.walls
         self.hit_rect.centerx += delta.x
-        collide(self, "x", self.game.walls)
+        collide(self, "x", walls)
         self.hit_rect.centery += delta.y
-        collide(self, "y", self.game.walls)
+        collide(self, "y", walls)
         self.update_position(self.hit_rect.center)
 
     def update_position(self, position):

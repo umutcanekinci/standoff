@@ -1,0 +1,55 @@
+"""Uniform spatial hash grid for fast neighbour / overlap queries.
+
+Buckets objects (anything exposing a `.rect`) into fixed-size cells so a query
+only inspects nearby cells instead of every object. This turns the O(N^2)
+all-pairs scans (mob-vs-mob avoidance, entity-vs-walls collision) into roughly
+O(N): each lookup touches only the handful of objects in adjacent cells.
+
+Rebuild it each frame for moving objects (mobs); build it once for static
+objects (walls).
+"""
+
+
+class SpatialGrid:
+    def __init__(self, cell_size: int) -> None:
+        self.cell_size = max(1, int(cell_size))
+        self._cells: dict[tuple[int, int], list] = {}
+
+    def _key(self, x, y) -> tuple[int, int]:
+        return (int(x) // self.cell_size, int(y) // self.cell_size)
+
+    def insert(self, obj) -> None:
+        cx, cy = obj.rect.center
+        self._cells.setdefault(self._key(cx, cy), []).append(obj)
+
+    def query_radius(self, center, radius):
+        """Yield objects in cells overlapping the bbox of the query circle.
+
+        A superset of the true neighbours — callers still do the precise distance
+        check, but only against this small candidate set.
+        """
+        cx, cy = int(center[0]), int(center[1])
+        cs = self.cell_size
+        cells = self._cells
+        for gx in range((cx - radius) // cs, (cx + radius) // cs + 1):
+            for gy in range((cy - radius) // cs, (cy + radius) // cs + 1):
+                bucket = cells.get((gx, gy))
+                if bucket:
+                    yield from bucket
+
+    def query_rect(self, rect):
+        """Yield objects in cells overlapping `rect` (candidate set for collision)."""
+        cs = self.cell_size
+        cells = self._cells
+        for gx in range(rect.left // cs, rect.right // cs + 1):
+            for gy in range(rect.top // cs, rect.bottom // cs + 1):
+                bucket = cells.get((gx, gy))
+                if bucket:
+                    yield from bucket
+
+    @classmethod
+    def of(cls, objects, cell_size: int) -> "SpatialGrid":
+        grid = cls(cell_size)
+        for obj in objects:
+            grid.insert(obj)
+        return grid

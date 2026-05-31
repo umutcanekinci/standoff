@@ -17,6 +17,7 @@ from net.transport import BaseClient
 from net.protocol import Protocol, PickleCodec
 from gameplay.map import Map
 from gameplay.camera import Camera
+from gameplay.spatial_grid import SpatialGrid
 from gameplay.player import Players
 from gameplay.mob import Mobs
 from net.player_info import PlayerInfo
@@ -265,8 +266,11 @@ class Game(Application):
             self, AssetPath(self.player_info.room.map_name, "maps", "tmx"), 2
         )
         self.map.render()
+        # Walls are static, so grid them once. Mobs query this for collision.
+        self.wall_grid = SpatialGrid.of(self.walls, max(TILE_WIDTH, TILE_HEIGHT))
         self.players = Players(self)
         self.mobs = Mobs(self)
+        self.mob_grid = SpatialGrid(AVOID_RADIUS)
         self.camera = Camera(self.size, self.map)
         self.bullets = []
         self.effects = []
@@ -444,6 +448,9 @@ class Game(Application):
         if not self.is_game_started:
             self.panel_manager.update()
         else:
+            # Rebuild the mob grid from this frame's positions before anyone moves;
+            # mob avoidance queries it instead of scanning every other mob.
+            self.mob_grid = SpatialGrid.of(self.mobs, AVOID_RADIUS)
             for entity in (*self.players, *self.mobs, *self.bullets, *self.effects):
                 entity.update()
             self.players[:] = [p for p in self.players if p.alive]

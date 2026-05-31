@@ -37,19 +37,19 @@ class Mob(Entity):
         # endregion
 
     def check_range(self):
-        if self.game.players:
-            self.target = min(
-                [player.rect.center for player in self.game.players],
-                key=lambda x: (Vec(x) - Vec(self.rect.center)).length(),
-            )
-            self.target = (
-                self.target
-                if (Vec(self.target) - Vec(self.rect.center)).length() < self.range
-                else self.target_base
-            )
-
-        else:
+        if not self.game.players:
             self.target = self.target_base
+            return
+
+        # Squared distances throughout — avoids a sqrt per player per frame.
+        cx, cy = self.rect.center
+        nearest = min(
+            (player.rect.center for player in self.game.players),
+            key=lambda c: (c[0] - cx) ** 2 + (c[1] - cy) ** 2,
+        )
+        nx, ny = nearest
+        in_range = (nx - cx) ** 2 + (ny - cy) ** 2 < self.range * self.range
+        self.target = nearest if in_range else self.target_base
 
     def rotate_to_target(self):
         self.angle = (Vec(self.target) - Vec(self.rect.center)).angle_to(
@@ -58,12 +58,16 @@ class Mob(Entity):
         self.rotate(self.angle)
 
     def avoid_mobs(self):
-        for mob in self.game.mobs:
-            if mob != self:
-                distance = Vec(self.rect.center) - Vec(mob.rect.center)
-
-                if 0 < distance.length() < AVOID_RADIUS:
-                    self.acceleration += distance.normalize()
+        # Only test mobs in nearby grid cells, not all of them (was O(N^2)).
+        cx, cy = self.rect.center
+        radius_sq = AVOID_RADIUS * AVOID_RADIUS
+        for mob in self.game.mob_grid.query_radius((cx, cy), AVOID_RADIUS):
+            if mob is self:
+                continue
+            dx, dy = cx - mob.rect.centerx, cy - mob.rect.centery
+            dist_sq = dx * dx + dy * dy
+            if 0 < dist_sq < radius_sq:
+                self.acceleration += Vec(dx, dy).normalize()
 
     def move(self):
         self.acceleration = Vec(1, 0).rotate(-self.angle)

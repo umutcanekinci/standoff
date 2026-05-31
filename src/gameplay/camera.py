@@ -25,11 +25,19 @@ class Camera:
         if not hasattr(objects, "__iter__"):
             objects = [objects]
 
+        view = image.get_rect()
+
         for object in objects:
+            screen_rect = self.apply(object.rect)
+
+            # Cull: skip anything outside the view before touching its surface.
+            if not screen_rect.colliderect(view):
+                continue
+
             surface = self._surface_of(object)
 
             if surface is not None:
-                image.blit(surface, self.apply(object.rect))
+                image.blit(surface, screen_rect)
 
     @staticmethod
     def _surface_of(obj):

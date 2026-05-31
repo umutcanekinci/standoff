@@ -15,6 +15,14 @@ from pygame_core.ecs.game_object import GameObject
 from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
 from pygame_core.image import load_image
 
+# Rotating a surface every frame is expensive. Quantize the angle and cache the
+# result, keyed by (source-surface identity, angle bucket). Shared across all
+# sprites — combined with the scaled-image sharing in Entity, every zombie facing
+# the same way reuses one rotated Surface, so we rotate ~(360/step) times total
+# instead of once per mob per frame.
+ROTATION_STEP_DEG = 5
+_ROTATION_CACHE: dict[tuple[int, int], pygame.Surface] = {}
+
 
 class GameSprite(GameObject):
     def __init__(
@@ -58,9 +66,15 @@ class GameSprite(GameObject):
         self.rect.center = self._int_pos()
 
     def rotate(self, angle: float) -> None:
-        self.rotated_image = pygame.transform.rotate(self.original_image, angle)
+        bucket = int(round(angle / ROTATION_STEP_DEG)) * ROTATION_STEP_DEG
+        key = (id(self.original_image), bucket)
+        cached = _ROTATION_CACHE.get(key)
+        if cached is None:
+            cached = pygame.transform.rotate(self.original_image, bucket)
+            _ROTATION_CACHE[key] = cached
+        self.rotated_image = cached
         self.is_rotated = True
-        self.rect.size = self.rotated_image.get_size()
+        self.rect.size = cached.get_size()
         self.rect.center = self._int_pos()
 
     def kill(self) -> None:

@@ -70,6 +70,7 @@ src/pygame_core/       Engine submodule (Application, GameObject/ECS, PanelLoade
 config/                YAML: assets, panels
 assets/                Images, Tiled maps
 tests/                 Test suite — protocol/transport/game-server, unit → e2e
+bench/                 Headless performance benchmarks (mob capacity)
 ```
 
 The game runs on the shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine: `Game` extends `pygame_core.Application`, the menu is panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
@@ -88,6 +89,19 @@ uv run --group dev pytest -m "not integration and not e2e"   # fast unit tests o
 ```
 
 CI (GitHub Actions, `.github/workflows/tests.yml`) runs the **full** suite on every push and on PRs into `main`.
+
+### Performance benchmark
+
+`bench/bench_mobs.py` is a headless capacity benchmark — how many zombies the
+simulation sustains before missing the 60 FPS frame budget. It times the per-frame
+update (AI/physics) and draw separately for increasing mob counts:
+
+```bash
+uv run python bench/bench_mobs.py
+```
+
+Numbers are machine-relative — use them to compare before/after an optimization
+on the same machine, not as an absolute FPS promise.
 
 A [pre-commit](https://pre-commit.com/) hook runs ruff (lint + format) and the **fast** tests on each commit, leaving the socket-backed tests to CI. Enable it once per clone:
 
