@@ -59,29 +59,40 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
     faulthandler.enable()
     _dpi_aware()
     import pygame
+    from pygame_core.application import Application
     from app.game import Game
     from util.constants import WINDOW_TITLE, CHARACTER_LIST, Mode
     from net.commands import Command
+
+    # The engine opens fullscreen in Application.__init__; we need windowed so four
+    # clients tile on screen. Replace that one method (this process only) with a
+    # single windowed SCALED set_mode — calling set_mode a *second* time to leave
+    # fullscreen segfaults SDL, so we never go fullscreen at all. SCALED keeps the
+    # logical 1920x1080 render and fits it to the smaller window.
+    def _windowed(self) -> None:
+        self.set_size(self.minimized_size)
+        self.window = pygame.display.set_mode(
+            self.size, pygame.SCALED | pygame.RESIZABLE
+        )
+
+    Application.full_screen = _windowed
 
     class DevClient(Game):
         """A Game that opens windowed in a screen quarter and scripts itself
         through the lobby into a shared room."""
 
         def __init__(self) -> None:
-            super().__init__()
+            super().__init__()  # now opens windowed via the patch above
             self._dev = SimpleNamespace(phase=0)
             self._place_window()
 
         def _place_window(self) -> None:
             x, y, w, h = rect
-            # Render at the game's logical size and let SCALED fit it to the
-            # (smaller) window; then move/resize the OS window to our quarter.
             try:
-                self.window = pygame.display.set_mode(
-                    self.size, pygame.SCALED | pygame.RESIZABLE
-                )
                 pygame.display.set_caption(f"{WINDOW_TITLE} [{role} {idx}]")
                 if sys.platform == "win32":
+                    # Resize/move the OS window to our quarter; SCALED rescales the
+                    # render to fit.
                     hwnd = pygame.display.get_wm_info()["window"]
                     ctypes.windll.user32.MoveWindow(hwnd, x, y, w, h, True)
             except Exception:
