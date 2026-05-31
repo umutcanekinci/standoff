@@ -19,7 +19,7 @@ from random import uniform
 
 class Player(Entity):
     def __init__(
-        self, entity_id, name, name_color, character, position, size, game
+        self, entity_id, name, name_color, character, position, size, world
     ) -> None:
         super().__init__(
             entity_id,
@@ -27,7 +27,7 @@ class Player(Entity):
             name_color,
             position,
             size,
-            game.assets.image_path(f"char_{character}_gun"),
+            world.assets.image_path(f"char_{character}_gun"),
             PLAYER_MAX_HP,
             PLAYER_MAX_HP,
         )
@@ -37,8 +37,8 @@ class Player(Entity):
         self.shoot_rate = SHOOT_RATE
         self.last_shoot_time = -1000
 
-        self.character, self.game = character, game
-        self.map, self.camera = game.map, game.camera
+        self.character, self.world = character, world
+        self.map, self.camera = world.map, world.camera
 
         # Hit rect for collisions
         self.hit_rect = PLAYER_HIT_RECT.copy()
@@ -67,13 +67,13 @@ class Player(Entity):
 
     def rotate_to_mouse(self):
         self.angle = (
-            Vec(self.game.mouse_position)
-            - Vec(self.game.camera.apply(self.rect).center)
+            Vec(self.world.mouse_position)
+            - Vec(self.world.camera.apply(self.rect).center)
         ).angle_to(Vec(1, 0))  # angle between difference vector and x axis
 
     def _update_force_rotation(self):
         # Map held keys to a unit force direction
-        keys = self.game.keys
+        keys = self.world.keys
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.force_rotation.x = -1
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
@@ -99,14 +99,14 @@ class Player(Entity):
             self.net_force.x += (
                 self.frictional_force.x
                 * self.velocity.normalize().x
-                * self.game.delta_time
+                * self.world.delta_time
             )
 
         if abs(self.net_force.y) > self.frictional_force.y:
             self.net_force.y += (
                 self.frictional_force.y
                 * self.velocity.normalize().y
-                * self.game.delta_time
+                * self.world.delta_time
             )
 
     def _decay_knockback(self):
@@ -131,7 +131,7 @@ class Player(Entity):
             -self.max_acceleration, min(self.max_acceleration, self.acceleration.y)
         )
 
-        self.velocity += self.acceleration * self.game.delta_time
+        self.velocity += self.acceleration * self.world.delta_time
         if self.velocity.length() > self.max_speed:
             self.velocity.scale_to_length(self.max_speed)
 
@@ -140,8 +140,8 @@ class Player(Entity):
         if abs(self.velocity.y) < 0.01:
             self.velocity.y = 0
 
-        self.delta = (self.velocity * self.game.delta_time) + (
-            0.5 * self.acceleration * self.game.delta_time * self.game.delta_time
+        self.delta = (self.velocity * self.world.delta_time) + (
+            0.5 * self.acceleration * self.world.delta_time * self.world.delta_time
         )
         self._decay_knockback()
 
@@ -160,7 +160,7 @@ class Player(Entity):
             position = Vec(self.rect.center) + BARREL_OFFSET.rotate(-angle)
 
             Bullet(self, position, angle)
-            MuzzleFlash(self.game, position, self.angle)
+            MuzzleFlash(self.world, position, self.angle)
 
             self.velocity = Vec(-KICKBACK, 0).rotate(-self.angle)
 
@@ -173,7 +173,7 @@ class Player(Entity):
                     self.is_shooting = True
 
                 else:
-                    self.game.shoot()
+                    self.world.shoot()
 
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 self.is_shooting = False
@@ -184,9 +184,9 @@ class Player(Entity):
 
 
 class Players(list):
-    def __init__(self, game) -> None:
+    def __init__(self, world) -> None:
         super().__init__()
-        self.game = game
+        self.world = world
 
     def add_player(self, player_info, name_color) -> Player:
         player = Player(
@@ -194,9 +194,9 @@ class Players(list):
             player_info.name,
             name_color,
             player_info.character_name,
-            self.game.map.spawn_points[player_info.base_number],
+            self.world.map.spawn_points[player_info.base_number],
             player_info.size,
-            self.game,
+            self.world,
         )
         self.append(player)
         return player

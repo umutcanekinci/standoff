@@ -12,9 +12,9 @@ class Map(TiledMap):
 
     camera: object = None  # set by Camera.__init__
 
-    def __init__(self, game, tmx_path, border_width):
+    def __init__(self, world, tmx_path, border_width):
         super().__init__(tmx_path)
-        self.game = game
+        self.world = world
         self.border_width = border_width
         self.base_points, self.spawn_points = {}, {}
         self.get_objects()
@@ -33,7 +33,7 @@ class Map(TiledMap):
                     obj.y + TILE_HEIGHT / 2,
                 )
             if "wall" in name:
-                Obstacle(self.game, (obj.x, obj.y), (obj.width, obj.height))
+                Obstacle(self.world, (obj.x, obj.y), (obj.width, obj.height))
 
     def render(self):
         self.image = self.pre_render(alpha=True)

@@ -85,7 +85,8 @@ class _FakeMobInfo:
 
 
 class _FakeGame:
-    """Provides exactly the attributes Mob/Entity read via self.game.*"""
+    """Stands in for the GameplayScene: provides exactly the attributes
+    Mob/Entity read via self.world.* (walls, players, mobs, delta_time, ...)."""
 
     def __init__(self):
         self.assets = _FakeAssets()

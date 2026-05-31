@@ -7,7 +7,7 @@ from gameplay.game_sprite import GameSprite
 
 class Bullet(GameSprite):
     def __init__(self, source, position, angle) -> None:
-        self.game, self.source = source.game, source
+        self.world, self.source = source.world, source
         self.movement_speed = BULLET_SPEED
         self.damage = BULLET_DAMAGE
         self.angle = angle
@@ -22,26 +22,26 @@ class Bullet(GameSprite):
         self.velocity = Vec(1, 0).rotate(-self.angle) * self.movement_speed
         self.rotate(self.angle)
 
-        self.game.bullets.append(self)
+        self.world.bullets.append(self)
 
     def move(self):
-        self.set_position(self.position + self.velocity * self.game.delta_time)
+        self.set_position(self.position + self.velocity * self.world.delta_time)
 
     def update(self) -> None:
         self.move()
 
-        if any(self.rect.colliderect(wall.rect) for wall in self.game.walls):
+        if any(self.rect.colliderect(wall.rect) for wall in self.world.walls):
             self.kill()
             return
 
-        for mob in list(self.game.mobs):
+        for mob in list(self.world.mobs):
             if mob is not self.source and self.rect.colliderect(mob.rect):
                 mob.velocity = Vec(0, 0)
                 mob.lose_hp(self.damage)
                 self.kill()
                 return
 
-        for player in list(self.game.players):
+        for player in list(self.world.players):
             if player is not self.source and self.rect.colliderect(player.rect):
                 player.velocity = Vec(0, 0)
                 player.lose_hp(self.damage)

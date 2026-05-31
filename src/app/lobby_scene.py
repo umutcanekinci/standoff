@@ -7,6 +7,7 @@ this scene writes those when the player commits a choice and reads them back.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pygame
@@ -249,7 +250,11 @@ class LobbyScene(Scene):
         self.game.client.send(Command.SET_PLAYER, [name, character_name])
 
     def create_room(self, map_name):
-        base_points = Map(self.game, AssetPath(map_name, "maps", "tmx"), 2).base_points
+        # Parse the map only for its base points. Map builds wall Obstacles into
+        # its world's .walls as a side effect, but no gameplay scene exists yet,
+        # so give it a throwaway sink to collect (and discard) them.
+        sink = SimpleNamespace(walls=[])
+        base_points = Map(sink, AssetPath(map_name, "maps", "tmx"), 2).base_points
 
         if self.game.mode == "online":
             self.game.client.send(Command.CREATE_ROOM, (map_name, base_points))

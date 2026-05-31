@@ -5,19 +5,22 @@ from random import randint, choice
 
 
 class MuzzleFlash(GameSprite):
-    def __init__(self, game, position, angle):
-        self.game = game
+    def __init__(self, world, position, angle):
+        self.world = world
         self.spawn_time = pygame.time.get_ticks()
         size = randint(20, 50)
         size = size, size
 
         super().__init__(
-            position, size=size, image_path=choice(game.gun_flashes), layer=EFFECT_LAYER
+            position,
+            size=size,
+            image_path=choice(world.gun_flashes),
+            layer=EFFECT_LAYER,
         )
         self.set_position(position)
         self.rotate(angle)
 
-        game.effects.append(self)
+        world.effects.append(self)
 
     def update(self):
         if pygame.time.get_ticks() - self.spawn_time > FLASH_DURATOION:

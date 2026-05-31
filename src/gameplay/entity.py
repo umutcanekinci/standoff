@@ -34,7 +34,7 @@ def _name_font():
 
 
 class Entity(GameSprite):
-    game: Any  # set by Player/Mob subclasses
+    world: Any  # the GameplayScene; set by Player/Mob subclasses
     hit_rect: pygame.Rect  # set by Player/Mob subclasses
 
     def __init__(
@@ -107,12 +107,12 @@ class Entity(GameSprite):
         # Only collide against walls in nearby grid cells, not the whole map.
         # Inflate the query by a cell on every side so a wall we move INTO this
         # frame (into an adjacent cell) is still in the candidate set.
-        grid = getattr(self.game, "wall_grid", None)
+        grid = getattr(self.world, "wall_grid", None)
         if grid is not None:
             area = self.hit_rect.inflate(grid.cell_size * 2, grid.cell_size * 2)
             walls = list(grid.query_rect(area))
         else:
-            walls = self.game.walls
+            walls = self.world.walls
         self.hit_rect.centerx += delta.x
         collide(self, "x", walls)
         self.hit_rect.centery += delta.y
