@@ -7,19 +7,27 @@ net.game_server / net.transport / net.protocol.
 """
 
 import threading
-from tkinter import Tk, Label, Text, Button, Frame, Entry, BOTH, END
+from tkinter import Tk, Label, Text, Button, Frame, Entry, END
 from ctypes import windll
 
 from util.constants import SERVER_TITLE, SERVER_SIZE, SERVER_ADDR
 from net.game_server import GameServer
 
-# Window-chrome helpers (borderless drag + taskbar registration)
+FONT_NAME = "Comic Sans MS"
+
+# Window-chrome helpers (borderless drag + taskbar registration). The constants
+# below mirror Win32 API names (hence the spell-check suppressions), and the
+# user32 functions are resolved dynamically by ctypes, so static analysers can't
+# see them — those are false positives, not missing references.
+# noinspection SpellCheckingInspection
 GWL_EXSTYLE = -20
+# noinspection SpellCheckingInspection
 WS_EX_APPWINDOW = 0x00040000
 WS_EX_TOOLWINDOW = 0x00000080
 
 
-def set_appwindow(root):
+# noinspection PyUnresolvedReferences,SpellCheckingInspection
+def set_app_window(root):
     hwnd = windll.user32.GetParent(root.winfo_id())
     style = windll.user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
     style = style & ~WS_EX_TOOLWINDOW
@@ -31,7 +39,7 @@ def set_appwindow(root):
 
 
 class Grip:
-    """Makes a window dragable."""
+    """Makes a window draggable."""
 
     def __init__(self, parent, disable=None, releasecmd=None):
         self.parent = parent
@@ -44,10 +52,14 @@ class Grip:
 
         self.release_cmd = releasecmd
 
+        # Drag state, filled in on press (relative_position) and read while moving.
+        self.ori_x = self.ori_y = 0
+        self.rel_x = self.rel_y = 0
+
         self.parent.bind("<Button-1>", self.relative_position)
         self.parent.bind("<ButtonRelease-1>", self.drag_unbind)
 
-    def relative_position(self, event):
+    def relative_position(self, _event):
         cx, cy = self.parent.winfo_pointerxy()
         geo = self.root.geometry().split("+")
         self.ori_x, self.ori_y = int(geo[1]), int(geo[2])
@@ -56,7 +68,7 @@ class Grip:
 
         self.parent.bind("<Motion>", self.drag_wid)
 
-    def drag_wid(self, event):
+    def drag_wid(self, _event):
         cx, cy = self.parent.winfo_pointerxy()
         d = self.disable
         x = cx - self.rel_x
@@ -70,7 +82,7 @@ class Grip:
 
         self.root.geometry("+%i+%i" % (x, y))
 
-    def drag_unbind(self, event):
+    def drag_unbind(self, _event):
         self.parent.unbind("<Motion>")
 
         if self.release_cmd is not None:
@@ -78,6 +90,12 @@ class Grip:
 
 
 class Application(Tk):
+    # Set by set_size() (called from __init__); declared here so they're not
+    # flagged as defined outside __init__.
+    size: tuple[int, int]
+    width: int
+    height: int
+
     def __init__(self):
         super().__init__()
 
@@ -93,8 +111,8 @@ class Application(Tk):
         self.show_in_task_bar()
 
         main_frame = Frame(bg="grey", width=self.width, height=self.height)
-        main_frame.pack_propagate(0)
-        main_frame.pack(fill=BOTH, expand=1)
+        main_frame.pack_propagate(False)
+        main_frame.pack(fill="both", expand=True)
 
         top_frame = Frame(main_frame, bg="#505050")
         top_frame.place(x=0, y=0, anchor="nw", width=self.width, height=40)
@@ -104,7 +122,7 @@ class Application(Tk):
             top_frame,
             bg="#505050",
             fg="white",
-            font=("Comic Sans MS", 15),
+            font=(FONT_NAME, 15),
             text=SERVER_TITLE,
         ).pack()
 
@@ -112,12 +130,12 @@ class Application(Tk):
             x=self.width - 75, y=0, anchor="nw", width=75, height=40
         )
 
-        Label(main_frame, text="Command Log", font=("Comic Sans MS", 13)).place(
+        Label(main_frame, text="Command Log", font=(FONT_NAME, 13)).place(
             x=20, y=60, anchor="nw"
         )
 
         self.command_log = Text(
-            main_frame, bg="white", fg="green", font=("Comic Sans MS", 12)
+            main_frame, bg="white", fg="green", font=(FONT_NAME, 12)
         )
         self.command_log.config(state="disabled")
         self.command_log.place(
@@ -128,7 +146,7 @@ class Application(Tk):
             main_frame,
             bg="orange",
             fg="white",
-            font=("Comic Sans MS", 12),
+            font=(FONT_NAME, 12),
             text="START",
             command=self.start_server,
         )
@@ -140,7 +158,7 @@ class Application(Tk):
             main_frame,
             bg="orange",
             fg="white",
-            font=("Comic Sans MS", 12),
+            font=(FONT_NAME, 12),
             text="RESTART",
             command=self.restart_server,
         )
@@ -152,7 +170,7 @@ class Application(Tk):
             main_frame,
             bg="orange",
             fg="white",
-            font=("Comic Sans MS", 12),
+            font=(FONT_NAME, 12),
             text="CLOSE",
             command=self.close_server,
         )
@@ -160,7 +178,7 @@ class Application(Tk):
             x=self.width - 120, y=230, anchor="nw", width=100, height=50
         )
 
-        Label(main_frame, text="Command Entry", font=("Comic Sans MS", 13)).place(
+        Label(main_frame, text="Command Entry", font=(FONT_NAME, 13)).place(
             x=20, y=self.height - 120, anchor="nw"
         )
 
@@ -173,7 +191,7 @@ class Application(Tk):
             main_frame,
             bg="orange",
             fg="white",
-            font=("Comic Sans MS", 12),
+            font=(FONT_NAME, 12),
             text="SEND",
             command=self.send_command,
         )
@@ -204,7 +222,7 @@ class Application(Tk):
         self.deiconify()
 
     def show_in_task_bar(self):
-        self.after(10, set_appwindow, self)
+        self.after(10, set_app_window, self)
 
     def set_window_title(self, text: str):
         self.wm_title(text)
@@ -214,7 +232,7 @@ class Application(Tk):
         self.geometry(str(self.width) + "x" + str(self.height))
 
     def make_unresizable(self):
-        self.resizable(0, 0)
+        self.resizable(False, False)
 
     def make_borderless(self):
         self.overrideredirect(True)
