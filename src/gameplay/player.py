@@ -134,9 +134,9 @@ class Player(Entity):
         if abs(self.velocity.y) < 0.01:
             self.velocity.y = 0
 
-        self.delta = (self.velocity * self.world.delta_time) + (
-            0.5 * self.acceleration * self.world.delta_time * self.world.delta_time
-        )
+        # Semi-implicit Euler: velocity is already advanced, so the step is just
+        # velocity * dt (the old 0.5*a*dt**2 term double-counted acceleration).
+        self.delta = self.velocity * self.world.delta_time
         self._decay_knockback()
 
     def apply_knockback(self, direction, distance):
