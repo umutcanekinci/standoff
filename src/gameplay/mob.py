@@ -44,6 +44,9 @@ class Mob(Entity):
         self.angle = 0
         self.speed = choice(MOB_SPEEDS)
 
+        self.target = target_base  # current chase target; refreshed by check_range
+        self.last_attack = -1000  # ticks of last hit landed; gates the 1s cooldown
+
     def check_range(self):
         if not self.world.players:
             self.target = self.target_base
@@ -95,9 +98,6 @@ class Mob(Entity):
         self.update_movement()
 
         now = pygame.time.get_ticks()
-
-        if not hasattr(self, "last_attack"):
-            self.last_attack = -1000
 
         if now - self.last_attack > 1000:
             for player in [
