@@ -1,4 +1,5 @@
-from util.constants import *
+import pygame
+
 from gameplay.map import Map
 from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
 

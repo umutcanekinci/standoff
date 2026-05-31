@@ -1,6 +1,7 @@
 import pygame
+from pygame.math import Vector2 as Vec
 
-from util.constants import *
+from util.constants import BULLET_SPEED, BULLET_DAMAGE, BULLET_LAYER, Blue
 from gameplay.game_sprite import GameSprite
 
 

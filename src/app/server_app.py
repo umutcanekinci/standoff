@@ -10,7 +10,7 @@ import threading
 from tkinter import Tk, Label, Text, Button, Frame, Entry, BOTH, END
 from ctypes import windll
 
-from util.constants import *
+from util.constants import SERVER_TITLE, SERVER_SIZE, SERVER_ADDR
 from net.game_server import GameServer
 
 # Window-chrome helpers (borderless drag + taskbar registration)

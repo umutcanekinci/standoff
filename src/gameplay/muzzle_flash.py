@@ -1,4 +1,5 @@
-from util.constants import *
+import pygame
+from util.constants import EFFECT_LAYER, FLASH_DURATOION
 from gameplay.game_sprite import GameSprite
 from random import randint, choice
 

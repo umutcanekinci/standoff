@@ -1,7 +1,7 @@
 import pygame
 
 from pygame_core.tilemap import TiledMap
-from util.constants import *
+from util.constants import TILE_WIDTH, TILE_HEIGHT, Gray
 from gameplay.tiles import Obstacle
 
 

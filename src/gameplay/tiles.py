@@ -1,6 +1,6 @@
 import pygame
 
-from util.constants import *
+from util.constants import WALL_LAYER, Yellow
 from gameplay.game_sprite import GameSprite
 
 

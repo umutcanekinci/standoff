@@ -1,7 +1,25 @@
 import threading
 from typing import override
 
-from util.constants import *
+import pygame
+
+from util.constants import (
+    WINDOW_TITLE,
+    WINDOW_SIZE,
+    BACKGROUND_COLORS,
+    FPS,
+    MAX_ROOM_SIZE,
+    TILE_WIDTH,
+    TILE_HEIGHT,
+    AVOID_RADIUS,
+    CHARACTER_LIST,
+    CHARACTER_SIZE,
+    CLIENT_ADDR,
+    Red,
+    Green,
+    Yellow,
+    White,
+)
 from pygame_core.application import Application
 from pygame_core.asset_manager import AssetManager
 from pygame_core.asset_path import AssetPath
@@ -431,7 +449,7 @@ class Game(Application):
             if handler:
                 handler(event)
         else:
-            self.player.handle_events(event, self.mouse.position, self.keys)
+            self.player.handle_events(event)
 
     @override
     def update(self) -> None:
@@ -457,7 +475,7 @@ class Game(Application):
 
             if hasattr(self, "player"):
                 self.player.rotate_to_mouse()
-                self.player.move()
+                self.player.update_movement()
 
             if self.mode == "online":
                 self.client.send(

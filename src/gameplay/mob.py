@@ -1,12 +1,25 @@
-from util.constants import *
+import pygame
 from random import choice
+from pygame.math import Vector2 as Vec
+
+from util.constants import (
+    Red,
+    MOB_MAX_HP,
+    MOB_HIT_RECT,
+    RANGE_RADIUS,
+    AVOID_RADIUS,
+    MOB_SPEEDS,
+    MOB_KNOCKBACK,
+)
 from gameplay.entity import Entity
 
 
 class Mob(Entity):
-    def __init__(self, id, name, position, size, target_base, character, game) -> None:
+    def __init__(
+        self, entity_id, name, position, size, target_base, character, game
+    ) -> None:
         super().__init__(
-            id,
+            entity_id,
             name,
             Red,
             position,
@@ -64,7 +77,7 @@ class Mob(Entity):
             if 0 < dist_sq < radius_sq:
                 self.acceleration += Vec(dx, dy).normalize()
 
-    def move(self):
+    def update_movement(self):
         self.acceleration = Vec(1, 0).rotate(-self.angle)
         self.avoid_mobs()
         self.acceleration *= self.speed
@@ -79,7 +92,7 @@ class Mob(Entity):
     def update(self):
         self.check_range()
         self.rotate_to_target()
-        self.move()
+        self.update_movement()
 
         now = pygame.time.get_ticks()
 
@@ -114,5 +127,5 @@ class Mobs(list):
             )
         )
 
-    def get_mob_from_id(self, id: int):
-        return next((mob for mob in self if mob.id == id), None)
+    def get_mob_from_id(self, mob_id: int):
+        return next((mob for mob in self if mob.id == mob_id), None)

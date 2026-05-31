@@ -32,6 +32,6 @@ markers = [
 extend-exclude = ["src/pygame_core"]
 
 [tool.ruff.lint]
-# This codebase intentionally uses `from util.constants import *` in 12 modules,
-# and conftest imports after a sys.path tweak. Don't fight either.
-ignore = ["F403", "F405", "E402"]
+# conftest imports after a sys.path tweak, so allow module-level imports below
+# the top of the file.
+ignore = ["E402"]

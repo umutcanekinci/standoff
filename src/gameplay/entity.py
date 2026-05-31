@@ -1,7 +1,16 @@
 import pygame
 from typing import Any, cast
 
-from util.constants import *
+from util.constants import (
+    ENTITY_LAYER,
+    GUI_LAYER,
+    HEALTH_BAR_SIZE,
+    White,
+    Green,
+    Yellow,
+    Red,
+    Blue,
+)
 from gameplay.game_sprite import GameSprite
 from gameplay.collision import collide
 from pygame_core.image import load_image
@@ -28,9 +37,11 @@ class Entity(GameSprite):
     game: Any  # set by Player/Mob subclasses
     hit_rect: pygame.Rect  # set by Player/Mob subclasses
 
-    def __init__(self, id, name, name_color, position, size, image_path, hp, max_hp):
+    def __init__(
+        self, entity_id, name, name_color, position, size, image_path, hp, max_hp
+    ):
         super().__init__(position=position, layer=ENTITY_LAYER)
-        self.id = id
+        self.id = entity_id
 
         self.set_name(name, name_color)
         self.set_max_hp(max_hp)

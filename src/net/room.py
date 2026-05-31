@@ -1,18 +1,18 @@
 import pygame
 import random
 
-from util.constants import *
+from util.constants import MAX_ROOM_SIZE, SPAWN_RATE, TILE_WIDTH, TILE_HEIGHT
 from net.player_info import PlayerInfo, MobInfo
 
 
 class Room(list[PlayerInfo]):
-    def __init__(self, id, map_name, base_points, is_online=True):
+    def __init__(self, room_id, map_name, base_points, is_online=True):
         super().__init__()
 
         if not pygame.get_init():
             pygame.init()
 
-        self.id = id
+        self.id = room_id
         self.size = min(MAX_ROOM_SIZE, len(base_points))
         self.map_name = map_name
         self.base_points = base_points

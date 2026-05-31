@@ -1,9 +1,6 @@
-from util.constants import *
-
-
 class PlayerInfo:
-    def __init__(self, id=1, address=(0, 0), name="", character_name="") -> None:
-        self.id = id
+    def __init__(self, player_id=1, address=(0, 0), name="", character_name="") -> None:
+        self.id = player_id
         self.address = self.IP, self.PORT = address
         self.size = 1
         self.set_name(name)
@@ -40,7 +37,7 @@ class PlayerInfo:
 
 
 class MobInfo:
-    def __init__(self, id, room, target_base, position, target_player=None) -> None:
+    def __init__(self, mob_id, room, target_base, position, target_player=None) -> None:
         (
             self.id,
             self.room,
@@ -48,4 +45,4 @@ class MobInfo:
             self.position,
             self.size,
             self.target_player,
-        ) = id, room, target_base, position, 1, target_player
+        ) = mob_id, room, target_base, position, 1, target_player
