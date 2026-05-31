@@ -135,6 +135,9 @@ class LobbyScene(Scene):
             hover_color=Red,
             text="",
         )
+        # This button is a contextual toggle (start / ready / unready); its sound
+        # is chosen per action in _handle_room_menu, so skip the generic click.
+        self.room_action_button.plays_click = False
         pm.add_object("room_menu", "action_button", self.room_action_button)
 
     def open_panel(self, name: str) -> None:
@@ -242,12 +245,17 @@ class LobbyScene(Scene):
     def _handle_room_menu(self, event) -> None:
         panel = self.panel_manager["room_menu"]
         if self.room_action and self._clicked(panel["action_button"], event):
-            command = {
-                "start": Command.START_GAME,
-                "ready": Command.GET_READY,
-                "unready": Command.GET_UNREADY,
+            # Each action picks its own feedback: a switch for the ready/unready
+            # toggle, the plain click for starting the game.
+            command, sound_key = {
+                "start": (Command.START_GAME, "click"),
+                "ready": (Command.GET_READY, "switch_ready"),
+                "unready": (Command.GET_UNREADY, "switch_unready"),
             }[self.room_action]
             self.game.client.send(command)
+            sound = self.game.sounds.get(sound_key)
+            if sound is not None:
+                sound.play()
         if self._clicked(panel["leave_room"], event):
             self.game.client.send(Command.LEAVE_ROOM)
 

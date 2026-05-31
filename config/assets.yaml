@@ -33,4 +33,6 @@ images:
 
 sounds:
   # ── UI button feedback (Kenney UI Pack) ───────────────────────────────
-  click: {name: click-a}
+  click:          {name: click-a}
+  switch_ready:   {name: switch-a}
+  switch_unready: {name: switch-b}

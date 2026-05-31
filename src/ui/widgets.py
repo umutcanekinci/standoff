@@ -101,6 +101,9 @@ class ShapeButton(HoverableStateObject):
         self._font = pygame.font.Font(None, text_size) if text else None
         self._text_color = text_color
         self._is_pressed = False
+        # Whether this button plays the shared click on press. Off for buttons
+        # whose feedback is handled by the caller (e.g. the ready/unready toggle).
+        self.plays_click = True
 
         self._render_surfaces()
         self.enabled = enabled
@@ -148,7 +151,7 @@ class ShapeButton(HoverableStateObject):
         ):
             self._is_pressed = True
             self._renderer.set_image(self._pressed_image)
-            if ShapeButton.click_sound is not None:
+            if self.plays_click and ShapeButton.click_sound is not None:
                 ShapeButton.click_sound.play()
         elif event.type == pygame.MOUSEBUTTONUP and self._is_pressed:
             self._is_pressed = False

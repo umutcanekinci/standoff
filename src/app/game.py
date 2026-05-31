@@ -41,14 +41,17 @@ class Game(Application):
         self.window.fill(BACKGROUND_COLORS["menu"])
         pygame.display.update()
 
-        # Shared UI click feedback for every ShapeButton (played on press).
-        # Guarded so a missing/!disabled audio device doesn't stop the game.
-        try:
-            ShapeButton.set_click_sound(
-                pygame.mixer.Sound(str(self.assets.sound_path("click")))
-            )
-        except pygame.error as error:
-            self.debug_log(f"[AUDIO] click sound unavailable: {error}")
+        # UI sound effects, loaded once (the mixer is up via Application). Each
+        # load is guarded so a missing/disabled audio device degrades to silence
+        # instead of crashing. Scenes play these by key off self.sounds; the
+        # shared button click is also handed to ShapeButton.
+        self.sounds: dict[str, pygame.mixer.Sound] = {}
+        for key in ("click", "switch_ready", "switch_unready"):
+            try:
+                self.sounds[key] = pygame.mixer.Sound(str(self.assets.sound_path(key)))
+            except pygame.error as error:
+                self.debug_log(f"[AUDIO] sound '{key}' unavailable: {error}")
+        ShapeButton.set_click_sound(self.sounds.get("click"))
 
         # Session state shared across scenes.
         self.mode: Mode | None = None
