@@ -43,7 +43,7 @@ class Player(Entity):
         # Hit rect for collisions
         self.hit_rect = PLAYER_HIT_RECT.copy()
         self.hit_rect.center = self.rect.center
-        self.auto_shoot = (True,)
+        self.auto_shoot = True
 
         self.force = Vec(3, 3)
         self.frictional_force = Vec(-1.0, -1.0)
