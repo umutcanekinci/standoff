@@ -1,6 +1,6 @@
-# Choose Your Way
+# Standoff
 
-Choose Your Way is a 2D networked multiplayer top-down shooter built with [pygame-ce](https://github.com/pygame-community/pygame-ce). Pick a character, host or join a room over the network (or play offline), then move, aim, and shoot your way through waves of zombies on a Tiled-authored map.
+Standoff is a 2D networked multiplayer top-down shooter built with [pygame-ce](https://github.com/pygame-community/pygame-ce). Pick a character, host or join a room over the network (or play offline), then move, aim, and shoot your way through waves of zombies on a Tiled-authored map.
 
 ## Gameplay
 
@@ -54,16 +54,19 @@ uv run python __main__.py
 
 If you forgot `--recurse-submodules`: `git submodule update --init`.
 
-Without `uv`: `pip install .` then `python __main__.py` (Windows: `ChooseYourWay.bat`).
+Without `uv`: `pip install .` then `python __main__.py` (Windows: `Standoff.bat`).
 
 ## Project layout
 
 ```
 __main__.py            Entry point — injects src/ + src/pygame_core/ into sys.path
 server.py              Dedicated multiplayer server (Tk window)
-src/app/game.py        Game class — wires panels, networking, and the game loop
+src/app/game.py        Game class — owns the active scene + network client, drives the loop
+src/app/scene.py       Scene base — the per-frame handle_event/update/draw contract
+src/app/lobby_scene.py LobbyScene — menus, character select, room create/join
+src/app/gameplay_scene.py  GameplayScene — the in-world arena, entities, camera, game loop
 src/gameplay/          Entities (player, mob, bullet), map, camera, collision
-src/net/               Client + server networking, room / player state
+src/net/               Client + server networking, room / player state, protocol commands
 src/ui/                Panel widgets (vector buttons, text input)
 src/util/              Constants, database helper
 src/pygame_core/       Engine submodule (Application, GameObject/ECS, PanelLoaderExt, ...)
@@ -73,7 +76,13 @@ tests/                 Test suite — protocol/transport/game-server, unit → e
 bench/                 Headless performance benchmarks (mob capacity)
 ```
 
-The game runs on the shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine: `Game` extends `pygame_core.Application`, the menu is panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
+## Architecture
+
+Standoff runs on the shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine: `Game` extends `pygame_core.Application`, the menus are panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
+
+- **Scenes.** `Game` is a thin shell that holds the *active scene* and forwards `handle_event`/`update`/`draw` to it. `LobbyScene` owns all menu/panel state and the pre-game flow; `GameplayScene` owns the in-world phase. Switching phases swaps the active scene instead of branching on flags — a pause screen or game-over screen is a new `Scene` subclass, not another `if`.
+- **The World.** `GameplayScene` *is* the world that entities depend on: `Player`, `Mob`, `Bullet`, `MuzzleFlash`, `Map` and `Obstacle` read their surroundings (walls, players, mobs, `delta_time`, camera, the mob grid, …) off that narrow surface rather than reaching into the whole `Game`.
+- **Networking.** A game-agnostic transport (`BaseClient`/`BaseServer` + a pluggable `Protocol`/`Codec`) carries pickled messages. Both client (`Game.get_data`) and server (`GameServer._on_message`) dispatch through handler dicts keyed on the shared command names in `net/commands.py`, so the two sides can't silently drift apart.
 
 ## Testing
 

@@ -14,7 +14,7 @@ groups:
       type: text
       font_size: 60
       color: [255, 0, 0]
-      text: "CHOOSE YOUR WAY"
+      text: "STANDOFF"
     player_count_text:
       position: [CENTER, 820]
       type: text

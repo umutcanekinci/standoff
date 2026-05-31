@@ -6,7 +6,7 @@ from gameplay.tiles import Obstacle
 
 
 class Map(TiledMap):
-    """A Tiled .tmx for choose-your-way: parses base/spawn points + wall obstacles,
+    """A Tiled .tmx for Standoff: parses base/spawn points + wall obstacles,
     and renders the tile layers (with a grid overlay) into a surface the custom
     Camera blits. Generic tmx loading / pre-render comes from pygame_core.TiledMap."""
 

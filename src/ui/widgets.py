@@ -1,6 +1,6 @@
 """Project UI widgets for the panel system.
 
-These are choose-your-way-specific widgets that plug into pygame_core's panel
+These are Standoff-specific widgets that plug into pygame_core's panel
 loader (each `make_*_factory()` returns a `(cfg, parent) -> object` callable to
 register with PanelLoaderExt). The engine has no button/input widget — buttons
 there are image assets — so we vector-draw the pill/triangle look the project
