@@ -23,6 +23,7 @@ class Command:
     SET_PLAYER_COUNT = "!SET_PLAYER_COUNT"
     UPDATE_ROOM = "!UPDATE_ROOM"
     SPAWN = "!SPAWN"
+    UPDATE_MOBS = "!UPDATE_MOBS"  # authoritative mob positions, broadcast per tick
 
     # Bidirectional (sent by one side, relayed/echoed by the other)
     LEAVE_ROOM = "!LEAVE_ROOM"

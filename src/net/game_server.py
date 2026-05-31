@@ -13,15 +13,24 @@ MobInfo objects). To move to JSON later, give those classes to_dict/from_dict
 and swap the codec in `serve()` — nothing in this file changes.
 """
 
+import math
 import threading
 import time
 from typing import Any, Callable, Iterable
 
+from util.constants import MOB_SPEEDS, RANGE_RADIUS
 from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
 from pygame_core.net.protocol import Protocol, PickleCodec
 from pygame_core.net.transport import BaseServer, Connection
+
+# How often the server pushes authoritative mob positions to a room (seconds).
+MOB_SYNC_INTERVAL = 0.05
+
+
+def _dist_sq(a, b) -> float:
+    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
 
 
 class GameServer:
@@ -198,6 +207,7 @@ class GameServer:
         self._send(player.room, Command.SHOOT, value)
 
     def _cmd_update_player(self, player: PlayerInfo, value, _connection) -> None:
+        player.position = value[1]  # [id, position, angle]; steer mobs toward it
         self._send(player.room, Command.UPDATE_PLAYER, value)
 
     def _cmd_disconnect(
@@ -250,6 +260,47 @@ class GameServer:
         self._send(room, Command.SPAWN, mob)
 
     def handle_room(self, room: Room) -> None:
+        # The server owns mob movement: it spawns, steps every mob toward the
+        # nearest player (or its base), and pushes positions so every client shows
+        # the same enemies. Clients render/interpolate; they don't run mob AI.
+        last = time.time()
+        last_sync = 0.0
         while room.id in self.room_list:
+            now = time.time()
+            dt, last = now - last, now
             room.update(self.spawn_mob)
+            self._simulate_mobs(room, dt)
+            if now - last_sync >= MOB_SYNC_INTERVAL:
+                self._broadcast_mobs(room)
+                last_sync = now
             time.sleep(0.01)
+
+    def _room_mobs(self, room: Room) -> list:
+        return [mob for mob in self.mobs.values() if mob.room is room]
+
+    def _simulate_mobs(self, room: Room, dt: float) -> None:
+        players = list(room)
+        for mob in self._room_mobs(room):
+            target = mob.target_base
+            if players:
+                nearest = min(
+                    players,
+                    key=lambda p: _dist_sq(p.position, mob.position),
+                )
+                if _dist_sq(nearest.position, mob.position) < RANGE_RADIUS**2:
+                    target = nearest.position
+
+            dx, dy = target[0] - mob.position[0], target[1] - mob.position[1]
+            distance = math.hypot(dx, dy)
+            if distance > 1:
+                # speed is px per 60fps-frame on the client; convert to px/second.
+                step = MOB_SPEEDS[mob.id % len(MOB_SPEEDS)] * 60 * dt
+                mob.position = (
+                    mob.position[0] + dx / distance * step,
+                    mob.position[1] + dy / distance * step,
+                )
+
+    def _broadcast_mobs(self, room: Room) -> None:
+        mobs = [(mob.id, mob.position) for mob in self._room_mobs(room)]
+        if mobs:
+            self._send(room, Command.UPDATE_MOBS, mobs)

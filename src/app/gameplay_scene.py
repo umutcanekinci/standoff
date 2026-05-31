@@ -160,7 +160,16 @@ class GameplayScene(Scene):
                 self.player.shoot()
 
     def spawn_mob(self, mob_info) -> None:
-        self.mobs.add_mob(mob_info)
+        mob = self.mobs.add_mob(mob_info)
+        # Online, the server drives mob movement and we follow; offline the mob
+        # runs its own AI.
+        mob.is_network = self.game.mode == Mode.ONLINE
+
+    def update_mobs(self, positions) -> None:
+        for mob_id, position in positions:
+            mob = self.mobs.get_mob_from_id(mob_id)
+            if mob:  # ignore ids we've already killed locally
+                mob.target_position = Vec(position)
 
     def update_player_position(self, player_id, position: tuple) -> None:
         player = self.players.get_player_with_id(player_id)

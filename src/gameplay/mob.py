@@ -9,6 +9,8 @@ from util.constants import (
     AVOID_RADIUS,
     MOB_SPEEDS,
     MOB_KNOCKBACK,
+    REMOTE_SMOOTHING,
+    REMOTE_SNAP_DISTANCE,
 )
 from gameplay.entity import Entity
 
@@ -48,6 +50,11 @@ class Mob(Entity):
 
         self.target = target_base  # current chase target; refreshed by check_range
         self.last_attack = -1000  # ticks of last hit landed; gates the 1s cooldown
+
+        # Online: the server owns mob movement and we follow target_position;
+        # offline we run the local AI below. GameplayScene.spawn_mob sets is_network.
+        self.is_network = False
+        self.target_position = Vec(position)
 
     def check_range(self):
         if not self.world.players:
@@ -93,13 +100,24 @@ class Mob(Entity):
         self.delta = self.velocity * self.world.delta_time
         super().move(self.delta)
 
-    def update(self):
-        self.check_range()
-        self.rotate_to_target()
-        self.update_movement()
+    def _follow_remote(self):
+        # Online: ease toward the server's authoritative position (snap on a large
+        # gap), and face the way we're moving. No local AI, so all clients agree.
+        gap = self.target_position - self.position
+        if gap.length() > 1:
+            self.angle = gap.angle_to(Vec(1, 0))
+        self.rotate(self.angle)
+        if gap.length() > REMOTE_SNAP_DISTANCE:
+            new_position = Vec(self.target_position)
+        else:
+            t = 1 - REMOTE_SMOOTHING**self.world.delta_time
+            new_position = self.position.lerp(self.target_position, t)
+        self.update_position(new_position)
 
+    def _try_attack(self):
+        # HP is client-local (not synced), so each client applies mob hits to its
+        # own view of the players — same as bullets.
         now = pygame.time.get_ticks()
-
         if now - self.last_attack > 1000:
             for player in [
                 p for p in self.world.players if self.hit_rect.colliderect(p.rect)
@@ -109,24 +127,33 @@ class Mob(Entity):
                 self.last_attack = now
                 break
 
+    def update(self):
+        if self.is_network:
+            self._follow_remote()
+        else:
+            self.check_range()
+            self.rotate_to_target()
+            self.update_movement()
+        self._try_attack()
+
 
 class Mobs(list):
     def __init__(self, world) -> None:
         super().__init__()
         self.world = world
 
-    def add_mob(self, mob_info, character="zombie") -> None:
-        self.append(
-            Mob(
-                mob_info.id,
-                "Mob " + str(mob_info.id),
-                mob_info.position,
-                mob_info.size,
-                mob_info.target_base,
-                character,
-                self.world,
-            )
+    def add_mob(self, mob_info, character="zombie") -> "Mob":
+        mob = Mob(
+            mob_info.id,
+            "Mob " + str(mob_info.id),
+            mob_info.position,
+            mob_info.size,
+            mob_info.target_base,
+            character,
+            self.world,
         )
+        self.append(mob)
+        return mob
 
     def get_mob_from_id(self, mob_id: int):
         return next((mob for mob in self if mob.id == mob_id), None)

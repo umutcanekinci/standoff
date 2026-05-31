@@ -9,6 +9,10 @@ class PlayerInfo:
         self.set_name(name)
         self.set_character_name(character_name)
 
+        # Latest center the client reported (UPDATE_PLAYER); the server reads it
+        # to steer mobs toward players. Seeded to the spawn base in join_room.
+        self.position = (0, 0)
+
         # Room membership — populated by join_room(), cleared by leave_room().
         self.room = None
         self.is_ready = False
@@ -38,6 +42,7 @@ class PlayerInfo:
             number for number in room.base_points if number not in used
         )
         self.base_point = self.room.base_points[self.base_number]
+        self.position = self.base_point
 
     def leave_room(self):
         self.room.remove(self)
