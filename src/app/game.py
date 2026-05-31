@@ -267,7 +267,9 @@ class Game(Application):
         )
         self.map.render()
         # Walls are static, so grid them once. Mobs query this for collision.
-        self.wall_grid = SpatialGrid.of(self.walls, max(TILE_WIDTH, TILE_HEIGHT))
+        # of_static buckets each wall into every cell it overlaps (walls can be
+        # bigger than a cell) so queries on those cells don't miss it.
+        self.wall_grid = SpatialGrid.of_static(self.walls, max(TILE_WIDTH, TILE_HEIGHT))
         self.players = Players(self)
         self.mobs = Mobs(self)
         self.mob_grid = SpatialGrid(AVOID_RADIUS)

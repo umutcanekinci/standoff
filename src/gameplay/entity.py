@@ -94,8 +94,14 @@ class Entity(GameSprite):
 
     def move(self, delta):
         # Only collide against walls in nearby grid cells, not the whole map.
+        # Inflate the query by a cell on every side so a wall we move INTO this
+        # frame (into an adjacent cell) is still in the candidate set.
         grid = getattr(self.game, "wall_grid", None)
-        walls = list(grid.query_rect(self.hit_rect)) if grid else self.game.walls
+        if grid is not None:
+            area = self.hit_rect.inflate(grid.cell_size * 2, grid.cell_size * 2)
+            walls = list(grid.query_rect(area))
+        else:
+            walls = self.game.walls
         self.hit_rect.centerx += delta.x
         collide(self, "x", walls)
         self.hit_rect.centery += delta.y

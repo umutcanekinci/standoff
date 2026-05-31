@@ -45,6 +45,19 @@ def test_query_on_empty_cell_yields_nothing():
     assert list(grid.query_radius((5000, 5000), 50)) == []
 
 
+def test_static_insert_finds_wall_larger_than_a_cell():
+    """A wall bigger than one cell must be found by queries on every cell it
+    overlaps, not just the one holding its centre (else mobs phase through)."""
+    wall = _Obj((120, 120))
+    wall.rect = pygame.Rect(60, 60, 120, 120)  # spans several 50px cells
+    grid = SpatialGrid.of_static([wall], cell_size=50)
+
+    # Query a corner cell the wall overlaps but whose centre is far from it.
+    found = set(grid.query_rect(pygame.Rect(60, 60, 10, 10)))
+
+    assert wall in found
+
+
 def test_candidate_set_is_a_superset_not_exact():
     """The grid returns cell-level candidates; precise distance is the caller's job.
 

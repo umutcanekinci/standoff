@@ -19,8 +19,19 @@ class SpatialGrid:
         return (int(x) // self.cell_size, int(y) // self.cell_size)
 
     def insert(self, obj) -> None:
+        """Bucket a small/point-like object by its centre (one cell). For mobs."""
         cx, cy = obj.rect.center
         self._cells.setdefault(self._key(cx, cy), []).append(obj)
+
+    def insert_overlapping(self, obj) -> None:
+        """Bucket an object into every cell its rect overlaps. For walls, which
+        may be larger than a cell — centre-only bucketing would let queries on the
+        other cells it covers miss it (mobs phasing through)."""
+        cs = self.cell_size
+        rect = obj.rect
+        for gx in range(rect.left // cs, rect.right // cs + 1):
+            for gy in range(rect.top // cs, rect.bottom // cs + 1):
+                self._cells.setdefault((gx, gy), []).append(obj)
 
     def query_radius(self, center, radius):
         """Yield objects in cells overlapping the bbox of the query circle.
@@ -49,7 +60,16 @@ class SpatialGrid:
 
     @classmethod
     def of(cls, objects, cell_size: int) -> "SpatialGrid":
+        """Build from moving point-like objects (mobs) — centre bucketing."""
         grid = cls(cell_size)
         for obj in objects:
             grid.insert(obj)
+        return grid
+
+    @classmethod
+    def of_static(cls, objects, cell_size: int) -> "SpatialGrid":
+        """Build from static, possibly large objects (walls) — overlap bucketing."""
+        grid = cls(cell_size)
+        for obj in objects:
+            grid.insert_overlapping(obj)
         return grid

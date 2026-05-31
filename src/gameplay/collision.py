@@ -6,22 +6,23 @@ def is_collide(one, two) -> bool:
 
 
 def collide(obj, direction: str, walls) -> None:
-    hit = next(
-        (w for w in walls if w is not obj and obj.hit_rect.colliderect(w.rect)), None
-    )
-    if hit is None:
-        return
+    # Resolve against EVERY overlapping wall (a corner can touch two at once), and
+    # decide the push side from hit_rect's centre — never the sprite rect, whose
+    # width changes with rotation and would skew the test (snapping to the wrong
+    # side reads as teleporting through the wall).
+    for wall in walls:
+        if wall is obj or not obj.hit_rect.colliderect(wall.rect):
+            continue
 
-    if direction == "x":
-        if obj.rect.x < hit.rect.x:
-            obj.hit_rect.right = hit.rect.left - 0.001
+        if direction == "x":
+            if obj.hit_rect.centerx < wall.rect.centerx:
+                obj.hit_rect.right = wall.rect.left
+            else:
+                obj.hit_rect.left = wall.rect.right
+            obj.velocity.x = 0
         else:
-            obj.hit_rect.left = hit.rect.right + 0.001
-        obj.velocity.x = 0
-
-    if direction == "y":
-        if obj.rect.y < hit.rect.y:
-            obj.hit_rect.bottom = hit.rect.top - 0.001
-        else:
-            obj.hit_rect.top = hit.rect.bottom + 0.001
-        obj.velocity.y = 0
+            if obj.hit_rect.centery < wall.rect.centery:
+                obj.hit_rect.bottom = wall.rect.top
+            else:
+                obj.hit_rect.top = wall.rect.bottom
+            obj.velocity.y = 0
