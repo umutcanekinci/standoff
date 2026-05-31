@@ -117,9 +117,15 @@ class GameplayScene(Scene):
         if self.game.mode == Mode.ONLINE:
             # Send our absolute position (not a delta) so a dropped packet can't
             # permanently desync us on the other clients — each update is truth.
+            # alive lets the server stop steering mobs toward us once we die.
             self.game.client.send(
                 Command.UPDATE_PLAYER,
-                [self.game.player_info.id, self.player.rect.center, self.player.angle],
+                [
+                    self.game.player_info.id,
+                    self.player.rect.center,
+                    self.player.angle,
+                    self.player.alive,
+                ],
             )
         elif self.game.mode == Mode.OFFLINE:
             self.game.player_info.room.update(self.spawn_mob)

@@ -12,6 +12,7 @@ class PlayerInfo:
         # Latest center the client reported (UPDATE_PLAYER); the server reads it
         # to steer mobs toward players. Seeded to the spawn base in join_room.
         self.position = (0, 0)
+        self.alive = True  # client reports this; mobs ignore dead players
 
         # Room membership — populated by join_room(), cleared by leave_room().
         self.room = None

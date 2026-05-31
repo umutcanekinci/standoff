@@ -207,7 +207,10 @@ class GameServer:
         self._send(player.room, Command.SHOOT, value)
 
     def _cmd_update_player(self, player: PlayerInfo, value, _connection) -> None:
-        player.position = value[1]  # [id, position, angle]; steer mobs toward it
+        # [id, position, angle, alive]; track position/alive so mobs chase only
+        # living players, then relay to room mates unchanged.
+        player.position = value[1]
+        player.alive = value[3] if len(value) > 3 else True
         self._send(player.room, Command.UPDATE_PLAYER, value)
 
     def _cmd_disconnect(
@@ -279,7 +282,7 @@ class GameServer:
         return [mob for mob in self.mobs.values() if mob.room is room]
 
     def _simulate_mobs(self, room: Room, dt: float) -> None:
-        players = list(room)
+        players = [p for p in room if p.alive]  # dead players stop attracting mobs
         for mob in self._room_mobs(room):
             target = mob.target_base
             if players:
