@@ -26,15 +26,10 @@ class Mob(Entity):
         self.hit_rect = MOB_HIT_RECT.copy()
         self.hit_rect.center = self.rect.center
 
-        # region Physical Variables
-
-        # Velocity / Speed (piksel/s*2)
         self.velocity = Vec()
         self.acceleration = Vec()
         self.angle = 0
         self.speed = choice(MOB_SPEEDS)
-
-        # endregion
 
     def check_range(self):
         if not self.game.players:

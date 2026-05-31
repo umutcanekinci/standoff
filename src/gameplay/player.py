@@ -31,34 +31,25 @@ class Player(Entity):
         self.hit_rect.center = self.rect.center
         self.auto_shoot = (True,)
 
-        # region Physical Variables
-
-        # Force (Newton)
         self.force = Vec(3, 3)
         self.frictional_force = Vec(-1.0, -1.0)
         self.net_force = Vec()
 
-        # Acceleration (m/s**2)
         self.acceleration = Vec()
         self.max_acceleration = 5
 
-        # Velocity / Speed (m/s*2)
         self.velocity = Vec()
         self.max_speed = 5
 
-        # Rotation
         self.force_rotation = Vec()
         self.delta = Vec()
         self.knockback = Vec()
         self.angle = 0
 
-        # Weight (Kilogram)
-        self.density = 25  # d (kg/piksel**2)
+        self.density = 25
         self.weight = (
             self.rect.width / TILE_WIDTH * self.rect.height / TILE_HEIGHT
-        ) * self.density  # m = d*v
-
-        # endregion
+        ) * self.density
 
     def rotate_to_mouse(self):
         self.angle = (
@@ -67,8 +58,7 @@ class Player(Entity):
         ).angle_to(Vec(1, 0))  # angle between difference vector and x axis
 
     def move(self):
-        # region Get the rotation of force
-
+        # Map held keys to a unit force direction
         if self.game.keys[pygame.K_LEFT] or self.game.keys[pygame.K_a]:
             self.force_rotation.x = -1
 
@@ -87,9 +77,6 @@ class Player(Entity):
         else:
             self.force_rotation.y = 0
 
-        # endregion
-
-        # Normalize force rotation
         if self.force_rotation.length() != 0:
             self.force_rotation.normalize()
 

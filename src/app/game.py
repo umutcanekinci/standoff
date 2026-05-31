@@ -72,7 +72,7 @@ class Game(Application):
         self.start_client()
         self.open_panel("main_menu")
 
-    # region Panel / menu setup
+    # Panel / menu setup
 
     def _load_panels(self) -> None:
         self.panel_manager = PanelManager(starting_tab="main_menu")
@@ -149,9 +149,7 @@ class Game(Application):
     def _clicked(self, button, event) -> bool:
         return button.is_clicked(event, self.mouse.position)
 
-    # endregion
-
-    # region Per-panel event handlers
+    # Per-panel event handlers
 
     def _handle_main_menu(self, event) -> None:
         panel = self.panel_manager["main_menu"]
@@ -219,9 +217,7 @@ class Game(Application):
         if self._clicked(panel["leave_room"], event):
             self.client.send("!LEAVE_ROOM")
 
-    # endregion
-
-    # region Networking / game flow (called by the handlers + client callbacks)
+    # Networking / game flow (called by the handlers + client callbacks)
 
     def debug_log(self, text):
         # Kept for the network client, which logs connection status here.
@@ -399,9 +395,7 @@ class Game(Application):
                 else:
                     self.remove_player(value)
 
-    # endregion
-
-    # region Application overrides
+    # Application overrides
 
     @override
     def _handle_core_event(self, event: pygame.event.Event) -> None:
@@ -529,5 +523,3 @@ class Game(Application):
             self.client.send("!DISCONNECT")
         self.client.disconnect()
         super().exit()
-
-    # endregion

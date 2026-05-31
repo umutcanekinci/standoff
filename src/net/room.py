@@ -1,12 +1,8 @@
-# region Importing Packages
-
-from net.player_info import PlayerInfo
 import pygame
 import random
-from util.constants import *
-from net.player_info import MobInfo
 
-# endregion
+from util.constants import *
+from net.player_info import PlayerInfo, MobInfo
 
 
 class Room(list[PlayerInfo]):

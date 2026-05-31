@@ -3,11 +3,9 @@
 This is Layer 2: it owns players, rooms, and mobs, and it interprets the game
 protocol (!JOIN_ROOM, !SHOOT, ...). It talks to the network only through a
 BaseServer (Layer 1) via callbacks, and it never imports tkinter (Layer 3
-subscribes to `on_status` if it wants a log).
-
-Compared with the old net/server.py, everything to do with recv_all, struct,
-pickle, accept loops, and per-client threads has moved down into the transport.
-What is left here is purely "what should happen when a client says X".
+subscribes to `on_status` if it wants a log). All the recv_all / struct / pickle
+/ accept-loop / per-client-thread machinery lives down in the transport; what is
+left here is purely "what should happen when a client says X".
 
 Serialization note: this wires up with PickleCodec so it stays drop-in
 compatible with the current client (which receives whole PlayerInfo / Room /
@@ -45,8 +43,6 @@ class GameServer:
 
         self._server: BaseServer | None = None
 
-    # region wiring -----------------------------------------------------------
-
     def serve(self, address) -> None:
         """Build the transport, point its callbacks at us, and run. Blocking."""
         self._server = BaseServer(
@@ -70,10 +66,6 @@ class GameServer:
         """Send a message to every connected player (used by the admin console)."""
         self._send(list(self.players.values()), command, value)
 
-    # endregion
-
-    # region sending ----------------------------------------------------------
-
     def _send(
         self,
         players: PlayerInfo | Iterable[PlayerInfo],
@@ -83,8 +75,8 @@ class GameServer:
     ) -> None:
         """Send one message to one or many players, addressed by PlayerInfo.
 
-        Mirrors the old send_data: accepts a single player or any iterable
-        (including a Room), and resolves each to its Connection.
+        Accepts a single player or any iterable (including a Room), and resolves
+        each to its Connection.
         """
         if isinstance(players, PlayerInfo):
             players = [players]
@@ -101,10 +93,6 @@ class GameServer:
 
     def _broadcast_player_count(self) -> None:
         self._send(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
-
-    # endregion
-
-    # region connection lifecycle --------------------------------------------
 
     def _on_connect(self, connection: Connection) -> None:
         with self._lock:
@@ -137,10 +125,6 @@ class GameServer:
         self._broadcast_player_count()
         self._log(f"{player.name} ({player.IP}) disconnected.")
         self._log(f"Player count is now {len(self.players)}.")
-
-    # endregion
-
-    # region command dispatch -------------------------------------------------
 
     def _on_message(self, connection: Connection, message: Any) -> None:
         player = self._players_by_connection.get(connection)
@@ -194,10 +178,6 @@ class GameServer:
         else:
             self._log(f"Unknown command from {player.name}: {command!r}")
 
-    # endregion
-
-    # region room logic -------------------------------------------------------
-
     def _join_room(self, player: PlayerInfo, room_id: int) -> None:
         room = self.room_list.get(room_id)
         if room is not None and len(room) < room.size:
@@ -238,10 +218,6 @@ class GameServer:
             for room_mate in player.room:
                 self._send(room_mate, "!UPDATE_ROOM", room_mate)
 
-    # endregion
-
-    # region mob spawning -----------------------------------------------------
-
     def spawn_mob(self, room: Room, mob) -> None:
         self.mobs[mob.id] = mob
         self._send(room, "!SPAWN", mob)
@@ -250,5 +226,3 @@ class GameServer:
         while room.id in self.room_list:
             room.update(self.spawn_mob)
             time.sleep(0.01)
-
-    # endregion

@@ -13,8 +13,7 @@ from ctypes import windll
 from util.constants import *
 from net.game_server import GameServer
 
-# region window-chrome helpers
-
+# Window-chrome helpers (borderless drag + taskbar registration)
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
 WS_EX_TOOLWINDOW = 0x00000080
@@ -76,9 +75,6 @@ class Grip:
 
         if self.release_cmd is not None:
             self.release_cmd()
-
-
-# endregion
 
 
 class Application(Tk):
