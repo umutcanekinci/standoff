@@ -53,6 +53,10 @@ BACKGROUND_COLORS = {"menu": CustomBlue}
 # Game
 DEVELOP_MODE = False
 FPS = 60
+
+# Play modes (Game.mode)
+MODE_ONLINE = "online"
+MODE_OFFLINE = "offline"
 MAX_ROOM_SIZE = 4
 HEALTH_BAR_SIZE = (60, 15)
 
