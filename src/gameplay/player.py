@@ -1,6 +1,8 @@
 from util.constants import (
     PLAYER_MAX_HP,
     PLAYER_FRICTION,
+    REMOTE_SMOOTHING,
+    REMOTE_SNAP_DISTANCE,
     SHOOT_RATE,
     GUN_SPREAD,
     BARREL_OFFSET,
@@ -59,6 +61,12 @@ class Player(Entity):
         self.delta = Vec()
         self.knockback = Vec()
         self.angle = 0
+
+        # Local player is input-driven; remote players follow networked positions.
+        # GameplayScene flips is_local on the one it owns. target_position is the
+        # latest center received from the owner (see _follow_remote).
+        self.is_local = False
+        self.target_position = Vec(position)
 
         self.density = 25
         self.weight = (
@@ -174,7 +182,22 @@ class Player(Entity):
 
     def update(self):
         self.rotate(self.angle)
-        super().move(self.delta)
+        if self.is_local:
+            super().move(self.delta)  # input-driven, collides with walls
+        else:
+            self._follow_remote()  # network-driven, eased toward owner's position
+
+    def _follow_remote(self):
+        # Ease toward the latest position the owner sent, smoothing out network
+        # jitter; snap on a large gap (respawn / big correction) instead of
+        # sliding across the map. Frame-rate independent via delta_time.
+        gap = self.target_position - self.position
+        if gap.length() > REMOTE_SNAP_DISTANCE:
+            new_position = Vec(self.target_position)
+        else:
+            t = 1 - REMOTE_SMOOTHING**self.world.delta_time
+            new_position = self.position.lerp(self.target_position, t)
+        self.update_position(new_position)
 
 
 class Players(list):

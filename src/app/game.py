@@ -136,7 +136,7 @@ class Game(Application):
 
     def _on_update_player(self, value) -> None:
         if self.gameplay:
-            self.gameplay.update_player_rect(value[0], value[1])
+            self.gameplay.update_player_position(value[0], value[1])
             self.gameplay.update_player_angle(value[0], value[2])
 
     def _on_shoot(self, value) -> None:

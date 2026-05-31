@@ -24,6 +24,8 @@ from util.constants import (
     Green,
     Yellow,
 )
+from pygame.math import Vector2 as Vec
+
 from pygame_core.asset_path import AssetPath
 from pygame_core.spatial_grid import SpatialGrid
 
@@ -66,6 +68,7 @@ class GameplayScene(Scene):
         self.effects = []
 
         self.player = self.players.add_player(game.player_info, Green)
+        self.player.is_local = True  # input-driven; the rest follow the network
 
         if game.mode == Mode.ONLINE:
             for player in game.player_info.room:
@@ -112,9 +115,11 @@ class GameplayScene(Scene):
         self.player.update_movement()
 
         if self.game.mode == Mode.ONLINE:
+            # Send our absolute position (not a delta) so a dropped packet can't
+            # permanently desync us on the other clients — each update is truth.
             self.game.client.send(
                 Command.UPDATE_PLAYER,
-                [self.game.player_info.id, self.player.delta, self.player.angle],
+                [self.game.player_info.id, self.player.rect.center, self.player.angle],
             )
         elif self.game.mode == Mode.OFFLINE:
             self.game.player_info.room.update(self.spawn_mob)
@@ -157,10 +162,10 @@ class GameplayScene(Scene):
     def spawn_mob(self, mob_info) -> None:
         self.mobs.add_mob(mob_info)
 
-    def update_player_rect(self, player_id, delta: tuple) -> None:
+    def update_player_position(self, player_id, position: tuple) -> None:
         player = self.players.get_player_with_id(player_id)
         if player:  # may have just left; server can still relay stale updates
-            player.delta = delta
+            player.target_position = Vec(position)
 
     def update_player_angle(self, player_id, angle) -> None:
         player = self.players.get_player_with_id(player_id)

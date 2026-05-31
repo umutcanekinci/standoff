@@ -67,6 +67,12 @@ PLAYER_HIT_RECT = pygame.Rect(0, 0, 35, 35)
 # Per-(60fps)frame velocity retained on an axis with no input (0..1). Lower
 # brakes faster (less ice-skating); 1.0 would coast frictionlessly.
 PLAYER_FRICTION = 0.8
+# Online: how a remote player eases toward the position sent by its owner.
+# REMOTE_SMOOTHING is the fraction of the gap retained per (60fps)frame (0..1) —
+# lower follows faster / smooths less. Gaps beyond REMOTE_SNAP_DISTANCE px snap
+# instead of easing (respawns / large corrections).
+REMOTE_SMOOTHING = 0.5
+REMOTE_SNAP_DISTANCE = 150
 CHARACTER_LIST = [
     "hitman",
     "man_blue",
