@@ -46,8 +46,8 @@ Clients launch the game, **Create Room** (host) or **Connect** by room ID (other
 ## Running
 
 ```bash
-git clone --recurse-submodules https://github.com/umutcanekinci/choose-your-way.git
-cd choose-your-way
+git clone --recurse-submodules https://github.com/umutcanekinci/standoff.git
+cd standoff
 uv sync
 uv run python __main__.py
 ```
@@ -127,7 +127,7 @@ Character and tile art from [Kenney](https://www.kenney.nl/) — [Topdown Shoote
 ## Contributing
 
 1. Fork this repository.
-2. Clone your fork: `git clone --recurse-submodules https://github.com/<you>/choose-your-way.git`
+2. Clone your fork: `git clone --recurse-submodules https://github.com/<you>/standoff.git`
 3. Set up dev tooling: `uv sync` then `uv run pre-commit install` (runs lint/format + fast tests on commit).
 4. Create a branch: `git checkout -b feature/<your-feature>`
 5. Commit + push: `git commit -am "<message>" && git push origin feature/<your-feature>`
@@ -137,7 +137,7 @@ Character and tile art from [Kenney](https://www.kenney.nl/) — [Topdown Shoote
 
 Umutcan Ekinci — [umutcannekinci@gmail.com](mailto:umutcannekinci@gmail.com)
 
-See also the [contributors](https://github.com/umutcanekinci/choose-your-way/contributors).
+See also the [contributors](https://github.com/umutcanekinci/standoff/contributors).
 
 ## License
 
