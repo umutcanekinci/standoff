@@ -20,8 +20,10 @@ import sys
 import time
 import ctypes
 import argparse
+import faulthandler
 import subprocess
 import threading
+import traceback
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -53,6 +55,8 @@ def _dpi_aware() -> None:
 
 
 def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) -> None:
+    # Dump a C-level trace on a hard crash (e.g. SDL) — a plain traceback won't.
+    faulthandler.enable()
     _dpi_aware()
     import pygame
     from app.game import Game
@@ -66,17 +70,23 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
         def __init__(self) -> None:
             super().__init__()
             self._dev = SimpleNamespace(phase=0)
+            self._place_window()
 
+        def _place_window(self) -> None:
             x, y, w, h = rect
             # Render at the game's logical size and let SCALED fit it to the
             # (smaller) window; then move/resize the OS window to our quarter.
-            self.window = pygame.display.set_mode(
-                self.size, pygame.SCALED | pygame.RESIZABLE
-            )
-            pygame.display.set_caption(f"{WINDOW_TITLE} [{role} {idx}]")
-            if sys.platform == "win32":
-                hwnd = pygame.display.get_wm_info()["window"]
-                ctypes.windll.user32.MoveWindow(hwnd, x, y, w, h, True)
+            try:
+                self.window = pygame.display.set_mode(
+                    self.size, pygame.SCALED | pygame.RESIZABLE
+                )
+                pygame.display.set_caption(f"{WINDOW_TITLE} [{role} {idx}]")
+                if sys.platform == "win32":
+                    hwnd = pygame.display.get_wm_info()["window"]
+                    ctypes.windll.user32.MoveWindow(hwnd, x, y, w, h, True)
+            except Exception:
+                print(f"[client {idx}] window placement failed:", flush=True)
+                traceback.print_exc()
 
         def update(self) -> None:
             super().update()
@@ -110,7 +120,14 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
                     self.client.send(Command.START_GAME)
                 d.phase = 5  # done
 
-    DevClient().run()
+    try:
+        DevClient().run()
+    except SystemExit:
+        raise  # normal Game.exit()
+    except BaseException:
+        print(f"[client {idx}] crashed:", flush=True)
+        traceback.print_exc()
+        raise
 
 
 # ── orchestrator ─────────────────────────────────────────────────────────────
@@ -154,11 +171,15 @@ def main() -> None:
     threading.Thread(target=server.serve, args=(SERVER_ADDR,), daemon=True).start()
     print(f"[server] listening on {SERVER_ADDR}")
 
+    logdir = ROOT / "tools" / "_logs"
+    logdir.mkdir(exist_ok=True)
     rects = _quarters(args.clients)
     t0 = time.time() + 5.0  # shared start; leaves time for spawn + connect
-    procs = []
+    procs, logs = [], []
     for idx, (x, y, w, h) in enumerate(rects):
         role = "host" if idx == 0 else "joiner"
+        log = open(logdir / f"client_{idx}.log", "w+", encoding="utf-8")
+        logs.append(log)
         procs.append(
             subprocess.Popen(
                 [
@@ -174,6 +195,8 @@ def main() -> None:
                     str(t0),
                 ],
                 cwd=str(ROOT),
+                stdout=log,
+                stderr=subprocess.STDOUT,
             )
         )
     print(f"[orchestrator] launched {len(procs)} client(s); close any window to stop.")
@@ -187,6 +210,13 @@ def main() -> None:
         for p in procs:
             if p.poll() is None:
                 p.terminate()
+        # Surface each client's captured output (banner, tracebacks, faulthandler).
+        for idx, log in enumerate(logs):
+            log.flush()
+            log.seek(0)
+            print(f"\n===== client {idx} (exit {procs[idx].poll()}) =====")
+            print(log.read().rstrip() or "(no output)")
+            log.close()
 
 
 if __name__ == "__main__":
