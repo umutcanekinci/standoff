@@ -12,8 +12,8 @@ import time
 import pytest
 
 from net.game_server import GameServer
-from net.protocol import PickleCodec, Protocol
-from net.transport import BaseClient
+from pygame_core.net.protocol import PickleCodec, Protocol
+from pygame_core.net.transport import BaseClient
 from _util import wait_until, start_in_thread
 
 # Full-stack, slowest tier — CI only; the pre-commit hook skips via `-m "not e2e"`.

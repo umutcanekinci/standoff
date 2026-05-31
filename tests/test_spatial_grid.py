@@ -7,7 +7,7 @@ ones they should). These pin the query semantics.
 
 import pygame
 
-from gameplay.spatial_grid import SpatialGrid
+from pygame_core.spatial_grid import SpatialGrid
 
 
 class _Obj:

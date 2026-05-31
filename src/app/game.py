@@ -13,11 +13,11 @@ from pygame_core.ecs.components.transform import Transform
 from pygame_core.ecs.state_object import StateObject
 from pygame_core.ui_widgets.text_object import TextObject
 
-from net.transport import BaseClient
-from net.protocol import Protocol, PickleCodec
+from pygame_core.net.transport import BaseClient
+from pygame_core.net.protocol import Protocol, PickleCodec
 from gameplay.map import Map
 from gameplay.camera import Camera
-from gameplay.spatial_grid import SpatialGrid
+from pygame_core.spatial_grid import SpatialGrid
 from gameplay.player import Players
 from gameplay.mob import Mobs
 from net.player_info import PlayerInfo

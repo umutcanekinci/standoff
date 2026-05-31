@@ -8,7 +8,7 @@ import struct
 
 import pytest
 
-from net.protocol import JSONCodec, PickleCodec, Protocol, ProtocolError
+from pygame_core.net.protocol import JSONCodec, PickleCodec, Protocol, ProtocolError
 from _util import FakeSocket
 
 

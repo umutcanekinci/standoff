@@ -21,8 +21,8 @@ from typing import Any, Callable, Iterable
 
 from net.player_info import PlayerInfo
 from net.room import Room
-from net.protocol import Protocol, PickleCodec
-from net.transport import BaseServer, Connection
+from pygame_core.net.protocol import Protocol, PickleCodec
+from pygame_core.net.transport import BaseServer, Connection
 
 
 class GameServer:

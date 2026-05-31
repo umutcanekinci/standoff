@@ -44,7 +44,7 @@ _gs_mod.load_image = _fake_load_image
 from util.constants import WINDOW_SIZE, FPS, MOB_MAX_HP, AVOID_RADIUS  # noqa: E402
 from gameplay.camera import Camera  # noqa: E402
 from gameplay.mob import Mobs  # noqa: E402
-from gameplay.spatial_grid import SpatialGrid  # noqa: E402
+from pygame_core.spatial_grid import SpatialGrid  # noqa: E402
 
 FRAME_BUDGET_MS = 1000.0 / FPS  # 16.67 ms for 60 FPS
 MAP_SIZE = (4000, 4000)
