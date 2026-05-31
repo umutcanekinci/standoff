@@ -366,8 +366,6 @@ class Game(Application):
             command = data["command"]
             value = data["value"] if "value" in data else None
 
-            print(command, value)
-
             if command == "!SET_PLAYER_COUNT":
                 self.update_player_count(value)
             elif command == "!UPDATE_ROOM" and value:
