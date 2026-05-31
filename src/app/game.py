@@ -20,6 +20,7 @@ from pygame_core.net.protocol import Protocol, PickleCodec
 from app.lobby_scene import LobbyScene
 from app.gameplay_scene import GameplayScene
 from net.commands import Command
+from ui.widgets import ShapeButton
 
 
 class Game(Application):
@@ -39,6 +40,15 @@ class Game(Application):
 
         self.window.fill(BACKGROUND_COLORS["menu"])
         pygame.display.update()
+
+        # Shared UI click feedback for every ShapeButton (played on press).
+        # Guarded so a missing/!disabled audio device doesn't stop the game.
+        try:
+            ShapeButton.set_click_sound(
+                pygame.mixer.Sound(str(self.assets.sound_path("click")))
+            )
+        except pygame.error as error:
+            self.debug_log(f"[AUDIO] click sound unavailable: {error}")
 
         # Session state shared across scenes.
         self.mode: Mode | None = None

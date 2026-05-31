@@ -30,3 +30,7 @@ images:
   muzzle_3: {folder: effects/muzzle_flashes, name: muzzle_03}
   muzzle_4: {folder: effects/muzzle_flashes, name: muzzle_04}
   muzzle_5: {folder: effects/muzzle_flashes, name: muzzle_05}
+
+sounds:
+  # ── UI button feedback (Kenney UI Pack) ───────────────────────────────
+  click: {name: click-a}

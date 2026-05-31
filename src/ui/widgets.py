@@ -63,6 +63,13 @@ class ShapeButton(HoverableStateObject):
     Clicks are suppressed while disabled."""
 
     _pressed_image: pygame.Surface  # baked by _render_surfaces()
+    # Shared click feedback, played on press. Set once by the app via
+    # set_click_sound(); None (the default) keeps buttons silent.
+    click_sound: "pygame.mixer.Sound | None" = None
+
+    @classmethod
+    def set_click_sound(cls, sound: "pygame.mixer.Sound | None") -> None:
+        cls.click_sound = sound
 
     def __init__(
         self,
@@ -141,6 +148,8 @@ class ShapeButton(HoverableStateObject):
         ):
             self._is_pressed = True
             self._renderer.set_image(self._pressed_image)
+            if ShapeButton.click_sound is not None:
+                ShapeButton.click_sound.play()
         elif event.type == pygame.MOUSEBUTTONUP and self._is_pressed:
             self._is_pressed = False
             self._renderer.set_image(self._active_surface)
