@@ -22,6 +22,8 @@ from net.commands import Command
 
 
 class Game(Application):
+    client: BaseClient  # created in start_client(), which __init__ calls
+
     def __init__(self) -> None:
         super().__init__(WINDOW_SIZE, WINDOW_TITLE, FPS)
 

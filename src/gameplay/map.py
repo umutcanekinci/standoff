@@ -11,6 +11,8 @@ class Map(TiledMap):
     Camera blits. Generic tmx loading / pre-render comes from pygame_core.TiledMap."""
 
     camera: object = None  # set by Camera.__init__
+    image: pygame.Surface  # built by render()
+    rect: pygame.Rect  # built by render()
 
     def __init__(self, world, tmx_path, border_width):
         super().__init__(tmx_path)

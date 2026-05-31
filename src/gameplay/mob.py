@@ -41,6 +41,7 @@ class Mob(Entity):
 
         self.velocity = Vec()
         self.acceleration = Vec()
+        self.delta = Vec()  # per-frame move vector; recomputed in update_movement
         self.angle = 0
         self.speed = choice(MOB_SPEEDS)
 

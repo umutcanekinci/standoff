@@ -62,6 +62,8 @@ class ShapeButton(HoverableStateObject):
     the label rides down with it (press effect), matching the old buttons.
     Clicks are suppressed while disabled."""
 
+    _pressed_image: pygame.Surface  # baked by _render_surfaces()
+
     def __init__(
         self,
         parent,

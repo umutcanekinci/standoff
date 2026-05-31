@@ -1,4 +1,7 @@
 class PlayerInfo:
+    name: str  # set via set_name(), which __init__ calls
+    character_name: str  # set via set_character_name(), which __init__ calls
+
     def __init__(self, player_id=1, address=(0, 0), name="", character_name="") -> None:
         self.id = player_id
         self.address = self.IP, self.PORT = address
@@ -6,7 +9,12 @@ class PlayerInfo:
         self.set_name(name)
         self.set_character_name(character_name)
 
+        # Room membership — populated by join_room(), cleared by leave_room().
         self.room = None
+        self.is_ready = False
+        self.is_ruler = False
+        self.base_number = None
+        self.base_point = None
 
     def set_name(self, name: str):
         self.name = name

@@ -48,6 +48,13 @@ if TYPE_CHECKING:
 
 
 class LobbyScene(Scene):
+    # Built in _load_panels / _build_dynamic_objects, both called from __init__.
+    panel_manager: PanelManager
+    character_preview: StateObject
+    character_name_text: TextObject
+    room_slots: list
+    room_action_button: ShapeButton
+
     def __init__(self, game: "Game") -> None:
         super().__init__(game)
 

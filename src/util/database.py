@@ -7,6 +7,7 @@ import sys
 class Database:
     def __init__(self, name):
         self.name = name
+        self.connection = None  # opened by connect()
 
     def connect(self) -> bool:
         try:

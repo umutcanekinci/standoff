@@ -36,6 +36,12 @@ def _name_font():
 class Entity(GameSprite):
     world: Any  # the GameplayScene; set by Player/Mob subclasses
     hit_rect: pygame.Rect  # set by Player/Mob subclasses
+    # Set through setters that __init__ calls (set_name / set_hp / ...).
+    name: str
+    name_text: TextObject
+    health_bar: GameSprite
+    hp: int
+    max_hp: int
 
     def __init__(
         self, entity_id, name, name_color, position, size, image_path, hp, max_hp

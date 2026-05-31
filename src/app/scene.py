@@ -29,7 +29,7 @@ class Scene:
     def on_exit(self) -> None:
         """Called when this scene stops being active. Override if needed."""
 
-    def handle_event(self, event: "pygame.event.Event") -> None:
+    def handle_event(self, _event: "pygame.event.Event") -> None:
         """Handle one input event. Called once per event while active."""
 
     def update(self) -> None:
