@@ -51,6 +51,14 @@ class Connection:
         if not self.is_open:
             return
         self.is_open = False
+        # shutdown() before close() actively sends the TCP FIN and unblocks any
+        # thread sitting in recv() on this socket (on both ends). close() alone is
+        # unreliable for that across platforms — Linux in particular may leave the
+        # peer's blocked recv() hanging, so the other side never sees the drop.
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass  # already disconnected / not connected
         try:
             self.socket.close()
         except OSError:
