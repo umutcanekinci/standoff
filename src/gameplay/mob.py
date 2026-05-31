@@ -1,5 +1,4 @@
 import pygame
-from random import choice
 from pygame.math import Vector2 as Vec
 
 from util.constants import (
@@ -43,7 +42,9 @@ class Mob(Entity):
         self.acceleration = Vec()
         self.delta = Vec()  # per-frame move vector; recomputed in update_movement
         self.angle = 0
-        self.speed = choice(MOB_SPEEDS)
+        # Keyed by the (server-assigned, synced) mob id rather than random, so
+        # every client gives the same mob the same speed.
+        self.speed = MOB_SPEEDS[entity_id % len(MOB_SPEEDS)]
 
         self.target = target_base  # current chase target; refreshed by check_range
         self.last_attack = -1000  # ticks of last hit landed; gates the 1s cooldown
