@@ -17,6 +17,7 @@ import threading
 import time
 from typing import Any, Callable, Iterable
 
+from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
 from pygame_core.net.protocol import Protocol, PickleCodec
@@ -42,6 +43,22 @@ class GameServer:
         self._lock = threading.Lock()
 
         self._server: BaseServer | None = None
+
+        # Command -> handler. Adding a message means adding a _cmd_* method and one
+        # line here; _on_message itself never grows. Every handler takes the same
+        # (player, value, connection) so dispatch stays uniform.
+        self._handlers = {
+            Command.SET_PLAYER: self._cmd_set_player,
+            Command.JOIN_ROOM: self._cmd_join_room,
+            Command.CREATE_ROOM: self._cmd_create_room,
+            Command.LEAVE_ROOM: self._cmd_leave_room,
+            Command.GET_READY: self._cmd_get_ready,
+            Command.GET_UNREADY: self._cmd_get_unready,
+            Command.START_GAME: self._cmd_start_game,
+            Command.SHOOT: self._cmd_shoot,
+            Command.UPDATE_PLAYER: self._cmd_update_player,
+            Command.DISCONNECT: self._cmd_disconnect,
+        }
 
     def serve(self, address) -> None:
         """Build the transport, point its callbacks at us, and run. Blocking."""
@@ -92,7 +109,9 @@ class GameServer:
                 connection.send(message)
 
     def _broadcast_player_count(self) -> None:
-        self._send(list(self.players.values()), "!SET_PLAYER_COUNT", len(self.players))
+        self._send(
+            list(self.players.values()), Command.SET_PLAYER_COUNT, len(self.players)
+        )
 
     def _on_connect(self, connection: Connection) -> None:
         with self._lock:
@@ -108,7 +127,7 @@ class GameServer:
         self._log(f"Player count is now {len(self.players)}.")
 
         self._broadcast_player_count()
-        self._send(player, "!UPDATE_ROOM", player)
+        self._send(player, Command.UPDATE_ROOM, player)
 
     def _on_disconnect(self, connection: Connection) -> None:
         with self._lock:
@@ -121,7 +140,7 @@ class GameServer:
         if player.room:
             self.leave_room(player)
 
-        self._send(list(self.players.values()), "!DISCONNECT", player.id)
+        self._send(list(self.players.values()), Command.DISCONNECT, player.id)
         self._broadcast_player_count()
         self._log(f"{player.name} ({player.IP}) disconnected.")
         self._log(f"Player count is now {len(self.players)}.")
@@ -134,49 +153,57 @@ class GameServer:
         command = message.get("command")
         value = message.get("value")
 
-        if command == "!SET_PLAYER":
-            player_name, character_name = value
-            player.set_name(player_name)
-            player.set_character_name(character_name)
-            self._log(f"{player.name} ({player.id}) entered the lobby.")
-
-        elif command == "!JOIN_ROOM":
-            self._join_room(player, value)
-
-        elif command == "!CREATE_ROOM":
-            self.create_room(*value)
-            player.join_room(self.room_list[self._next_room_id], True)
-            self._send(player, "!UPDATE_ROOM", player)
-            self._log(f"{player.name} ({player.id}) created room {self._next_room_id}.")
-
-        elif command == "!LEAVE_ROOM":
-            self.leave_room(player)
-
-        elif command == "!GET_READY":
-            player.is_ready = True
-            self._update_room_mates(player)
-
-        elif command == "!GET_UNREADY":
-            player.is_ready = False
-            self._update_room_mates(player)
-
-        elif command == "!START_GAME":
-            self._send(player.room, command)
-            threading.Thread(
-                target=self.handle_room, args=(player.room,), daemon=True
-            ).start()
-
-        elif command == "!SHOOT":
-            self._send(player.room, command, value)
-
-        elif command == "!UPDATE_PLAYER":
-            self._send(player.room, command, value, exclude=())
-
-        elif command == "!DISCONNECT":
-            connection.close()  # transport's _handle will run _on_disconnect
-
-        else:
+        handler = self._handlers.get(command)
+        if handler is None:
             self._log(f"Unknown command from {player.name}: {command!r}")
+            return
+        handler(player, value, connection)
+
+    # Command handlers. All share the (player, value, connection) signature so
+    # _on_message can dispatch them uniformly; each ignores the args it doesn't need.
+
+    def _cmd_set_player(self, player: PlayerInfo, value, _connection) -> None:
+        player_name, character_name = value
+        player.set_name(player_name)
+        player.set_character_name(character_name)
+        self._log(f"{player.name} ({player.id}) entered the lobby.")
+
+    def _cmd_join_room(self, player: PlayerInfo, value, _connection) -> None:
+        self._join_room(player, value)
+
+    def _cmd_create_room(self, player: PlayerInfo, value, _connection) -> None:
+        self.create_room(*value)
+        player.join_room(self.room_list[self._next_room_id], True)
+        self._send(player, Command.UPDATE_ROOM, player)
+        self._log(f"{player.name} ({player.id}) created room {self._next_room_id}.")
+
+    def _cmd_leave_room(self, player: PlayerInfo, _value, _connection) -> None:
+        self.leave_room(player)
+
+    def _cmd_get_ready(self, player: PlayerInfo, _value, _connection) -> None:
+        player.is_ready = True
+        self._update_room_mates(player)
+
+    def _cmd_get_unready(self, player: PlayerInfo, _value, _connection) -> None:
+        player.is_ready = False
+        self._update_room_mates(player)
+
+    def _cmd_start_game(self, player: PlayerInfo, _value, _connection) -> None:
+        self._send(player.room, Command.START_GAME)
+        threading.Thread(
+            target=self.handle_room, args=(player.room,), daemon=True
+        ).start()
+
+    def _cmd_shoot(self, player: PlayerInfo, value, _connection) -> None:
+        self._send(player.room, Command.SHOOT, value)
+
+    def _cmd_update_player(self, player: PlayerInfo, value, _connection) -> None:
+        self._send(player.room, Command.UPDATE_PLAYER, value)
+
+    def _cmd_disconnect(
+        self, _player: PlayerInfo, _value, connection: Connection
+    ) -> None:
+        connection.close()  # transport's _handle will run _on_disconnect
 
     def _join_room(self, player: PlayerInfo, room_id: int) -> None:
         room = self.room_list.get(room_id)
@@ -185,7 +212,7 @@ class GameServer:
             self._log(f"{player.name} ({player.id}) joined room {room_id}.")
             self._update_room_mates(player)
         else:
-            self._send(player, "!UPDATE_ROOM", False)
+            self._send(player, Command.UPDATE_ROOM, False)
 
     def create_room(self, map_name, base_points) -> None:
         with self._lock:
@@ -208,19 +235,19 @@ class GameServer:
         else:
             room[0].is_ruler = True
             for room_mate in room:
-                self._send(room_mate, "!UPDATE_ROOM", room_mate)
+                self._send(room_mate, Command.UPDATE_ROOM, room_mate)
 
-        self._send(player, "!LEAVE_ROOM", player)
+        self._send(player, Command.LEAVE_ROOM, player)
 
     def _update_room_mates(self, player: PlayerInfo) -> None:
         """Push a fresh !UPDATE_ROOM to everyone sharing the player's room."""
         if player.room:
             for room_mate in player.room:
-                self._send(room_mate, "!UPDATE_ROOM", room_mate)
+                self._send(room_mate, Command.UPDATE_ROOM, room_mate)
 
     def spawn_mob(self, room: Room, mob) -> None:
         self.mobs[mob.id] = mob
-        self._send(room, "!SPAWN", mob)
+        self._send(room, Command.SPAWN, mob)
 
     def handle_room(self, room: Room) -> None:
         while room.id in self.room_list:

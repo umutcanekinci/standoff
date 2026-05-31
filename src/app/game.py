@@ -38,6 +38,7 @@ from gameplay.camera import Camera
 from pygame_core.spatial_grid import SpatialGrid
 from gameplay.player import Players
 from gameplay.mob import Mobs
+from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
 from ui.widgets import (
@@ -85,6 +86,18 @@ class Game(Application):
             "create_room_menu": self._handle_create_room_menu,
             "connect_menu": self._handle_connect_menu,
             "room_menu": self._handle_room_menu,
+        }
+        # Incoming server message -> handler. Mirrors the server's _handlers dict;
+        # both dispatch on the shared net.commands.Command names.
+        self._message_handlers = {
+            Command.SET_PLAYER_COUNT: self.update_player_count,
+            Command.UPDATE_ROOM: self._on_update_room,
+            Command.LEAVE_ROOM: self._on_leave_room,
+            Command.START_GAME: self._on_start_game,
+            Command.UPDATE_PLAYER: self._on_update_player,
+            Command.SHOOT: self._on_shoot,
+            Command.SPAWN: self.spawn_mob,
+            Command.DISCONNECT: self._on_disconnect_message,
         }
 
         self.start_client()
@@ -227,13 +240,13 @@ class Game(Application):
         panel = self.panel_manager["room_menu"]
         if self.room_action and self._clicked(panel["action_button"], event):
             command = {
-                "start": "!START_GAME",
-                "ready": "!GET_READY",
-                "unready": "!GET_UNREADY",
+                "start": Command.START_GAME,
+                "ready": Command.GET_READY,
+                "unready": Command.GET_UNREADY,
             }[self.room_action]
             self.client.send(command)
         if self._clicked(panel["leave_room"], event):
-            self.client.send("!LEAVE_ROOM")
+            self.client.send(Command.LEAVE_ROOM)
 
     # Networking / game flow (called by the handlers + client callbacks)
 
@@ -259,20 +272,20 @@ class Game(Application):
 
     def set_player(self, name, character_name) -> None:
         self.player_info = PlayerInfo(name=name, character_name=character_name)
-        self.client.send("!SET_PLAYER", [name, character_name])
+        self.client.send(Command.SET_PLAYER, [name, character_name])
 
     def create_room(self, map_name):
         base_points = Map(self, AssetPath(map_name, "maps", "tmx"), 2).base_points
 
         if self.mode == "online":
-            self.client.send("!CREATE_ROOM", (map_name, base_points))
+            self.client.send(Command.CREATE_ROOM, (map_name, base_points))
         elif self.mode == "offline":
             self.player_info.join_room(Room(1, map_name, base_points, False), True)
             self.start()
 
     def join_room(self, room_id):
         if self.mode == "online":
-            self.client.send("!JOIN_ROOM", room_id)
+            self.client.send(Command.JOIN_ROOM, room_id)
 
     def start(self):
         self.walls = []
@@ -366,7 +379,7 @@ class Game(Application):
     def shoot(self):
         if self.player.is_shooting:
             if self.mode == "online":
-                self.client.send("!SHOOT", self.player.id)
+                self.client.send(Command.SHOOT, self.player.id)
             elif self.mode == "offline":
                 self.player.shoot()
 
@@ -380,36 +393,42 @@ class Game(Application):
         self.mobs.add_mob(mob_info)
 
     def get_data(self, data) -> None:
-        if data:
-            command = data["command"]
-            value = data["value"] if "value" in data else None
+        if not data:
+            return
+        command = data["command"]
+        value = data.get("value")
+        handler = self._message_handlers.get(command)
+        if handler:
+            handler(value)
 
-            if command == "!SET_PLAYER_COUNT":
-                self.update_player_count(value)
-            elif command == "!UPDATE_ROOM" and value:
-                self.player_info = value
-                self.update_room()
-            elif command == "!LEAVE_ROOM":
-                self.open_panel("game_type_menu")
-            elif command == "!START_GAME":
-                self.start()
-            elif command == "!UPDATE_PLAYER":
-                self.update_player_rect(value[0], value[1])
-                self.update_player_angle(value[0], value[2])
-            elif command == "!SHOOT":
-                player = self.players.get_player_with_id(value)
-                if player:
-                    player.shoot()
-            elif command == "!SPAWN":
-                self.spawn_mob(value)
-            elif command == "!DISCONNECT":
-                if getattr(self, "player_info", None) and self.player_info.id == value:
-                    # Server told us we're gone: drop the socket first so exit()
-                    # doesn't try to send a redundant !DISCONNECT back.
-                    self.client.disconnect()
-                    self.exit()
-                else:
-                    self.remove_player(value)
+    def _on_update_room(self, value) -> None:
+        if value:
+            self.player_info = value
+            self.update_room()
+
+    def _on_start_game(self, _value) -> None:
+        self.start()
+
+    def _on_leave_room(self, _value) -> None:
+        self.open_panel("game_type_menu")
+
+    def _on_update_player(self, value) -> None:
+        self.update_player_rect(value[0], value[1])
+        self.update_player_angle(value[0], value[2])
+
+    def _on_shoot(self, value) -> None:
+        player = self.players.get_player_with_id(value)
+        if player:
+            player.shoot()
+
+    def _on_disconnect_message(self, value) -> None:
+        if getattr(self, "player_info", None) and self.player_info.id == value:
+            # Server told us we're gone: drop the socket first so exit() doesn't
+            # try to send a redundant !DISCONNECT back.
+            self.client.disconnect()
+            self.exit()
+        else:
+            self.remove_player(value)
 
     # Application overrides
 
@@ -457,33 +476,36 @@ class Game(Application):
         self.delta_time = self.clock.get_time() * 0.001 * FPS
         self.mouse_position = self.mouse.position
 
-        if not self.is_game_started:
-            self.panel_manager.update()
+        if self.is_game_started:
+            self._update_gameplay()
         else:
-            # Rebuild the mob grid from this frame's positions before anyone moves;
-            # mob avoidance queries it instead of scanning every other mob.
-            self.mob_grid = SpatialGrid.of(self.mobs, AVOID_RADIUS)
-            for entity in (*self.players, *self.mobs, *self.bullets, *self.effects):
-                entity.update()
-            self.players[:] = [p for p in self.players if p.alive]
-            self.mobs[:] = [m for m in self.mobs if m.alive]
-            self.bullets[:] = [b for b in self.bullets if b.alive]
-            self.effects[:] = [e for e in self.effects if e.alive]
+            self.panel_manager.update()
 
-            self.camera.follow(self.player.rect)
-            self.shoot()
+    def _update_gameplay(self) -> None:
+        # Rebuild the mob grid from this frame's positions before anyone moves;
+        # mob avoidance queries it instead of scanning every other mob.
+        self.mob_grid = SpatialGrid.of(self.mobs, AVOID_RADIUS)
+        for entity in (*self.players, *self.mobs, *self.bullets, *self.effects):
+            entity.update()
+        self.players[:] = [p for p in self.players if p.alive]
+        self.mobs[:] = [m for m in self.mobs if m.alive]
+        self.bullets[:] = [b for b in self.bullets if b.alive]
+        self.effects[:] = [e for e in self.effects if e.alive]
 
-            if hasattr(self, "player"):
-                self.player.rotate_to_mouse()
-                self.player.update_movement()
+        self.camera.follow(self.player.rect)
+        self.shoot()
 
-            if self.mode == "online":
-                self.client.send(
-                    "!UPDATE_PLAYER",
-                    [self.player_info.id, self.player.delta, self.player.angle],
-                )
-            elif self.mode == "offline":
-                self.player_info.room.update(self.spawn_mob)
+        if hasattr(self, "player"):
+            self.player.rotate_to_mouse()
+            self.player.update_movement()
+
+        if self.mode == "online":
+            self.client.send(
+                Command.UPDATE_PLAYER,
+                [self.player_info.id, self.player.delta, self.player.angle],
+            )
+        elif self.mode == "offline":
+            self.player_info.room.update(self.spawn_mob)
 
     @override
     def draw(self) -> None:
@@ -536,6 +558,6 @@ class Game(Application):
         # Best-effort notify the server, then always tear down the socket and exit -
         # don't depend on the server echoing !DISCONNECT back to close the window.
         if self.client.is_connected:
-            self.client.send("!DISCONNECT")
+            self.client.send(Command.DISCONNECT)
         self.client.disconnect()
         super().exit()
