@@ -21,13 +21,19 @@ from util.constants import (
     TILE_HEIGHT,
     AVOID_RADIUS,
     Mode,
+    Red,
     Green,
     Yellow,
+    White,
 )
+import pygame
 from pygame.math import Vector2 as Vec
 
 from pygame_core.asset_path import AssetPath
 from pygame_core.spatial_grid import SpatialGrid
+from pygame_core.panel_manager import PanelManager
+from pygame_core.ecs.components.transform import Transform
+from pygame_core.ui_widgets.text_object import TextObject
 
 from app.scene import Scene
 from gameplay.map import Map
@@ -35,6 +41,7 @@ from gameplay.camera import Camera
 from gameplay.player import Players
 from gameplay.mob import Mobs
 from net.commands import Command
+from ui.widgets import ShapeButton
 
 if TYPE_CHECKING:
     from app.game import Game
@@ -80,6 +87,59 @@ class GameplayScene(Scene):
                 target=game.player_info.room.handle_spawner, args=(self.spawn_mob,)
             ).start()
 
+        # Death/spectator state. _was_alive tracks the alive->dead transition;
+        # _view_target is whose view the camera shows (self while alive, a living
+        # team-mate while spectating).
+        self._was_alive = True
+        self._showing_death_panel = False
+        self._spectate_index = 0
+        self._view_target = self.player
+        self._build_death_ui()
+
+    def _build_death_ui(self) -> None:
+        # A dim overlay + "YOU DIED" + two buttons, drawn over the live game.
+        # Positioned by fraction of the logical size so it fits any window
+        # (fullscreen or the tiled test harness).
+        screen = Transform((0, 0), self.game.size)
+        w, h = self.game.size
+        self._dim = pygame.Surface((w, h), pygame.SRCALPHA)
+        self._dim.fill((0, 0, 0, 160))
+        self._spectate_font = pygame.font.Font(None, max(20, h // 24))
+
+        self._death_panel = PanelManager(starting_tab="death")
+        self._death_panel.add_object(
+            "death",
+            "title",
+            TextObject(
+                screen,
+                ("CENTER", int(h * 0.30)),
+                "YOU DIED",
+                pygame.font.Font(None, max(36, h // 12)),
+                Red,
+            ),
+        )
+        size = (min(360, w - 40), 60)
+        self._spectate_button = ShapeButton(
+            screen,
+            ("CENTER", int(h * 0.48)),
+            size,
+            normal_color=Green,
+            hover_color=Red,
+            text="SPECTATE",
+            text_size=32,
+        )
+        self._room_button = ShapeButton(
+            screen,
+            ("CENTER", int(h * 0.60)),
+            size,
+            normal_color=Green,
+            hover_color=Red,
+            text="RETURN TO ROOM",
+            text_size=32,
+        )
+        self._death_panel.add_object("death", "spectate", self._spectate_button)
+        self._death_panel.add_object("death", "return", self._room_button)
+
     # World surface read by entities (see module docstring).
 
     @property
@@ -93,11 +153,21 @@ class GameplayScene(Scene):
     # Loop hooks (driven by Game while this scene is active)
 
     def handle_event(self, event) -> None:
-        self.player.handle_events(event)
+        if self.player.alive:
+            self.player.handle_events(event)
+        elif self._showing_death_panel:
+            self._handle_death_panel(event)
+        else:
+            self._handle_spectate(event)
 
     def update(self) -> None:
         self.delta_time = self.game.clock.get_time() * 0.001 * FPS
         self.mouse_position = self.game.mouse.position
+
+        if self._was_alive and not self.player.alive:
+            self._showing_death_panel = True  # just died: surface the death panel
+            self._spectate_index = 0
+        self._was_alive = self.player.alive
 
         # Rebuild the mob grid from this frame's positions before anyone moves;
         # mob avoidance queries it instead of scanning every other mob.
@@ -109,10 +179,13 @@ class GameplayScene(Scene):
         self.bullets[:] = [b for b in self.bullets if b.alive]
         self.effects[:] = [e for e in self.effects if e.alive]
 
-        self.camera.follow(self.player.rect)
-        self.shoot()
-        self.player.rotate_to_mouse()
-        self.player.update_movement()
+        if self.player.alive:
+            self.camera.follow(self.player.rect)
+            self.shoot()
+            self.player.rotate_to_mouse()
+            self.player.update_movement()
+        else:
+            self._update_spectate()  # dead: ride a team-mate's view
 
         if self.game.mode == Mode.ONLINE:
             # Send our absolute position (not a delta) so a dropped packet can't
@@ -155,6 +228,57 @@ class GameplayScene(Scene):
         if debug:
             for wall in self.walls:
                 wall.draw_rect(window)
+
+        if not self.player.alive:
+            self._draw_death_ui(window)
+
+    # Death / spectator
+
+    def _update_spectate(self) -> None:
+        # Follow a living team-mate (cycled by _handle_spectate); if everyone is
+        # down, sit on our own corpse.
+        if self.players:
+            self._spectate_index %= len(self.players)
+            self._view_target = self.players[self._spectate_index]
+        else:
+            self._view_target = self.player
+        self.camera.follow(self._view_target.rect)
+
+    def _handle_death_panel(self, event) -> None:
+        mouse = self.game.mouse.position
+        self._death_panel.handle_event(event, mouse)
+        if self._spectate_button.is_clicked(event, mouse):
+            self._showing_death_panel = False  # dismiss panel, watch the action
+        elif self._room_button.is_clicked(event, mouse):
+            self._return_to_room()
+
+    def _handle_spectate(self, event) -> None:
+        if event.type != pygame.KEYDOWN:
+            return
+        if event.key in (pygame.K_LEFT, pygame.K_a) and self.players:
+            self._spectate_index = (self._spectate_index - 1) % len(self.players)
+        elif event.key in (pygame.K_RIGHT, pygame.K_d) and self.players:
+            self._spectate_index = (self._spectate_index + 1) % len(self.players)
+        elif event.key == pygame.K_r:
+            self._return_to_room()
+
+    def _return_to_room(self) -> None:
+        # Leave the in-world view for the room screen; the room is still ours.
+        self.game.gameplay = None
+        self.game.active_scene = self.game.lobby
+        self.game.lobby.update_room()
+
+    def _draw_death_ui(self, window) -> None:
+        if self._showing_death_panel:
+            window.blit(self._dim, (0, 0))
+            self._death_panel.draw(window)
+        else:
+            name = getattr(self._view_target, "name", "")
+            hint = f"Spectating {name}    ←/→ switch    R: room    Esc: menu"
+            surface = self._spectate_font.render(hint, True, White)
+            window.blit(
+                surface, (self.game.size[0] // 2 - surface.get_width() // 2, 18)
+            )
 
     # Gameplay actions (called by the loop + Game's network message router)
 
