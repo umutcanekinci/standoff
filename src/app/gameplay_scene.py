@@ -112,31 +112,28 @@ class GameplayScene(Scene):
             "title",
             TextObject(
                 screen,
-                ("CENTER", int(h * 0.30)),
+                ("CENTER", int(h * 0.28)),
                 "YOU DIED",
                 pygame.font.Font(None, max(36, h // 12)),
                 Red,
             ),
         )
-        size = (min(360, w - 40), 60)
-        self._spectate_button = ShapeButton(
-            screen,
-            ("CENTER", int(h * 0.48)),
-            size,
-            normal_color=Green,
-            hover_color=Red,
-            text="SPECTATE",
-            text_size=32,
-        )
-        self._room_button = ShapeButton(
-            screen,
-            ("CENTER", int(h * 0.60)),
-            size,
-            normal_color=Green,
-            hover_color=Red,
-            text="RETURN TO ROOM",
-            text_size=32,
-        )
+
+        def button(label, y):
+            return ShapeButton(
+                screen,
+                ("CENTER", int(h * y)),
+                (min(360, w - 40), 60),
+                normal_color=Green,
+                hover_color=Red,
+                text=label,
+                text_size=32,
+            )
+
+        self._respawn_button = button("RESPAWN", 0.42)
+        self._spectate_button = button("SPECTATE", 0.55)
+        self._room_button = button("RETURN TO ROOM", 0.68)
+        self._death_panel.add_object("death", "respawn", self._respawn_button)
         self._death_panel.add_object("death", "spectate", self._spectate_button)
         self._death_panel.add_object("death", "return", self._room_button)
 
@@ -247,7 +244,9 @@ class GameplayScene(Scene):
     def _handle_death_panel(self, event) -> None:
         mouse = self.game.mouse.position
         self._death_panel.handle_event(event, mouse)
-        if self._spectate_button.is_clicked(event, mouse):
+        if self._respawn_button.is_clicked(event, mouse):
+            self._respawn()
+        elif self._spectate_button.is_clicked(event, mouse):
             self._showing_death_panel = False  # dismiss panel, watch the action
         elif self._room_button.is_clicked(event, mouse):
             self._return_to_room()
@@ -259,8 +258,27 @@ class GameplayScene(Scene):
             self._spectate_index = (self._spectate_index - 1) % len(self.players)
         elif event.key in (pygame.K_RIGHT, pygame.K_d) and self.players:
             self._spectate_index = (self._spectate_index + 1) % len(self.players)
+        elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
+            self._respawn()
         elif event.key == pygame.K_r:
             self._return_to_room()
+
+    def _respawn(self) -> None:
+        # Revive at our spawn base, full HP, motion cleared, and rejoin the active
+        # players list (we were pruned on death). Online, the next UPDATE_PLAYER
+        # carries alive=True so the server re-targets mobs and team-mates see us.
+        player = self.player
+        player.alive = True
+        player.set_hp(player.max_hp)
+        player.is_shooting = False
+        player.velocity = Vec()
+        player.delta = Vec()
+        player.knockback = Vec()
+        player.update_position(self.map.spawn_points[self.game.player_info.base_number])
+        if player not in self.players:
+            self.players.append(player)
+        self._showing_death_panel = False
+        self._was_alive = True
 
     def _return_to_room(self) -> None:
         # Leave the in-world view for the room screen; the room is still ours.
@@ -274,7 +292,10 @@ class GameplayScene(Scene):
             self._death_panel.draw(window)
         else:
             name = getattr(self._view_target, "name", "")
-            hint = f"Spectating {name}    ←/→ switch    R: room    Esc: menu"
+            hint = (
+                f"Spectating {name}    Left/Right: switch    "
+                "Space: respawn    R: room    Esc: menu"
+            )
             surface = self._spectate_font.render(hint, True, White)
             window.blit(
                 surface, (self.game.size[0] // 2 - surface.get_width() // 2, 18)
