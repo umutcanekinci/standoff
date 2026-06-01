@@ -171,11 +171,26 @@ class GameplayScene(Scene):
         # runs its own AI.
         mob.is_network = self.game.mode == Mode.ONLINE
 
-    def update_mobs(self, positions) -> None:
-        for mob_id, position in positions:
+    def hit_mob(self, mob, damage) -> None:
+        # Online the server owns mob HP, so just report the hit; offline we apply
+        # it locally (and keep the old hit-stun).
+        if self.game.mode == Mode.ONLINE:
+            self.game.client.send(Command.HIT_MOB, (mob.id, damage))
+        else:
+            mob.velocity = Vec(0, 0)
+            mob.lose_hp(damage)
+
+    def update_mobs(self, mobs) -> None:
+        for mob_id, position, hp in mobs:
             mob = self.mobs.get_mob_from_id(mob_id)
             if mob:  # ignore ids we've already killed locally
                 mob.target_position = Vec(position)
+                mob.set_hp(hp)  # server only sends living mobs, so hp > 0 (no kill)
+
+    def kill_mob(self, mob_id) -> None:
+        mob = self.mobs.get_mob_from_id(mob_id)
+        if mob:
+            mob.kill()  # alive = False; pruned from the list next frame
 
     def update_player_position(self, player_id, position: tuple) -> None:
         player = self.players.get_player_with_id(player_id)

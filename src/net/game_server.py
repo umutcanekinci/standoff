@@ -66,6 +66,7 @@ class GameServer:
             Command.START_GAME: self._cmd_start_game,
             Command.SHOOT: self._cmd_shoot,
             Command.UPDATE_PLAYER: self._cmd_update_player,
+            Command.HIT_MOB: self._cmd_hit_mob,
             Command.DISCONNECT: self._cmd_disconnect,
         }
 
@@ -213,6 +214,18 @@ class GameServer:
         player.alive = value[3] if len(value) > 3 else True
         self._send(player.room, Command.UPDATE_PLAYER, value)
 
+    def _cmd_hit_mob(self, _player: PlayerInfo, value, _connection) -> None:
+        # The server owns mob HP: apply the reported damage, and if the mob dies,
+        # drop it from the sim and tell the room so every client removes it.
+        mob_id, damage = value
+        mob = self.mobs.get(mob_id)
+        if mob is None:
+            return  # already dead (another bullet got it, or stale report)
+        mob.hp -= damage
+        if mob.hp <= 0:
+            del self.mobs[mob_id]
+            self._send(mob.room, Command.KILL_MOB, mob_id)
+
     def _cmd_disconnect(
         self, _player: PlayerInfo, _value, connection: Connection
     ) -> None:
@@ -304,6 +317,6 @@ class GameServer:
                 )
 
     def _broadcast_mobs(self, room: Room) -> None:
-        mobs = [(mob.id, mob.position) for mob in self._room_mobs(room)]
+        mobs = [(mob.id, mob.position, mob.hp) for mob in self._room_mobs(room)]
         if mobs:
             self._send(room, Command.UPDATE_MOBS, mobs)

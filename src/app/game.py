@@ -77,6 +77,7 @@ class Game(Application):
             Command.SHOOT: self._on_shoot,
             Command.SPAWN: self._on_spawn,
             Command.UPDATE_MOBS: self._on_update_mobs,
+            Command.KILL_MOB: self._on_kill_mob,
             Command.DISCONNECT: self._on_disconnect_message,
         }
 
@@ -153,6 +154,10 @@ class Game(Application):
     def _on_update_mobs(self, value) -> None:
         if self.gameplay:
             self.gameplay.update_mobs(value)
+
+    def _on_kill_mob(self, value) -> None:
+        if self.gameplay:
+            self.gameplay.kill_mob(value)
 
     def _on_disconnect_message(self, value) -> None:
         if self.player_info and self.player_info.id == value:

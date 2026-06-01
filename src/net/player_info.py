@@ -1,3 +1,6 @@
+from util.constants import MOB_MAX_HP
+
+
 class PlayerInfo:
     name: str  # set via set_name(), which __init__ calls
     character_name: str  # set via set_character_name(), which __init__ calls
@@ -60,3 +63,4 @@ class MobInfo:
             self.size,
             self.target_player,
         ) = mob_id, room, target_base, position, 1, target_player
+        self.hp = MOB_MAX_HP  # server-authoritative; clients display, don't decide

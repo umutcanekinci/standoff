@@ -36,8 +36,9 @@ class Bullet(GameSprite):
 
         for mob in list(self.world.mobs):
             if mob is not self.source and self.rect.colliderect(mob.rect):
-                mob.velocity = Vec(0, 0)
-                mob.lose_hp(self.damage)
+                # The world decides what a hit means: report it to the server
+                # online (it owns mob HP), or apply it locally offline.
+                self.world.hit_mob(mob, self.damage)
                 self.kill()
                 return
 

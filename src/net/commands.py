@@ -18,12 +18,14 @@ class Command:
     JOIN_ROOM = "!JOIN_ROOM"
     GET_READY = "!GET_READY"
     GET_UNREADY = "!GET_UNREADY"
+    HIT_MOB = "!HIT_MOB"  # a client's bullet hit a mob; server owns the HP/kill
 
     # Server -> Client (state pushes)
     SET_PLAYER_COUNT = "!SET_PLAYER_COUNT"
     UPDATE_ROOM = "!UPDATE_ROOM"
     SPAWN = "!SPAWN"
-    UPDATE_MOBS = "!UPDATE_MOBS"  # authoritative mob positions, broadcast per tick
+    UPDATE_MOBS = "!UPDATE_MOBS"  # authoritative mob positions + hp, per tick
+    KILL_MOB = "!KILL_MOB"  # server decided a mob died; clients remove it
 
     # Bidirectional (sent by one side, relayed/echoed by the other)
     LEAVE_ROOM = "!LEAVE_ROOM"
