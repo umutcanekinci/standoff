@@ -18,7 +18,7 @@ import threading
 import time
 from typing import Any, Callable, Iterable
 
-from util.constants import MOB_SPEEDS, RANGE_RADIUS
+from util.constants import MOB_SPEEDS, RANGE_RADIUS, AVOID_RADIUS, MOB_SEPARATION
 from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
@@ -283,43 +283,70 @@ class GameServer:
 
     def handle_room(self, room: Room) -> None:
         # The server owns mob movement: it spawns, steps every mob toward the
-        # nearest player (or its base), and pushes positions so every client shows
-        # the same enemies. Clients render/interpolate; they don't run mob AI.
+        # nearest player (or its base) while spreading them apart, and pushes
+        # positions so every client shows the same enemies. Clients
+        # render/interpolate between these snapshots; they don't run mob AI. One
+        # tick per broadcast (clients interpolate, so a faster sim buys nothing).
         last = time.time()
-        last_sync = 0.0
         while room.id in self.room_list:
+            time.sleep(MOB_SYNC_INTERVAL)
             now = time.time()
             dt, last = now - last, now
             room.update(self.spawn_mob)
             self._simulate_mobs(room, dt)
-            if now - last_sync >= MOB_SYNC_INTERVAL:
-                self._broadcast_mobs(room)
-                last_sync = now
-            time.sleep(0.01)
+            self._broadcast_mobs(room)
 
     def _room_mobs(self, room: Room) -> list:
         return [mob for mob in self.mobs.values() if mob.room is room]
 
     def _simulate_mobs(self, room: Room, dt: float) -> None:
         players = [p for p in room if p.alive]  # dead players stop attracting mobs
-        for mob in self._room_mobs(room):
+        mobs = self._room_mobs(room)
+
+        # Separation: each mob is pushed away from neighbours within AVOID_RADIUS
+        # so they don't stack. Computed pairwise from this tick's positions (apply
+        # each push to both mobs) before anyone moves.
+        sep_x = [0.0] * len(mobs)
+        sep_y = [0.0] * len(mobs)
+        avoid_sq = AVOID_RADIUS * AVOID_RADIUS
+        for i in range(len(mobs)):
+            ax, ay = mobs[i].position
+            for j in range(i + 1, len(mobs)):
+                dx, dy = ax - mobs[j].position[0], ay - mobs[j].position[1]
+                dist_sq = dx * dx + dy * dy
+                if 0 < dist_sq < avoid_sq:
+                    inv = 1.0 / math.sqrt(dist_sq)
+                    ux, uy = dx * inv, dy * inv
+                    sep_x[i] += ux
+                    sep_y[i] += uy
+                    sep_x[j] -= ux
+                    sep_y[j] -= uy
+
+        for i, mob in enumerate(mobs):
             target = mob.target_base
             if players:
-                nearest = min(
-                    players,
-                    key=lambda p: _dist_sq(p.position, mob.position),
-                )
+                nearest = min(players, key=lambda p: _dist_sq(p.position, mob.position))
                 if _dist_sq(nearest.position, mob.position) < RANGE_RADIUS**2:
                     target = nearest.position
 
-            dx, dy = target[0] - mob.position[0], target[1] - mob.position[1]
-            distance = math.hypot(dx, dy)
-            if distance > 1:
+            # Unit chase direction (none once basically on target), blended with
+            # the separation push, then renormalised so speed stays constant.
+            cx, cy = target[0] - mob.position[0], target[1] - mob.position[1]
+            chase = math.hypot(cx, cy)
+            if chase > 1:
+                cx, cy = cx / chase, cy / chase
+            else:
+                cx = cy = 0.0
+
+            dir_x = cx + MOB_SEPARATION * sep_x[i]
+            dir_y = cy + MOB_SEPARATION * sep_y[i]
+            length = math.hypot(dir_x, dir_y)
+            if length > 1e-6:
                 # speed is px per 60fps-frame on the client; convert to px/second.
                 step = MOB_SPEEDS[mob.id % len(MOB_SPEEDS)] * 60 * dt
                 mob.position = (
-                    mob.position[0] + dx / distance * step,
-                    mob.position[1] + dy / distance * step,
+                    mob.position[0] + dir_x / length * step,
+                    mob.position[1] + dir_y / length * step,
                 )
 
     def _broadcast_mobs(self, room: Room) -> None:

@@ -260,3 +260,21 @@ def test_broadcast_mobs_sends_id_position_and_hp():
 
     entries = host.last_with("!UPDATE_MOBS")["value"]
     assert entries == [(mob.id, (5, 6), mob.hp)]
+
+
+def test_simulate_mobs_separates_stacked_mobs():
+    gs = GameServer()
+    _host_in_room(gs)
+    room = gs.room_list[1]
+    a = MobInfo(1, room, (0, 0), (100, 100))
+    b = MobInfo(1, room, (0, 0), (105, 100))  # 5px away, within AVOID_RADIUS
+    gs.spawn_mob(room, a)
+    gs.spawn_mob(room, b)
+
+    def gap():
+        pa, pb = gs.mobs[a.id].position, gs.mobs[b.id].position
+        return ((pa[0] - pb[0]) ** 2 + (pa[1] - pb[1]) ** 2) ** 0.5
+
+    before = gap()
+    gs._simulate_mobs(room, 0.1)
+    assert gap() > before  # separation pushed them apart

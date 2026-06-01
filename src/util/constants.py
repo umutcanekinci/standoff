@@ -99,6 +99,9 @@ MOB_HIT_RECT = pygame.Rect(0, 0, 30, 30)
 SPAWN_RATE = 2000
 RANGE_RADIUS = 5 * TILE_WIDTH  # aggro range: switch from base to nearest player
 AVOID_RADIUS = 50
+# How strongly mobs steer apart vs. toward their target (server-side separation).
+# 0 = no avoidance (they stack); higher spreads them out more.
+MOB_SEPARATION = 1.5
 MOB_SPEEDS = [1.2, 1.3, 1.4, 1.1]
 MOB_KNOCKBACK = 20  # total knockback distance (px), spread smoothly over frames
 KNOCKBACK_DECAY = 0.8  # per-frame falloff of the knockback impulse (0..1)
