@@ -73,6 +73,8 @@ PLAYER_FRICTION = 0.8
 # instead of easing (respawns / large corrections).
 REMOTE_SMOOTHING = 0.5
 REMOTE_SNAP_DISTANCE = 150
+# Milliseconds a dead player must wait before respawning.
+RESPAWN_DELAY = 5000
 CHARACTER_LIST = [
     "hitman",
     "man_blue",

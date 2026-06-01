@@ -20,6 +20,7 @@ from util.constants import (
     TILE_WIDTH,
     TILE_HEIGHT,
     AVOID_RADIUS,
+    RESPAWN_DELAY,
     Mode,
     Red,
     Green,
@@ -94,16 +95,20 @@ class GameplayScene(Scene):
         self._showing_death_panel = False
         self._spectate_index = 0
         self._view_target = self.player
+        self._death_time = 0  # ticks at last death; gates the respawn timer
+        self._respawn_secs_shown = -1  # last countdown second drawn on the button
         self._build_death_ui()
+        self._build_roster()
 
     def _build_death_ui(self) -> None:
-        # A dim overlay + "YOU DIED" + two buttons, drawn over the live game.
+        # A grey wash + "YOU DIED" + buttons, drawn over the live game while dead.
         # Positioned by fraction of the logical size so it fits any window
         # (fullscreen or the tiled test harness).
         screen = Transform((0, 0), self.game.size)
         w, h = self.game.size
-        self._dim = pygame.Surface((w, h), pygame.SRCALPHA)
-        self._dim.fill((0, 0, 0, 160))
+        # Light grey overlay so the dead player's whole view reads as "downed".
+        self._tint = pygame.Surface((w, h), pygame.SRCALPHA)
+        self._tint.fill((120, 120, 120, 110))
         self._spectate_font = pygame.font.Font(None, max(20, h // 24))
 
         self._death_panel = PanelManager(starting_tab="death")
@@ -137,6 +142,37 @@ class GameplayScene(Scene):
         self._death_panel.add_object("death", "spectate", self._spectate_button)
         self._death_panel.add_object("death", "return", self._room_button)
 
+    def _build_roster(self) -> None:
+        # Top-right list of everyone in the room: a small character icon with the
+        # player's name beside it. Built once (room membership is fixed for the
+        # match); each entry is a (icon, name) pair of pre-rendered surfaces.
+        h = self.game.size[1]
+        icon = max(28, h // 18)
+        font = pygame.font.Font(None, max(18, h // 28))
+        self._roster = []
+        for info in self.game.player_info.room:
+            image = self.game.assets.get_image(f"char_{info.character_name}_idle")
+            self._roster.append(
+                (
+                    pygame.transform.smoothscale(image, (icon, icon)),
+                    font.render(info.name, True, White),
+                )
+            )
+
+    def _draw_roster(self, window) -> None:
+        right = self.game.size[0] - 12
+        y = 12
+        for icon, name in self._roster:
+            window.blit(icon, (right - icon.get_width(), y))
+            window.blit(
+                name,
+                (
+                    right - icon.get_width() - 8 - name.get_width(),
+                    y + (icon.get_height() - name.get_height()) // 2,
+                ),
+            )
+            y += icon.get_height() + 6
+
     # World surface read by entities (see module docstring).
 
     @property
@@ -162,8 +198,11 @@ class GameplayScene(Scene):
         self.mouse_position = self.game.mouse.position
 
         if self._was_alive and not self.player.alive:
-            self._showing_death_panel = True  # just died: surface the death panel
+            # Just died: surface the death panel and start the respawn cooldown.
+            self._showing_death_panel = True
             self._spectate_index = 0
+            self._death_time = pygame.time.get_ticks()
+            self._respawn_secs_shown = -1
         self._was_alive = self.player.alive
 
         # Rebuild the mob grid from this frame's positions before anyone moves;
@@ -182,6 +221,7 @@ class GameplayScene(Scene):
             self.player.rotate_to_mouse()
             self.player.update_movement()
         else:
+            self._update_death_ui()  # respawn-timer button state
             self._update_spectate()  # dead: ride a team-mate's view
 
         if self.game.mode == Mode.ONLINE:
@@ -229,7 +269,22 @@ class GameplayScene(Scene):
         if not self.player.alive:
             self._draw_death_ui(window)
 
+        self._draw_roster(window)  # always on top, readable in any state
+
     # Death / spectator
+
+    def _respawn_remaining_ms(self) -> int:
+        return max(0, RESPAWN_DELAY - (pygame.time.get_ticks() - self._death_time))
+
+    def _update_death_ui(self) -> None:
+        # Gate the respawn button behind the cooldown and show the countdown.
+        remaining = self._respawn_remaining_ms()
+        ready = remaining == 0
+        self._respawn_button.set_enabled(ready)
+        secs = 0 if ready else remaining // 1000 + 1
+        if secs != self._respawn_secs_shown:
+            self._respawn_secs_shown = secs
+            self._respawn_button.set_label("RESPAWN" if ready else f"RESPAWN ({secs})")
 
     def _update_spectate(self) -> None:
         # Follow a living team-mate (cycled by _handle_spectate); if everyone is
@@ -267,6 +322,8 @@ class GameplayScene(Scene):
         # Revive at our spawn base, full HP, motion cleared, and rejoin the active
         # players list (we were pruned on death). Online, the next UPDATE_PLAYER
         # carries alive=True so the server re-targets mobs and team-mates see us.
+        if self._respawn_remaining_ms() > 0:
+            return  # still on cooldown
         player = self.player
         player.alive = True
         player.set_hp(player.max_hp)
@@ -287,14 +344,18 @@ class GameplayScene(Scene):
         self.game.lobby.update_room()
 
     def _draw_death_ui(self, window) -> None:
+        window.blit(self._tint, (0, 0))  # grey wash whenever dead
         if self._showing_death_panel:
-            window.blit(self._dim, (0, 0))
             self._death_panel.draw(window)
         else:
             name = getattr(self._view_target, "name", "")
+            remaining = self._respawn_remaining_ms()
+            respawn = (
+                "respawn" if remaining == 0 else f"respawn ({remaining // 1000 + 1})"
+            )
             hint = (
                 f"Spectating {name}    Left/Right: switch    "
-                "Space: respawn    R: room    Esc: menu"
+                f"Space: {respawn}    R: room    Esc: menu"
             )
             surface = self._spectate_font.render(hint, True, White)
             window.blit(
