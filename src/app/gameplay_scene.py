@@ -26,6 +26,7 @@ from util.constants import (
     Green,
     Yellow,
     White,
+    Gray,
 )
 import pygame
 from pygame.math import Vector2 as Vec
@@ -97,6 +98,9 @@ class GameplayScene(Scene):
         self._view_target = self.player
         self._death_time = 0  # ticks at last death; gates the respawn timer
         self._respawn_secs_shown = -1  # last countdown second drawn on the button
+        # Authoritative alive state per player id (local from self.player, remotes
+        # from UPDATE_PLAYER) — drives which roster entries are greyed.
+        self._alive_by_id = {info.id: True for info in game.player_info.room}
         self._build_death_ui()
         self._build_roster()
 
@@ -142,27 +146,43 @@ class GameplayScene(Scene):
         self._death_panel.add_object("death", "spectate", self._spectate_button)
         self._death_panel.add_object("death", "return", self._room_button)
 
+    @staticmethod
+    def _greyscale(surface):
+        try:
+            return pygame.transform.grayscale(surface)
+        except (AttributeError, ValueError, pygame.error):
+            faded = surface.copy()  # fallback: darken if grayscale isn't available
+            faded.fill((110, 110, 110, 255), special_flags=pygame.BLEND_RGB_MULT)
+            return faded
+
     def _build_roster(self) -> None:
-        # Top-right list of everyone in the room: a small character icon with the
-        # player's name beside it. Built once (room membership is fixed for the
-        # match); each entry is a (icon, name) pair of pre-rendered surfaces.
+        # Top-right list of everyone in the room: a small character icon + name.
+        # Built once (room membership is fixed for the match). Each entry keeps an
+        # alive and a greyed variant; _draw_roster picks per the live alive state.
         h = self.game.size[1]
-        icon = max(28, h // 18)
+        icon_size = max(28, h // 18)
         font = pygame.font.Font(None, max(18, h // 28))
         self._roster = []
         for info in self.game.player_info.room:
             image = self.game.assets.get_image(f"char_{info.character_name}_idle")
+            icon = pygame.transform.smoothscale(image, (icon_size, icon_size))
             self._roster.append(
-                (
-                    pygame.transform.smoothscale(image, (icon, icon)),
-                    font.render(info.name, True, White),
-                )
+                {
+                    "id": info.id,
+                    "icon": icon,
+                    "icon_dead": self._greyscale(icon),
+                    "name": font.render(info.name, True, White),
+                    "name_dead": font.render(info.name, True, Gray),
+                }
             )
 
     def _draw_roster(self, window) -> None:
         right = self.game.size[0] - 12
         y = 12
-        for icon, name in self._roster:
+        for row in self._roster:
+            alive = self._alive_by_id.get(row["id"], True)
+            icon = row["icon"] if alive else row["icon_dead"]
+            name = row["name"] if alive else row["name_dead"]
             window.blit(icon, (right - icon.get_width(), y))
             window.blit(
                 name,
@@ -204,6 +224,7 @@ class GameplayScene(Scene):
             self._death_time = pygame.time.get_ticks()
             self._respawn_secs_shown = -1
         self._was_alive = self.player.alive
+        self._alive_by_id[self.game.player_info.id] = self.player.alive  # for roster
 
         # Rebuild the mob grid from this frame's positions before anyone moves;
         # mob avoidance queries it instead of scanning every other mob.
@@ -407,6 +428,10 @@ class GameplayScene(Scene):
         player = self.players.get_player_with_id(player_id)
         if player:
             player.angle = angle
+
+    def set_player_alive(self, player_id, alive) -> None:
+        # Authoritative alive from a player's own client; greys its roster entry.
+        self._alive_by_id[player_id] = alive
 
     def remove_player(self, player_id) -> None:
         player = self.players.get_player_with_id(player_id)

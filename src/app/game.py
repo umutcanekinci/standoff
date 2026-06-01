@@ -140,6 +140,9 @@ class Game(Application):
         if self.gameplay:
             self.gameplay.update_player_position(value[0], value[1])
             self.gameplay.update_player_angle(value[0], value[2])
+            self.gameplay.set_player_alive(
+                value[0], value[3] if len(value) > 3 else True
+            )
 
     def _on_shoot(self, value) -> None:
         if self.gameplay:
