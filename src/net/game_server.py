@@ -49,6 +49,7 @@ class GameServer:
 
         self._next_player_id = 0
         self._next_room_id = 0
+        self._next_mob_id = 0  # server-global so mob ids never collide across rooms
         self._lock = threading.Lock()
 
         self._server: BaseServer | None = None
@@ -272,6 +273,11 @@ class GameServer:
                 self._send(room_mate, Command.UPDATE_ROOM, room_mate)
 
     def spawn_mob(self, room: Room, mob) -> None:
+        # The room numbers its own mobs from 0, which would collide across rooms in
+        # the shared self.mobs / id-keyed messages. Reassign a server-global id
+        # before storing and sending, so every live mob is uniquely addressable.
+        self._next_mob_id += 1
+        mob.id = self._next_mob_id
         self.mobs[mob.id] = mob
         self._send(room, Command.SPAWN, mob)
 
