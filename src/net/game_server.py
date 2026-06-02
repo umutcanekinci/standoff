@@ -7,10 +7,10 @@ subscribes to `on_status` if it wants a log). All the recv_all / struct / pickle
 / accept-loop / per-client-thread machinery lives down in the transport; what is
 left here is purely "what should happen when a client says X".
 
-Serialization note: this wires up with PickleCodec so it stays drop-in
-compatible with the current client (which receives whole PlayerInfo / Room /
-MobInfo objects). To move to JSON later, give those classes to_dict/from_dict
-and swap the codec in `serve()` — nothing in this file changes.
+Serialization note: the wire codec is built in `net.wire.make_protocol()` (shared
+with the client). It's a JSON codec that round-trips PlayerInfo / Room / MobInfo
+via their to_dict/from_dict, so a peer can never run code in our process the way
+pickle allowed — this file is unaffected by the codec choice.
 """
 
 import math
@@ -22,7 +22,7 @@ from util.constants import MOB_SPEEDS, RANGE_RADIUS, AVOID_RADIUS, MOB_SEPARATIO
 from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
-from pygame_core.net.protocol import Protocol, PickleCodec
+from net.wire import make_protocol
 from pygame_core.net.transport import BaseServer, Connection
 
 # How often the server pushes authoritative mob positions to a room (seconds).
@@ -78,7 +78,7 @@ class GameServer:
             on_message=self._on_message,
             on_disconnect=self._on_disconnect,
             on_status=self._log,
-            protocol=Protocol(PickleCodec()),
+            protocol=make_protocol(),
         )
         self._server.start(address)
 
@@ -242,6 +242,13 @@ class GameServer:
             self._send(player, Command.UPDATE_ROOM, False)
 
     def create_room(self, map_name, base_points) -> None:
+        # base_points arrives from the client as {base_number: (x, y)}, but JSON
+        # turns the int keys into strings and the points into lists. Normalise back
+        # so base numbers stay ints (used to index spawn points) and points stay
+        # hashable tuples (used in dead-base sets in the mob sim).
+        base_points = {
+            int(number): tuple(point) for number, point in base_points.items()
+        }
         with self._lock:
             self._next_room_id += 1
             room_id = self._next_room_id
@@ -301,6 +308,8 @@ class GameServer:
 
     def _simulate_mobs(self, room: Room, dt: float) -> None:
         players = [p for p in room if p.alive]  # dead players stop attracting mobs
+        alive_bases = [p.base_point for p in players]  # ...and so do their bases
+        dead_bases = {p.base_point for p in room if not p.alive}
         mobs = self._room_mobs(room)
 
         # Separation: each mob is pushed away from neighbours within AVOID_RADIUS
@@ -323,11 +332,18 @@ class GameServer:
                     sep_y[j] -= uy
 
         for i, mob in enumerate(mobs):
-            target = mob.target_base
             if players:
                 nearest = min(players, key=lambda p: _dist_sq(p.position, mob.position))
                 if _dist_sq(nearest.position, mob.position) < RANGE_RADIUS**2:
-                    target = nearest.position
+                    target = nearest.position  # in range: chase the player
+                elif mob.target_base in dead_bases:
+                    # Its base's owner is down: peel off to the nearest living base
+                    # instead of piling onto a corpse.
+                    target = min(alive_bases, key=lambda b: _dist_sq(b, mob.position))
+                else:
+                    target = mob.target_base  # keep defending its assigned base
+            else:
+                target = mob.target_base  # everyone down: fall back to spawn base
 
             # Unit chase direction (none once basically on target), blended with
             # the separation push, then renormalised so speed stays constant.

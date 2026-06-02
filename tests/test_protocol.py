@@ -8,7 +8,13 @@ import struct
 
 import pytest
 
-from pygame_core.net.protocol import JSONCodec, PickleCodec, Protocol, ProtocolError
+from pygame_core.net.protocol import (
+    JSONCodec,
+    PickleCodec,
+    Protocol,
+    ProtocolError,
+    TypedJSONCodec,
+)
 from _util import FakeSocket
 
 
@@ -25,6 +31,44 @@ def test_send_then_recv_round_trips(codec):
 
     reader = FakeSocket(writer.sent)
     assert proto.recv(reader) == MESSAGE
+
+
+class _Point:
+    """Minimal registered type: exercises TypedJSONCodec's to_dict/from_dict and
+    the nested-object path, including a tuple that JSON would flatten to a list."""
+
+    def __init__(self, xy, label):
+        self.xy = tuple(xy)
+        self.label = label
+
+    def to_dict(self):
+        return {"__type__": "Point", "xy": list(self.xy), "label": self.label}
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(tuple(data["xy"]), data["label"])
+
+
+def test_typed_json_codec_round_trips_registered_objects():
+    """A registered object survives encode->decode, even nested inside a message,
+    and comes back as the class (with its tuple restored), not a bare dict."""
+    proto = Protocol(TypedJSONCodec({"Point": _Point}))
+    message = {"command": "!SPAWN", "value": _Point((3, 4), "base")}
+
+    writer = FakeSocket()
+    proto.send(writer, message)
+    decoded = proto.recv(FakeSocket(writer.sent))
+
+    point = decoded["value"]
+    assert isinstance(point, _Point)
+    assert point.xy == (3, 4) and point.label == "base"
+
+
+def test_typed_json_codec_rejects_unregistered_objects():
+    """Encoding an object with no to_dict is a clean TypeError, not silent data loss."""
+    codec = TypedJSONCodec({})
+    with pytest.raises(TypeError):
+        codec.encode({"value": object()})
 
 
 @pytest.mark.parametrize("chunk", [1, 2, 3, 7])

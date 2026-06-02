@@ -27,6 +27,8 @@ class Room(list[PlayerInfo]):
 
         if now - self.last_spawn >= SPAWN_RATE:
             for player in self:
+                if not player.alive:
+                    continue  # dead players stop attracting mobs: no wave at their base
                 self.mob_id += 1
                 spawn_point = (
                     player.base_point[0]
@@ -48,3 +50,33 @@ class Room(list[PlayerInfo]):
 
     def update(self, spawn_func):
         self.handle_spawner(spawn_func)
+
+    # Wire form (TypedJSONCodec). base_points is dict[int, tuple]; JSON can't keep
+    # int keys or tuples, so it travels as [[number, [x, y]], ...] and is rebuilt
+    # to dict[int, tuple]. Players are serialised without their room back-ref to
+    # break the cycle, then re-pointed at this room on the way in.
+    def to_dict(self) -> dict:
+        return {
+            "__type__": "Room",
+            "id": self.id,
+            "map_name": self.map_name,
+            "size": self.size,
+            "is_online": self.is_online,
+            "base_points": [
+                [number, list(point)] for number, point in self.base_points.items()
+            ],
+            "players": [player.to_dict(include_room=False) for player in self],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Room":
+        base_points = {
+            int(number): tuple(point) for number, point in data.get("base_points", [])
+        }
+        room = cls(
+            data["id"], data["map_name"], base_points, data.get("is_online", True)
+        )
+        for player in data.get("players", []):  # already PlayerInfo (object_hook)
+            player.room = room
+            room.append(player)
+        return room

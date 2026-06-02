@@ -249,6 +249,27 @@ def test_simulate_mobs_out_of_range_returns_to_base():
     assert gs.mobs[mob.id].position[1] < 0  # headed to base, not the distant player
 
 
+def test_simulate_mobs_redirects_from_dead_players_base():
+    gs = GameServer()
+    host = _host_in_room(gs, base_points={0: (0, 0), 1: (100, 0)})
+    joiner = _connect(gs)
+    gs._on_message(joiner, {"command": "!JOIN_ROOM", "value": 1})
+
+    host_player = gs._players_by_connection[host]
+    joiner_player = gs._players_by_connection[joiner]
+    host_player.alive = False  # base (0, 0) owner is down
+    joiner_player.position = (100, RANGE_RADIUS * 10)  # alive but far out of range
+
+    room = gs.room_list[1]
+    mob = MobInfo(1, room, host_player.base_point, (50, 50))  # targeting the dead base
+    gs.spawn_mob(room, mob)
+
+    gs._simulate_mobs(room, 0.1)
+
+    # Peeled off the dead (0, 0) base toward the only living base at (100, 0): +x.
+    assert gs.mobs[mob.id].position[0] > 50
+
+
 def test_broadcast_mobs_sends_id_position_and_hp():
     gs = GameServer()
     host = _host_in_room(gs)

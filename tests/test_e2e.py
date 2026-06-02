@@ -1,9 +1,9 @@
 """End-to-end tests: a real GameServer with real BaseClients over loopback.
 
 These are the slow, few tests at the top of the pyramid. They prove the whole
-stack agrees (framing, pickle codec on both ends, lobby logic, broadcast fan-out)
-for the handful of flows that matter most. Everything finer-grained is covered
-cheaply by the unit/integration layers.
+stack agrees (framing, the shared JSON codec on both ends, lobby logic, broadcast
+fan-out) for the handful of flows that matter most. Everything finer-grained is
+covered cheaply by the unit/integration layers.
 """
 
 import queue
@@ -12,7 +12,7 @@ import time
 import pytest
 
 from net.game_server import GameServer
-from pygame_core.net.protocol import PickleCodec, Protocol
+from net.wire import make_protocol
 from pygame_core.net.transport import BaseClient
 from _util import wait_until, start_in_thread
 
@@ -29,8 +29,8 @@ def _serve(port) -> GameServer:
 
 def _client(port) -> tuple[BaseClient, queue.Queue]:
     inbox: queue.Queue = queue.Queue()
-    # Must match GameServer's codec (pickle) — this is the bug the suite guards.
-    client = BaseClient(on_message=inbox.put, protocol=Protocol(PickleCodec()))
+    # Must match GameServer's codec — both come from net.wire, which is the point.
+    client = BaseClient(on_message=inbox.put, protocol=make_protocol())
     assert client.connect(("127.0.0.1", port))
     return client, inbox
 
