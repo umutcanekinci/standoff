@@ -402,3 +402,9 @@ FodyWeavers.xsd
 # JetBrains IDEs (PyCharm/Rider)
 .idea/
 *.sln.iml
+
+# Buildozer / python-for-android (Android build cache + output APKs)
+.buildozer/
+bin/
+*.apk
+*.aab

@@ -115,12 +115,24 @@ BULLET_LAYER = 3
 EFFECT_LAYER = 4
 GUI_LAYER = 5
 
+
 # Sockets
-CLIENT_IP = socket.gethostbyname(socket.gethostname())
+def _local_ip() -> str:
+    # Resolved at import time. On an Android device hostname resolution can raise
+    # (no /etc/hosts entry for the device name), which would crash the app before
+    # it starts, so fall back to loopback. The phone is a client and dials a real
+    # server address anyway; this default only matters for local desktop play.
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except OSError:
+        return "127.0.0.1"
+
+
+CLIENT_IP = _local_ip()
 CLIENT_PORT = 5050
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 
-SERVER_IP = socket.gethostbyname(socket.gethostname())
+SERVER_IP = _local_ip()
 SERVER_PORT = 5050
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 

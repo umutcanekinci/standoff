@@ -1,0 +1,34 @@
+name: build-android
+
+# Builds the debug APK on a Linux runner (buildozer can't run on Windows), so you
+# get an installable artifact without setting up WSL + the Android SDK/NDK locally.
+# Heavy build (~20-40 min the first time, cached after), so it does NOT run on
+# every push — trigger it by hand from the Actions tab, or by pushing a v* tag.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs buildozer in its prepared container, reading buildozer.spec at the
+      # repo root. The first run downloads the Android SDK/NDK and cross-compiles
+      # Python + SDL2 + pygame for ARM — this is where a recipe problem (e.g.
+      # pygame-ce vs the p4a `pygame` recipe) would surface in the logs.
+      - name: Build debug APK
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: standoff-debug-apk
+          path: ${{ steps.buildozer.outputs.filename }}
+          if-no-files-found: error
