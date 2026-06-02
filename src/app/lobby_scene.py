@@ -17,6 +17,8 @@ from util.constants import (
     MAX_ROOM_SIZE,
     CHARACTER_LIST,
     CHARACTER_SIZE,
+    CLIENT_IP,
+    CLIENT_PORT,
     Mode,
     Red,
     Green,
@@ -37,6 +39,7 @@ from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
 from ui.widgets import (
+    InputObject,
     ShapeButton,
     make_ellipse_button_factory,
     make_triangle_button_factory,
@@ -67,12 +70,19 @@ class LobbyScene(Scene):
 
         self._load_panels()
         self._build_dynamic_objects()
+        # Pre-fill the SERVER menu with the current defaults (editable by the user).
+        self._connecting = False
+        self._connect_deadline = 0
+        self._text_input_on = False  # whether the soft keyboard is currently up
+        self.panel_manager["server_menu"]["ip_input"].set_text(CLIENT_IP)
+        self.panel_manager["server_menu"]["port_input"].set_text(str(CLIENT_PORT))
         self.handlers = {
             "main_menu": self._handle_main_menu,
             "player_menu": self._handle_player_menu,
             "game_type_menu": self._handle_game_type_menu,
             "create_room_menu": self._handle_create_room_menu,
             "connect_menu": self._handle_connect_menu,
+            "server_menu": self._handle_server_menu,
             "room_menu": self._handle_room_menu,
         }
 
@@ -146,6 +156,13 @@ class LobbyScene(Scene):
             connected = self.game.client.is_connected
             self.panel_manager[name]["create_room"].set_enabled(connected)
             self.panel_manager[name]["connect"].set_enabled(connected)
+        elif name == "server_menu":
+            # Reflect the live state when entering (e.g. already connected locally).
+            self._connecting = False
+            if self.game.client.is_connected:
+                self._set_server_status("Connected", Green)
+            else:
+                self._set_server_status("", White)
 
     @staticmethod
     def _display_name(name: str) -> str:
@@ -169,6 +186,29 @@ class LobbyScene(Scene):
 
     def update(self) -> None:
         self.panel_manager.update()
+        self._sync_soft_keyboard()
+        if self.panel_manager.current_panel == "server_menu":
+            self._poll_connection()
+
+    def _sync_soft_keyboard(self) -> None:
+        # Raise the on-screen keyboard (Android) only while a text field is focused,
+        # and point the IME at it; lower it otherwise. Driven once per frame off the
+        # fields' own `editing` flags, so it can't fight the per-widget click order.
+        # On desktop this just gates TEXTINPUT the same way (harmless).
+        focused = None
+        if self.panel_manager.current_panel in self.panel_manager:
+            for obj in self.panel_manager[self.panel_manager.current_panel].values():
+                if isinstance(obj, InputObject) and obj.editing:
+                    focused = obj
+                    break
+        if focused is not None:
+            if not self._text_input_on:
+                pygame.key.start_text_input()
+                self._text_input_on = True
+            pygame.key.set_text_input_rect(focused.rect)
+        elif self._text_input_on:
+            pygame.key.stop_text_input()
+            self._text_input_on = False
 
     def draw(self) -> None:
         self.game.window.fill(BACKGROUND_COLORS["menu"])
@@ -181,7 +221,7 @@ class LobbyScene(Scene):
             self.open_panel("main_menu")
         elif current == "game_type_menu":
             self.open_panel("player_menu")
-        elif current in ("create_room_menu", "connect_menu"):
+        elif current in ("create_room_menu", "connect_menu", "server_menu"):
             self.open_panel("game_type_menu")
         elif current == "main_menu":
             self.game.exit()
@@ -218,6 +258,8 @@ class LobbyScene(Scene):
         if self._clicked(panel["new_game"], event):
             self.game.mode = Mode.OFFLINE
             self.open_panel("create_room_menu")
+        elif self._clicked(panel["server"], event):
+            self.open_panel("server_menu")
         elif self._clicked(panel["create_room"], event):
             self.game.mode = Mode.ONLINE
             self.open_panel("create_room_menu")
@@ -226,6 +268,48 @@ class LobbyScene(Scene):
             self.open_panel("connect_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("player_menu")
+
+    def _handle_server_menu(self, event) -> None:
+        panel = self.panel_manager["server_menu"]
+        if self._clicked(panel["connect"], event):
+            self._connect_to_server(panel["ip_input"].text, panel["port_input"].text)
+        elif self._clicked(panel["back"], event):
+            self.open_panel("game_type_menu")
+
+    def _connect_to_server(self, ip: str, port: str) -> None:
+        # Fall back to the defaults for blank/garbage fields so a mistyped port
+        # can't crash the connect. The actual dial is async (see _poll_connection).
+        ip = ip.strip() or CLIENT_IP
+        port = int(port) if port.strip().isdigit() else CLIENT_PORT
+        self.game.mode = Mode.ONLINE
+        self.game.connect_to_server(ip, port)
+        self._connecting = True
+        self._connect_deadline = pygame.time.get_ticks() + 4000
+        self._set_server_status(f"Connecting to {ip}:{port}...", Yellow)
+
+    def _poll_connection(self) -> None:
+        # Connecting is off-thread, so watch is_connected for the result and give
+        # up after the deadline. On success, re-announce our player (a fresh
+        # connection doesn't know our name) and return to the now-enabled menu.
+        if not self._connecting:
+            return
+        if self.game.client.is_connected:
+            self._connecting = False
+            if self.game.player_info is not None:
+                self.game.client.send(
+                    Command.SET_PLAYER,
+                    [self.game.player_info.name, self.game.player_info.character_name],
+                )
+            self._set_server_status("Connected!", Green)
+            self.open_panel("game_type_menu")
+        elif pygame.time.get_ticks() > self._connect_deadline:
+            self._connecting = False
+            self._set_server_status("Could not connect", Red)
+
+    def _set_server_status(self, text: str, color) -> None:
+        status = self.panel_manager["server_menu"]["status_text"]
+        status.set_text(text)
+        status.set_color(color)
 
     def _handle_create_room_menu(self, event) -> None:
         panel = self.panel_manager["create_room_menu"]

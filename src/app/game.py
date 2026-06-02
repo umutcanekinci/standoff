@@ -16,7 +16,7 @@ from pygame_core.asset_manager import AssetManager
 from pygame_core.debug import Debug
 
 from pygame_core.net.transport import BaseClient
-from pygame_core.net.protocol import Protocol, PickleCodec
+from net.wire import make_protocol
 from app.lobby_scene import LobbyScene
 from app.gameplay_scene import GameplayScene
 from net.commands import Command
@@ -95,19 +95,30 @@ class Game(Application):
         self._debug_text = str(text)
 
     def start_client(self) -> None:
+        # Connect to the default address at startup (a server on this machine, for
+        # local play). The SERVER menu can re-point us elsewhere via
+        # connect_to_server — e.g. a phone dialling a desktop host.
+        self._connect(CLIENT_ADDR)
+
+    def connect_to_server(self, ip: str, port: int) -> None:
+        """(Re)connect the client to a chosen address (the SERVER menu)."""
+        if getattr(self, "client", None) is not None:
+            self.client.disconnect()
+        self._connect((ip, port))
+
+    def _connect(self, address) -> None:
         # The transport client is game-unaware: it just pumps decoded messages
         # to get_data and connection status to debug_log. Connect off-thread so a
-        # slow/refused connect never blocks the game loop.
-        # Must use the same codec as the server (GameServer uses pickle, since it
-        # sends whole PlayerInfo/Room/MobInfo objects). Keep these two in lockstep.
+        # slow/refused connect never blocks the game loop. The codec comes from
+        # net.wire so client and server can never drift apart.
         self.client = BaseClient(
             on_message=self.get_data,
             on_disconnect=lambda: self.debug_log("[CLIENT] connection lost"),
             on_status=self.debug_log,
-            protocol=Protocol(PickleCodec()),
+            protocol=make_protocol(),
         )
         threading.Thread(
-            target=self.client.connect, args=(CLIENT_ADDR,), daemon=True
+            target=self.client.connect, args=(address,), daemon=True
         ).start()
 
     def start(self):

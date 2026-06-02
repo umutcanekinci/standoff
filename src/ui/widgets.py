@@ -203,16 +203,30 @@ class InputObject(StateObject):
         surf.blit(ts, (w / 2 - ts.get_width() / 2, h / 2 - ts.get_height() / 2))
         self.add_surface(None, surf)
 
+    def set_text(self, text: str) -> None:
+        """Set the field's contents (e.g. a default the user can edit)."""
+        self.text = text
+        self._render()
+
     def handle_event(self, event, mouse_pos) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.editing = self.is_mouse_over(mouse_pos)
             self._render()
-        elif event.type == pygame.KEYDOWN and self.editing:
+        elif not self.editing:
+            return
+        elif event.type == pygame.TEXTINPUT:
+            # Typed characters arrive here, via the OS/IME — this is what makes the
+            # Android soft keyboard work (KEYDOWN.unicode is empty there). The
+            # scene starts/stops text input as fields gain/lose focus.
+            self.text += event.text
+            self._render()
+        elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_BACKSPACE:
                 self.text = self.text[:-1]
-            else:
-                self.text += event.unicode
-            self._render()
+                self._render()
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self.editing = False  # commit / dismiss the keyboard
+                self._render()
 
 
 # ── panel-loader factories ────────────────────────────────────────────────────

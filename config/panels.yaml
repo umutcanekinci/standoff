@@ -66,10 +66,22 @@ panels:
     extends: [menu_chrome]
     objects:
       new_game:    { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "NEW GAME" }
-      continue:    { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "CONTINUE", is_active: false }
+      server:      { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "SERVER" }
       create_room: { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "CREATE ROOM" }
       connect:     { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CONNECT" }
       back:        { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
+
+  server_menu:
+    extends: [menu_chrome]
+    objects:
+      server_label: { type: text, parent: panel_bg, position: [CENTER, 30],  font_size: 40, text: "CONNECT TO SERVER" }
+      ip_label:     { type: text, parent: panel_bg, position: [CENTER, 95],  font_size: 26, text: "IP ADDRESS" }
+      ip_input:     { type: input, parent: panel_bg, position: [CENTER, 135], size: [320, 40], placeholder: "Server IP..." }
+      port_label:   { type: text, parent: panel_bg, position: [CENTER, 200], font_size: 26, text: "PORT" }
+      port_input:   { type: input, parent: panel_bg, position: [CENTER, 240], size: [320, 40], placeholder: "Port..." }
+      status_text:  { type: text, parent: panel_bg, position: [CENTER, 300], font_size: 24, text: "" }
+      connect:      { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "CONNECT" }
+      back:         { extends: pill, parent: panel_bg, position: [CENTER, 430], text: "BACK" }
 
   create_room_menu:
     extends: [menu_chrome]
