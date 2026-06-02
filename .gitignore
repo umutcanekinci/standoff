@@ -408,3 +408,6 @@ FodyWeavers.xsd
 bin/
 *.apk
 *.aab
+
+# Claude Code (local agent settings, scheduled-task locks, etc.)
+.claude/
