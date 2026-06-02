@@ -120,7 +120,9 @@ class Mob(Entity):
         now = pygame.time.get_ticks()
         if now - self.last_attack > 1000:
             for player in [
-                p for p in self.world.players if self.hit_rect.colliderect(p.rect)
+                p
+                for p in self.world.players
+                if p.alive and self.hit_rect.colliderect(p.rect)
             ]:
                 player.lose_hp(self.damage)
                 player.apply_knockback(Vec(1, 0).rotate(-self.angle), MOB_KNOCKBACK)

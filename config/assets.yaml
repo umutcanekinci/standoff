@@ -24,6 +24,11 @@ images:
   char_survivor_gun:     {folder: characters/survivor,    name: gun}
   char_woman_green_gun:  {folder: characters/woman_green, name: gun}
 
+  # ── Touch controls (Android HUD) ──────────────────────────────────────
+  touch_joystick_base: {folder: MobileControls, name: joystick_base}
+  touch_joystick_knob: {folder: MobileControls, name: joystick_knob}
+  touch_fire_button:   {folder: MobileControls, name: fire_button}
+
   # ── Muzzle flashes ────────────────────────────────────────────────────
   muzzle_1: {folder: effects/muzzle_flashes, name: muzzle_01}
   muzzle_2: {folder: effects/muzzle_flashes, name: muzzle_02}

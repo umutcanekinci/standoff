@@ -46,7 +46,11 @@ class Player(Entity):
         # Hit rect for collisions
         self.hit_rect = PLAYER_HIT_RECT.copy()
         self.hit_rect.center = self.rect.center
-        self.auto_shoot = True
+
+        # Source of move/aim/fire intent for the LOCAL player; the scene injects a
+        # KeyboardMouseControls (desktop) or TouchControls (Android). Remote
+        # players leave this None and are driven by the network instead.
+        self.controls = None
 
         self.force = Vec(3, 3)
         self.net_force = Vec()
@@ -73,33 +77,41 @@ class Player(Entity):
             self.rect.width / TILE_WIDTH * self.rect.height / TILE_HEIGHT
         ) * self.density
 
-    def rotate_to_mouse(self):
-        self.angle = (
-            Vec(self.world.mouse_position)
-            - Vec(self.world.camera.apply(self.rect).center)
-        ).angle_to(Vec(1, 0))  # angle between difference vector and x axis
+        # Live vs downed appearance. Keep the colour surface so we can swap back on
+        # respawn; the grey one is built lazily the first time this player dies.
+        self._color_image = self.original_image
+        self._grey_image = None
+
+    @staticmethod
+    def _greyscale(surface):
+        try:
+            return pygame.transform.grayscale(surface)
+        except (AttributeError, ValueError, pygame.error):
+            faded = surface.copy()  # fallback: darken if grayscale isn't available
+            faded.fill((110, 110, 110, 255), special_flags=pygame.BLEND_RGB_MULT)
+            return faded
+
+    def set_alive(self, alive: bool) -> None:
+        # Drive the alive flag AND the look together, so a downed remote player
+        # reads as a grey corpse instead of a still-living sprite. update() rotates
+        # from original_image each frame, so swapping it is enough.
+        if alive == self.alive:
+            return
+        self.alive = alive
+        if not alive and self._grey_image is None:
+            self._grey_image = self._greyscale(self._color_image)
+        self.set_image(self._color_image if alive else self._grey_image)
+
+    def aim(self):
+        # Face wherever the controls say (mouse cursor on desktop, auto-aim/stick
+        # on touch). No controls (a remote player) keeps its networked angle.
+        if self.controls:
+            self.angle = self.controls.aim_angle(self, self.world.camera)
 
     def _update_force_rotation(self):
-        # Map held keys to a unit force direction
-        keys = self.world.keys
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.force_rotation.x = -1
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.force_rotation.x = 1
-        else:
-            self.force_rotation.x = 0
-
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.force_rotation.y = -1
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.force_rotation.y = 1
-        else:
-            self.force_rotation.y = 0
-
-        if self.force_rotation.length() != 0:
-            # normalize() returns a new vector; mutate in place so diagonals are a
-            # unit direction (otherwise diagonal input is ~41% stronger).
-            self.force_rotation.normalize_ip()
+        # Movement intent comes from the controls as a unit (or zero) direction.
+        if self.controls:
+            self.force_rotation = self.controls.movement()
 
     def _apply_friction(self):
         # Brake any axis the player isn't actively driving so releasing the keys
@@ -167,18 +179,6 @@ class Player(Entity):
             self.velocity = Vec(-KICKBACK, 0).rotate(-self.angle)
 
             self.last_shoot_time = now
-
-    def handle_events(self, event):
-        if self.alive:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.auto_shoot:
-                    self.is_shooting = True
-
-                else:
-                    self.world.shoot()
-
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.is_shooting = False
 
     def update(self):
         self.rotate(self.angle)

@@ -41,6 +41,7 @@ from app.scene import Scene
 from gameplay.map import Map
 from gameplay.camera import Camera
 from gameplay.player import Players
+from gameplay.controls import make_controls
 from gameplay.mob import Mobs
 from net.commands import Command
 from ui.widgets import ShapeButton
@@ -78,6 +79,16 @@ class GameplayScene(Scene):
 
         self.player = self.players.add_player(game.player_info, Green)
         self.player.is_local = True  # input-driven; the rest follow the network
+
+        # Where the local player's move/aim/fire intent comes from: keyboard+mouse
+        # on desktop, on-screen joystick+fire on Android (chosen by make_controls).
+        self.controls = make_controls(
+            size=self.game.size,
+            assets=self.game.assets,
+            get_keys=lambda: self.game.keys,
+            get_mouse_pos=lambda: self.game.mouse.position,
+        )
+        self.player.controls = self.controls
 
         if game.mode == Mode.ONLINE:
             for player in game.player_info.room:
@@ -207,7 +218,7 @@ class GameplayScene(Scene):
 
     def handle_event(self, event) -> None:
         if self.player.alive:
-            self.player.handle_events(event)
+            self.controls.handle_event(event)
         elif self._showing_death_panel:
             self._handle_death_panel(event)
         else:
@@ -231,15 +242,19 @@ class GameplayScene(Scene):
         self.mob_grid = SpatialGrid.of(self.mobs, AVOID_RADIUS)
         for entity in (*self.players, *self.mobs, *self.bullets, *self.effects):
             entity.update()
-        self.players[:] = [p for p in self.players if p.alive]
+        # Drop only the local player on death (they switch to spectate); keep
+        # remote corpses in the list so they respawn in place and so set_player_alive
+        # can keep them marked dead (mobs ignore them, can't be spectated).
+        self.players[:] = [p for p in self.players if p.alive or not p.is_local]
         self.mobs[:] = [m for m in self.mobs if m.alive]
         self.bullets[:] = [b for b in self.bullets if b.alive]
         self.effects[:] = [e for e in self.effects if e.alive]
 
         if self.player.alive:
             self.camera.follow(self.player.rect)
+            self.player.is_shooting = self.controls.is_firing()
             self.shoot()
-            self.player.rotate_to_mouse()
+            self.player.aim()
             self.player.update_movement()
         else:
             self._update_death_ui()  # respawn-timer button state
@@ -287,7 +302,9 @@ class GameplayScene(Scene):
             for wall in self.walls:
                 wall.draw_rect(window)
 
-        if not self.player.alive:
+        if self.player.alive:
+            self.controls.draw(window)  # touch HUD (no-op on desktop); hidden when dead
+        else:
             self._draw_death_ui(window)
 
         self._draw_roster(window)  # always on top, readable in any state
@@ -307,12 +324,16 @@ class GameplayScene(Scene):
             self._respawn_secs_shown = secs
             self._respawn_button.set_label("RESPAWN" if ready else f"RESPAWN ({secs})")
 
+    def _living_players(self) -> list:
+        return [p for p in self.players if p.alive]
+
     def _update_spectate(self) -> None:
         # Follow a living team-mate (cycled by _handle_spectate); if everyone is
         # down, sit on our own corpse.
-        if self.players:
-            self._spectate_index %= len(self.players)
-            self._view_target = self.players[self._spectate_index]
+        living = self._living_players()
+        if living:
+            self._spectate_index %= len(living)
+            self._view_target = living[self._spectate_index]
         else:
             self._view_target = self.player
         self.camera.follow(self._view_target.rect)
@@ -330,10 +351,11 @@ class GameplayScene(Scene):
     def _handle_spectate(self, event) -> None:
         if event.type != pygame.KEYDOWN:
             return
-        if event.key in (pygame.K_LEFT, pygame.K_a) and self.players:
-            self._spectate_index = (self._spectate_index - 1) % len(self.players)
-        elif event.key in (pygame.K_RIGHT, pygame.K_d) and self.players:
-            self._spectate_index = (self._spectate_index + 1) % len(self.players)
+        living = self._living_players()
+        if event.key in (pygame.K_LEFT, pygame.K_a) and living:
+            self._spectate_index = (self._spectate_index - 1) % len(living)
+        elif event.key in (pygame.K_RIGHT, pygame.K_d) and living:
+            self._spectate_index = (self._spectate_index + 1) % len(living)
         elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
             self._respawn()
         elif event.key == pygame.K_r:
@@ -430,8 +452,13 @@ class GameplayScene(Scene):
             player.angle = angle
 
     def set_player_alive(self, player_id, alive) -> None:
-        # Authoritative alive from a player's own client; greys its roster entry.
+        # Authoritative alive from a player's own client; greys its roster entry
+        # and marks the remote Player so mobs stop attacking it and it drops out
+        # of the spectate rotation (the local player is driven by its own HP).
         self._alive_by_id[player_id] = alive
+        player = self.players.get_player_with_id(player_id)
+        if player and not player.is_local:
+            player.set_alive(alive)  # also swaps to a grey corpse / back on respawn
 
     def remove_player(self, player_id) -> None:
         player = self.players.get_player_with_id(player_id)
