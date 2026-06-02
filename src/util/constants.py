@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pygame
 from colorama import Fore
 import socket
@@ -34,7 +35,22 @@ SERVER_PREFIX = f"{Fore.CYAN}[SERVER] {Fore.RED}=> {Fore.YELLOW}"
 
 # Window
 WINDOW_TITLE = "Standoff"
-WINDOW_SIZE = WINDIW_WIDTH, WINDOW_HEIGHT = 1920, 1080
+
+# UI_REFERENCE_SIZE is the resolution config/panels.yaml was authored against;
+# the lobby maps that layout onto the actual window so menus look right at any
+# logical resolution.
+UI_REFERENCE_SIZE = (1920, 1080)
+
+# Logical render resolution (the surface every frame is composited onto; the SDL
+# SCALED display then GPU-upscales it to the device — cheap). On touch devices we
+# render at 720p instead of 1080p: ~44% of the pixels, so the per-frame software
+# blits (the in-game bottleneck) roughly halve. Trade-off: the camera viewport is
+# the logical size, so 720p shows a tighter slice of the arena (a ~1.5x zoom).
+# Dial this up (e.g. 1600x900) for less zoom at the cost of some FPS.
+_TOUCH = bool(os.environ.get("ANDROID_ARGUMENT")) or bool(
+    os.environ.get("STANDOFF_TOUCH")
+)
+WINDOW_SIZE = WINDIW_WIDTH, WINDOW_HEIGHT = (1280, 720) if _TOUCH else (1920, 1080)
 WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
 
 BACKGROUND_COLORS = {"menu": CustomBlue}

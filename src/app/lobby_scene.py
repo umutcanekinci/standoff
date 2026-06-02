@@ -20,6 +20,7 @@ from util.constants import (
     CHARACTER_SIZE,
     CLIENT_IP,
     CLIENT_PORT,
+    UI_REFERENCE_SIZE,
     Mode,
     Red,
     Green,
@@ -64,12 +65,14 @@ class LobbyScene(Scene):
     def __init__(self, game: "Game") -> None:
         super().__init__(game)
 
-        # Bigger UI on touch devices (and the desktop touch-test mode): the
-        # authored layout is sized for a mouse. Applied to the YAML panels (via
-        # the loader in _load_panels) AND to the objects built in code below, so
-        # the static chrome and the dynamic preview/name/slots stay in register.
-        self._ui_scale = (
-            1.35 if (is_android() or os.environ.get("STANDOFF_TOUCH")) else 1.0
+        # The panels are authored for UI_REFERENCE_SIZE; map them onto the actual
+        # window (which is a lower logical resolution on mobile), and enlarge a
+        # little on touch devices for fat-finger targets. Applied to the YAML
+        # panels via the loader in _load_panels AND to the objects built in code
+        # below, so static chrome and the dynamic preview/name/slots stay aligned.
+        touch = is_android() or os.environ.get("STANDOFF_TOUCH")
+        self._ui_scale = (self.game.size[1] / UI_REFERENCE_SIZE[1]) * (
+            1.35 if touch else 1.0
         )
         self._menu_font = pygame.font.Font(None, round(40 * self._ui_scale))
         self._slot_font = pygame.font.Font(None, round(25 * self._ui_scale))
@@ -103,6 +106,7 @@ class LobbyScene(Scene):
             self.panel_manager, Transform((0, 0), self.game.size), self.game.assets
         )
         loader.scale = self._ui_scale
+        loader.authored_size = UI_REFERENCE_SIZE
         loader.register(
             "object", panel_factory.make_factory(self.game.assets), default=True
         )
