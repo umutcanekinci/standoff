@@ -10,6 +10,8 @@ These are this game's protocol, so they live in ``net`` (the game's network
 layer), not in the game-agnostic ``pygame_core`` engine.
 """
 
+from __future__ import annotations
+
 
 class Command:
     # Client -> Server (requests / actions)

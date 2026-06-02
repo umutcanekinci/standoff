@@ -7,6 +7,8 @@ it unchanged. Adds world-space `position`, cheap `rotate`, a draw `layer`, and a
 `alive` flag (replacing pygame Sprite.kill()).
 """
 
+from __future__ import annotations
+
 import pygame
 from typing import cast
 from pygame.math import Vector2

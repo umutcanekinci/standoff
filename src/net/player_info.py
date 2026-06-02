@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from util.constants import MOB_MAX_HP
 
 

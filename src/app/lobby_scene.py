@@ -7,6 +7,7 @@ this scene writes those when the player commits a choice and reads them back.
 
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,7 @@ from pygame_core.ecs.state_object import StateObject
 from pygame_core.ui_widgets.text_object import TextObject
 
 from app.scene import Scene
+from gameplay.controls import is_android
 from gameplay.map import Map
 from net.commands import Command
 from net.player_info import PlayerInfo
@@ -62,8 +64,15 @@ class LobbyScene(Scene):
     def __init__(self, game: "Game") -> None:
         super().__init__(game)
 
-        self._menu_font = pygame.font.Font(None, 40)
-        self._slot_font = pygame.font.Font(None, 25)
+        # Bigger UI on touch devices (and the desktop touch-test mode): the
+        # authored layout is sized for a mouse. Applied to the YAML panels (via
+        # the loader in _load_panels) AND to the objects built in code below, so
+        # the static chrome and the dynamic preview/name/slots stay in register.
+        self._ui_scale = (
+            1.35 if (is_android() or os.environ.get("STANDOFF_TOUCH")) else 1.0
+        )
+        self._menu_font = pygame.font.Font(None, round(40 * self._ui_scale))
+        self._slot_font = pygame.font.Font(None, round(25 * self._ui_scale))
 
         self.selected_character = 0
         self.room_action = None  # 'start' | 'ready' | 'unready'
@@ -93,6 +102,7 @@ class LobbyScene(Scene):
         loader = PanelLoaderExt(
             self.panel_manager, Transform((0, 0), self.game.size), self.game.assets
         )
+        loader.scale = self._ui_scale
         loader.register(
             "object", panel_factory.make_factory(self.game.assets), default=True
         )
@@ -105,11 +115,14 @@ class LobbyScene(Scene):
     def _build_dynamic_objects(self) -> None:
         pm = self.panel_manager
         assets = self.game.assets
+        k = self._ui_scale  # keep these in register with the scaled YAML panels
 
         # Character carousel (player_menu): a preview image + a name label.
         player_bg = pm["player_menu"]["panel_bg"].rect
         self.character_preview = StateObject(
-            parent=player_bg, pos=("CENTER", 195), size=CHARACTER_SIZE
+            parent=player_bg,
+            pos=("CENTER", round(195 * k)),
+            size=tuple(round(c * k) for c in CHARACTER_SIZE),
         )
         for character in CHARACTER_LIST:
             self.character_preview.add_state(
@@ -120,7 +133,7 @@ class LobbyScene(Scene):
 
         self.character_name_text = TextObject(
             player_bg,
-            ("CENTER", 145),
+            ("CENTER", round(145 * k)),
             self._display_name(CHARACTER_LIST[0]),
             self._menu_font,
         )
@@ -131,7 +144,7 @@ class LobbyScene(Scene):
         self.room_slots = []
         for i in range(MAX_ROOM_SIZE):
             slot = TextObject(
-                room_bg, ("CENTER", (i + 1) * 60 + 23), "", self._slot_font
+                room_bg, ("CENTER", round(((i + 1) * 60 + 23) * k)), "", self._slot_font
             )
             slot.active = False
             pm.add_object("room_menu", f"player_slot_{i}", slot)
@@ -139,8 +152,8 @@ class LobbyScene(Scene):
 
         self.room_action_button = ShapeButton(
             room_bg,
-            ("CENTER", 385),
-            (300, 60),
+            ("CENTER", round(385 * k)),
+            (round(300 * k), round(60 * k)),
             normal_color=Green,
             hover_color=Red,
             text="",

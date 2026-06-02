@@ -37,7 +37,10 @@ if ! command -v buildozer >/dev/null 2>&1 || [ "${INSTALL_DEPS:-0}" = "1" ]; the
     openjdk-17-jdk autoconf automake libtool libltdl-dev pkg-config \
     zlib1g-dev libncurses-dev libffi-dev libssl-dev build-essential
   python3 -m pip install --user --upgrade pip
-  python3 -m pip install --user buildozer cython
+  # patchelf: recipes/python3 uses it to add libpython to the stdlib modules'
+  # DT_NEEDED (Android's strict linker won't resolve their PyExc_* symbols
+  # otherwise). cython: general p4a build dependency.
+  python3 -m pip install --user buildozer cython patchelf
 fi
 
 BUILDOZER="$(command -v buildozer)"

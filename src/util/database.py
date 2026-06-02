@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # -# Import Packages #-#
 import sqlite3
 import sys

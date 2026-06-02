@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from util.constants import (
     FPS,
+    MAX_DELTA_TIME,
     TILE_WIDTH,
     TILE_HEIGHT,
     AVOID_RADIUS,
@@ -114,6 +115,8 @@ class GameplayScene(Scene):
         self._alive_by_id = {info.id: True for info in game.player_info.room}
         self._build_death_ui()
         self._build_roster()
+        self._paused = False
+        self._build_pause_ui()
 
     def _build_death_ui(self) -> None:
         # A grey wash + "YOU DIED" + buttons, drawn over the live game while dead.
@@ -151,11 +154,50 @@ class GameplayScene(Scene):
             )
 
         self._respawn_button = button("RESPAWN", 0.42)
-        self._spectate_button = button("SPECTATE", 0.55)
-        self._room_button = button("RETURN TO ROOM", 0.68)
+        self._restart_button = button("RESTART", 0.55)
+        self._mainmenu_button = button("MAIN MENU", 0.68)
         self._death_panel.add_object("death", "respawn", self._respawn_button)
-        self._death_panel.add_object("death", "spectate", self._spectate_button)
-        self._death_panel.add_object("death", "return", self._room_button)
+        self._death_panel.add_object("death", "restart", self._restart_button)
+        self._death_panel.add_object("death", "mainmenu", self._mainmenu_button)
+
+    def _build_pause_ui(self) -> None:
+        # A top-left pause button (drawn during active play) and the panel it
+        # opens: CONTINUE resumes, MAIN MENU leaves to the title menu. Sized/placed
+        # by fraction of the logical window so it fits any resolution.
+        w, h = self.game.size
+        side = max(56, h // 12)
+        margin = max(16, h // 36)
+        self._pause_rect = pygame.Rect(margin, margin, side, side)
+
+        screen = Transform((0, 0), self.game.size)
+
+        def button(label, y):
+            return ShapeButton(
+                screen,
+                ("CENTER", int(h * y)),
+                (min(360, w - 40), 60),
+                normal_color=Green,
+                hover_color=Red,
+                text=label,
+                text_size=32,
+            )
+
+        self._pause_panel = PanelManager(starting_tab="pause")
+        self._pause_panel.add_object(
+            "pause",
+            "title",
+            TextObject(
+                screen,
+                ("CENTER", int(h * 0.30)),
+                "PAUSED",
+                pygame.font.Font(None, max(48, h // 9)),
+                White,
+            ),
+        )
+        self._continue_button = button("CONTINUE", 0.47)
+        self._pause_mainmenu_button = button("MAIN MENU", 0.60)
+        self._pause_panel.add_object("pause", "continue", self._continue_button)
+        self._pause_panel.add_object("pause", "mainmenu", self._pause_mainmenu_button)
 
     @staticmethod
     def _greyscale(surface):
@@ -217,6 +259,12 @@ class GameplayScene(Scene):
     # Loop hooks (driven by Game while this scene is active)
 
     def handle_event(self, event) -> None:
+        if self._paused:
+            self._handle_pause_panel(event)
+            return
+        if self._pause_button_pressed(event):
+            self._paused = True
+            return
         if self.player.alive:
             self.controls.handle_event(event)
         elif self._showing_death_panel:
@@ -224,9 +272,32 @@ class GameplayScene(Scene):
         else:
             self._handle_spectate(event)
 
+    def _pause_button_pressed(self, event) -> bool:
+        # Pause is offered only during active play; the death screen has its own
+        # menu. Touch taps arrive as MOUSEBUTTONDOWN on Android (SDL emulation).
+        return (
+            self.player.alive
+            and event.type == pygame.MOUSEBUTTONDOWN
+            and self._pause_rect.collidepoint(event.pos)
+        )
+
+    def _handle_pause_panel(self, event) -> None:
+        mouse = self.game.mouse.position
+        self._pause_panel.handle_event(event, mouse)
+        if self._continue_button.is_clicked(event, mouse):
+            self._paused = False
+        elif self._pause_mainmenu_button.is_clicked(event, mouse):
+            self._main_menu()
+
     def update(self) -> None:
-        self.delta_time = self.game.clock.get_time() * 0.001 * FPS
+        # Clamp the timestep: a long frame (the first in-world frame, or any fps
+        # dip on mobile) must not teleport entities through walls or destabilise
+        # the mob velocity integrator (diverges past dt=2). See MAX_DELTA_TIME.
+        self.delta_time = min(self.game.clock.get_time() * 0.001 * FPS, MAX_DELTA_TIME)
         self.mouse_position = self.game.mouse.position
+
+        if self._paused:
+            return  # frozen: skip world sim, networking, and spawning while paused
 
         if self._was_alive and not self.player.alive:
             # Just died: surface the death panel and start the respawn cooldown.
@@ -302,12 +373,31 @@ class GameplayScene(Scene):
             for wall in self.walls:
                 wall.draw_rect(window)
 
-        if self.player.alive:
+        if self._paused:
+            self._draw_pause_ui(window)
+        elif self.player.alive:
             self.controls.draw(window)  # touch HUD (no-op on desktop); hidden when dead
+            self._draw_pause_button(window)
         else:
             self._draw_death_ui(window)
 
         self._draw_roster(window)  # always on top, readable in any state
+
+    def _draw_pause_button(self, window) -> None:
+        r = self._pause_rect
+        chip = pygame.Surface(r.size, pygame.SRCALPHA)
+        pygame.draw.rect(chip, (0, 0, 0, 130), chip.get_rect(), border_radius=8)
+        bar_w = max(4, r.width // 7)
+        bar_h = r.height // 2
+        top = (r.height - bar_h) // 2
+        cx = r.width // 2
+        pygame.draw.rect(chip, White, (cx - 2 * bar_w, top, bar_w, bar_h))
+        pygame.draw.rect(chip, White, (cx + bar_w, top, bar_w, bar_h))
+        window.blit(chip, r.topleft)
+
+    def _draw_pause_ui(self, window) -> None:
+        window.blit(self._tint, (0, 0))  # reuse the grey wash to dim the world
+        self._pause_panel.draw(window)
 
     # Death / spectator
 
@@ -343,10 +433,10 @@ class GameplayScene(Scene):
         self._death_panel.handle_event(event, mouse)
         if self._respawn_button.is_clicked(event, mouse):
             self._respawn()
-        elif self._spectate_button.is_clicked(event, mouse):
-            self._showing_death_panel = False  # dismiss panel, watch the action
-        elif self._room_button.is_clicked(event, mouse):
-            self._return_to_room()
+        elif self._restart_button.is_clicked(event, mouse):
+            self._restart_match()
+        elif self._mainmenu_button.is_clicked(event, mouse):
+            self._main_menu()
 
     def _handle_spectate(self, event) -> None:
         if event.type != pygame.KEYDOWN:
@@ -359,7 +449,7 @@ class GameplayScene(Scene):
         elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
             self._respawn()
         elif event.key == pygame.K_r:
-            self._return_to_room()
+            self._main_menu()
 
     def _respawn(self) -> None:
         # Revive at our spawn base, full HP, motion cleared, and rejoin the active
@@ -380,11 +470,18 @@ class GameplayScene(Scene):
         self._showing_death_panel = False
         self._was_alive = True
 
-    def _return_to_room(self) -> None:
-        # Leave the in-world view for the room screen; the room is still ours.
+    def _restart_match(self) -> None:
+        # Fresh match: Game.start() builds a brand-new GameplayScene — map
+        # re-rendered, mobs/bullets/effects cleared, the local player back at its
+        # base at full HP. The old (dead) scene is dropped.
+        self.game.start()
+
+    def _main_menu(self) -> None:
+        # Leave the match for the top-level main menu (mirrors the in-game
+        # Esc/back path, which drops the gameplay scene and opens the menu).
         self.game.gameplay = None
         self.game.active_scene = self.game.lobby
-        self.game.lobby.update_room()
+        self.game.lobby.open_panel("main_menu")
 
     def _draw_death_ui(self, window) -> None:
         window.blit(self._tint, (0, 0))  # grey wash whenever dead

@@ -1,5 +1,7 @@
 """Axis-resolved collision against a list of wall objects (ECS, no pygame.sprite)."""
 
+from __future__ import annotations
+
 
 def is_collide(one, two) -> bool:
     return one.hit_rect.colliderect(two.rect)

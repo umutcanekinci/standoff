@@ -34,7 +34,7 @@ version = 0.1.0
 # `pygame` recipe (SDL2). The project targets pygame-ce, which is API-compatible;
 # if the build needs the CE fork specifically, point a local recipe at it or
 # override with `--requirements`. pytmx and pyyaml are pure-Python and build fine.
-requirements = python3,pygame,pytmx,pyyaml
+requirements = python3,pygame,pytmx,pyyaml,colorama
 
 orientation = landscape
 fullscreen = 1

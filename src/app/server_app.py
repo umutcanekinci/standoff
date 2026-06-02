@@ -6,6 +6,8 @@ broadcast a raw command. All transport and lobby logic lives below it in
 net.game_server / net.transport / net.protocol.
 """
 
+from __future__ import annotations
+
 import threading
 from tkinter import Tk, Label, Text, Button, Frame, Entry, END
 from ctypes import windll

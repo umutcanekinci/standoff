@@ -7,6 +7,8 @@ bug). JSON + to_dict/from_dict replaces pickle: a peer can send us bad data, but
 never code that runs in our process.
 """
 
+from __future__ import annotations
+
 from net.player_info import PlayerInfo, MobInfo
 from net.room import Room
 from pygame_core.net.protocol import Protocol, TypedJSONCodec

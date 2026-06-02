@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pygame
 from colorama import Fore
 import socket
@@ -40,6 +42,15 @@ BACKGROUND_COLORS = {"menu": CustomBlue}
 # Game
 DEVELOP_MODE = False
 FPS = 60
+
+# Upper bound on the per-frame timestep multiplier (delta_time is 1.0 at FPS).
+# A slow frame (notably the first in-world frame, which includes scene/map build
+# time, or any fps dip on mobile) would otherwise make movement steps huge —
+# entities teleport across the arena and tunnel through walls, and the mob
+# velocity integrator v += (target - v)*dt actually diverges once dt > 2. Clamp
+# below 2 so physics stay stable; below ~40 fps the sim just runs a touch slow
+# instead of exploding. Desktop holds 60 fps (dt ~ 1), so this never bites there.
+MAX_DELTA_TIME = 1.5
 
 
 # Play modes (Game.mode)

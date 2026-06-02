@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pygame
 
 from util.constants import WALL_LAYER, Yellow

@@ -7,6 +7,8 @@ there are image assets — so we vector-draw the pill/triangle look the project
 already uses and register the surfaces via StateObject.add_surface().
 """
 
+from __future__ import annotations
+
 import pygame
 
 from util.constants import Red, Blue, Gray, Black, White

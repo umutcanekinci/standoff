@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import threading
 from typing import override
 
@@ -49,7 +51,10 @@ class Game(Application):
         for key in ("click", "switch_ready", "switch_unready"):
             try:
                 self.sounds[key] = pygame.mixer.Sound(str(self.assets.sound_path(key)))
-            except pygame.error as error:
+            except (pygame.error, OSError) as error:
+                # pygame-ce raises FileNotFoundError (an OSError), not
+                # pygame.error, when a sound file can't be opened — catch both so
+                # a missing/disabled audio asset degrades to silence, never a crash.
                 self.debug_log(f"[AUDIO] sound '{key}' unavailable: {error}")
         ShapeButton.set_click_sound(self.sounds.get("click"))
 

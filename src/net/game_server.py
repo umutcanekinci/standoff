@@ -13,6 +13,8 @@ via their to_dict/from_dict, so a peer can never run code in our process the way
 pickle allowed — this file is unaffected by the codec choice.
 """
 
+from __future__ import annotations
+
 import math
 import threading
 import time

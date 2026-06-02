@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pygame
 
 from pygame_core.tilemap import TiledMap
@@ -38,7 +40,18 @@ class Map(TiledMap):
                 Obstacle(self.world, (obj.x, obj.y), (obj.width, obj.height))
 
     def render(self):
-        self.image = self.pre_render(alpha=True)
+        image = self.pre_render(alpha=True)
+        # The custom Camera blits this whole surface as the full-screen background
+        # every frame. convert() (opaque) makes that a plain copy; convert_alpha()
+        # would keep the per-pixel alpha channel and force a full-screen *blend*
+        # each frame — ~50ms at 1920x1080 on a phone software backbuffer, which
+        # was the whole in-game frame budget. The map always fills the viewport
+        # (the Camera clamps to map bounds) and there's no per-frame screen clear,
+        # so it must be opaque anyway; any untiled cell reads as black (same as
+        # the uncleared buffer did before, just stable).
+        if pygame.display.get_surface() is not None:
+            image = image.convert()
+        self.image = image
         self.rect = self.image.get_rect()
         self.draw_grid()
 

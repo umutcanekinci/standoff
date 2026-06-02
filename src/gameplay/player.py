@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from util.constants import (
     PLAYER_MAX_HP,
     PLAYER_FRICTION,
