@@ -210,24 +210,30 @@ class GameplayScene(Scene):
 
     def _build_roster(self) -> None:
         # Top-right list of everyone in the room: a small character icon + name.
-        # Built once (room membership is fixed for the match). Each entry keeps an
-        # alive and a greyed variant; _draw_roster picks per the live alive state.
+        # Each entry caches an alive and a greyed name/icon; _draw_roster picks per
+        # the live alive state. Membership is NOT fixed — players leave (handled in
+        # remove_player) and join in progress (_ensure_remote_player) — so both
+        # paths keep this list in sync via _make_roster_entry.
         h = self.game.size[1]
-        icon_size = max(28, h // 18)
-        font = pygame.font.Font(None, max(18, h // 28))
-        self._roster = []
-        for info in self.game.player_info.room:
-            image = self.game.assets.get_image(f"char_{info.character_name}_idle")
-            icon = pygame.transform.smoothscale(image, (icon_size, icon_size))
-            self._roster.append(
-                {
-                    "id": info.id,
-                    "icon": icon,
-                    "icon_dead": self._greyscale(icon),
-                    "name": font.render(info.name, True, White),
-                    "name_dead": font.render(info.name, True, Gray),
-                }
-            )
+        self._roster_icon_size = max(28, h // 18)
+        self._roster_font = pygame.font.Font(None, max(18, h // 28))
+        self._roster = [
+            self._make_roster_entry(info) for info in self.game.player_info.room
+        ]
+
+    def _make_roster_entry(self, info) -> dict:
+        # `info` is anything carrying id/character_name/name (a PlayerInfo or a
+        # Player entity). Builds the cached surfaces a roster row draws from.
+        image = self.game.assets.get_image(f"char_{info.character_name}_idle")
+        size = (self._roster_icon_size, self._roster_icon_size)
+        icon = pygame.transform.smoothscale(image, size)
+        return {
+            "id": info.id,
+            "icon": icon,
+            "icon_dead": self._greyscale(icon),
+            "name": self._roster_font.render(info.name, True, White),
+            "name_dead": self._roster_font.render(info.name, True, Gray),
+        }
 
     def _draw_roster(self, window) -> None:
         right = self.game.size[0] - 12
@@ -551,6 +557,10 @@ class GameplayScene(Scene):
             return None
         player = self.players.add_player(info, Yellow)
         self._alive_by_id.setdefault(player_id, True)
+        # Show the late joiner in the top-right roster too (built from the room
+        # snapshot, which may predate their join).
+        if not any(row["id"] == player_id for row in self._roster):
+            self._roster.append(self._make_roster_entry(info))
         return player
 
     def update_player_position(self, player_id, position: tuple) -> None:
@@ -589,3 +599,7 @@ class GameplayScene(Scene):
         player = self.players.get_player_with_id(player_id)
         if player:
             self.players.remove(player)
+        # Drop them from the top-right roster as well; it was built once, so a
+        # player who left used to linger there.
+        self._roster = [row for row in self._roster if row["id"] != player_id]
+        self._alive_by_id.pop(player_id, None)

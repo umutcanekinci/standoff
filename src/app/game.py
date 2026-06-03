@@ -160,15 +160,35 @@ class Game(Application):
         # to get_data and connection status to debug_log. Connect off-thread so a
         # slow/refused connect never blocks the game loop. The codec comes from
         # net.wire so client and server can never drift apart.
-        self.client = BaseClient(
+        client = BaseClient(
             on_message=self.get_data,
-            on_disconnect=lambda: self.debug_log("[CLIENT] connection lost"),
+            # Bind the handler to THIS client so a stale disconnect from a client
+            # we've already replaced (reconnect) can be ignored.
+            on_disconnect=lambda: self._on_server_lost(client),
             on_status=self.debug_log,
             protocol=make_protocol(),
         )
-        threading.Thread(
-            target=self.client.connect, args=(address,), daemon=True
-        ).start()
+        self.client = client
+        threading.Thread(target=client.connect, args=(address,), daemon=True).start()
+
+    def _on_server_lost(self, client) -> None:
+        self.debug_log("[CLIENT] connection lost")
+        # Ignore the disconnect of a client we've already swapped out (e.g. when
+        # the SERVER menu reconnects elsewhere), and don't react to our own host
+        # teardown — exit() is already bringing the whole app down.
+        if client is not self.client or self.server is not None:
+            return
+        # The server vanished mid-match (e.g. a listen-server host quit). Without
+        # this the remote players just froze in a dead world; bail to the menu.
+        if self.is_game_started:
+            self._return_to_menu()
+
+    def _return_to_menu(self) -> None:
+        # Drop the gameplay scene so stale in-world messages no-op, and show the
+        # main menu. Shared by Esc/back and server-loss handling.
+        self.gameplay = None
+        self.active_scene = self.lobby
+        self.lobby.open_panel("main_menu")
 
     def start(self):
         # Building the scene fully before swapping it in keeps the loop thread
@@ -252,11 +272,7 @@ class Game(Application):
 
     def _handle_back(self) -> None:
         if self.is_game_started:
-            # Drop the gameplay scene so stale in-world messages no-op, and
-            # return to the menu.
-            self.gameplay = None
-            self.active_scene = self.lobby
-            self.lobby.open_panel("main_menu")
+            self._return_to_menu()
         else:
             self.lobby.handle_back()
 
