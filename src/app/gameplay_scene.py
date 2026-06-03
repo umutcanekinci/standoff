@@ -483,11 +483,11 @@ class GameplayScene(Scene):
         self.game.start()
 
     def _main_menu(self) -> None:
-        # Leave the match for the top-level main menu (mirrors the in-game
-        # Esc/back path, which drops the gameplay scene and opens the menu).
-        self.game.gameplay = None
-        self.game.active_scene = self.game.lobby
-        self.game.lobby.open_panel("main_menu")
+        # The in-game MAIN MENU button: leave the match (notifying the server in
+        # online play so we don't leave a frozen avatar behind) and go to the
+        # title menu — to_lobby=False keeps this button on the main menu even in
+        # multiplayer, unlike Esc/back which returns to the lobby hub.
+        self.game.leave_match(to_lobby=False)
 
     def _draw_death_ui(self, window) -> None:
         window.blit(self._tint, (0, 0))  # grey wash whenever dead

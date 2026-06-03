@@ -179,15 +179,28 @@ class Game(Application):
         if client is not self.client or self.server is not None:
             return
         # The server vanished mid-match (e.g. a listen-server host quit). Without
-        # this the remote players just froze in a dead world; bail to the menu.
+        # this the remote players just froze in a dead world; bail out. We're no
+        # longer connected, so leave_match lands on the main menu.
         if self.is_game_started:
-            self._return_to_menu()
+            self.leave_match(to_lobby=True)
 
-    def _return_to_menu(self) -> None:
-        # Drop the gameplay scene so stale in-world messages no-op, and show the
-        # main menu. Shared by Esc/back and server-loss handling.
+    def leave_match(self, to_lobby: bool) -> None:
+        """Tear down the gameplay scene and leave the current match.
+
+        Online: tell the server we're leaving the room so it frees our slot and
+        room-mates see us go (otherwise our avatar freezes in their world); then,
+        while still connected, drop to the lobby hub if `to_lobby` else the main
+        menu. Offline — or once the server is already gone — there's nothing to
+        notify and no lobby to return to, so go straight to the main menu.
+        """
+        online = self.mode == Mode.ONLINE
         self.gameplay = None
         self.active_scene = self.lobby
+        if online and self.client.is_connected:
+            self.client.send(Command.LEAVE_ROOM)
+            if to_lobby:
+                self.lobby.open_panel("game_type_menu")
+                return
         self.lobby.open_panel("main_menu")
 
     def start(self):
@@ -217,7 +230,11 @@ class Game(Application):
         self.start()
 
     def _on_leave_room(self, _value) -> None:
-        self.lobby.open_panel("game_type_menu")
+        # The lobby "Leave Room" button lives on room_menu and wants the hub next.
+        # When LEAVE_ROOM was instead part of quitting a match (leave_match), we've
+        # already chosen our destination, so don't let this async reply override it.
+        if self.lobby.panel_manager.current_panel == "room_menu":
+            self.lobby.open_panel("game_type_menu")
 
     def _on_update_player(self, value) -> None:
         if self.gameplay:
@@ -272,7 +289,8 @@ class Game(Application):
 
     def _handle_back(self) -> None:
         if self.is_game_started:
-            self._return_to_menu()
+            # Esc/back out of a match: to the multiplayer lobby online, else menu.
+            self.leave_match(to_lobby=True)
         else:
             self.lobby.handle_back()
 
