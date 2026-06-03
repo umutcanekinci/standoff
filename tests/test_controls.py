@@ -191,6 +191,29 @@ def test_touch_aim_holds_facing_without_mobs():
     assert tc.aim_angle(player, camera=None) == 123
 
 
+def test_touch_aim_points_barrel_not_centre_at_mob():
+    """Auto-aim rotates so the gun BARREL points at the mob, not the player centre.
+
+    A bullet leaves from center + BARREL_OFFSET.rotate(-angle) and flies along the
+    aim angle, so the mob must lie on that ray (zero perpendicular offset, ahead of
+    the barrel) for the shot to land — at any range and bearing.
+    """
+    from util.constants import BARREL_OFFSET
+
+    tc = _touch()
+    for mob_pos in [(300, 0), (0, 250), (-200, 120), (140, -90)]:
+        player = _Player((0, 0), angle=0, mobs=[_Mob(mob_pos)])
+        angle = tc.aim_angle(player, camera=None)
+
+        barrel = Vec(0, 0) + BARREL_OFFSET.rotate(-angle)  # shoot() origin
+        direction = Vec(1, 0).rotate(-angle)  # bullet velocity direction
+        to_mob = Vec(mob_pos) - barrel
+        perp = to_mob.x * direction.y - to_mob.y * direction.x
+
+        assert abs(perp) < 1e-6  # mob is on the bullet ray
+        assert to_mob.dot(direction) > 0  # and in front of the barrel, not behind
+
+
 # --- KeyboardMouseControls ---------------------------------------------------
 
 

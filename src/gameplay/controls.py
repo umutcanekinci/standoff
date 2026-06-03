@@ -12,10 +12,13 @@ Only the *local* player has a Controls; remote players are driven by the network
 
 from __future__ import annotations
 
+import math
 import os
 
 import pygame
 from pygame.math import Vector2 as Vec
+
+from util.constants import BARREL_OFFSET
 
 
 def is_android() -> bool:
@@ -166,15 +169,29 @@ class TouchControls(Controls):
         return Vec(self._move)
 
     def aim_angle(self, player, camera) -> float:
-        # Auto-aim: face the nearest mob (camera is translation-only, so world
-        # and screen directions share the same angle). No mobs -> hold facing.
+        # Auto-aim the nearest mob (camera is translation-only, so world and screen
+        # directions share the same angle). No mobs -> hold facing.
         mobs = getattr(player.world, "mobs", None)
-        if mobs:
-            nearest = min(
-                mobs, key=lambda m: (Vec(m.position) - player.position).length_squared()
-            )
-            return (Vec(nearest.position) - player.position).angle_to(Vec(1, 0))
-        return player.angle
+        if not mobs:
+            return player.angle
+
+        nearest = min(
+            mobs, key=lambda m: (Vec(m.position) - player.position).length_squared()
+        )
+        to_target = Vec(nearest.position) - player.position
+        base = to_target.angle_to(Vec(1, 0))
+
+        # Aim the GUN BARREL at the mob, not the player centre. A bullet leaves
+        # from center + BARREL_OFFSET.rotate(-angle), so a centre->target angle
+        # makes it fly parallel to that line but offset by the barrel's
+        # perpendicular component (BARREL_OFFSET.y) — a constant miss at any range.
+        # Rotating the aim by asin(side / distance) puts the barrel's ray on the
+        # target (verified to land the shot dead-on from point-blank to long range).
+        distance = to_target.length()
+        side = BARREL_OFFSET.y
+        if distance > abs(side):
+            base += math.degrees(math.asin(side / distance))
+        return base
 
     def is_firing(self) -> bool:
         return self._firing
