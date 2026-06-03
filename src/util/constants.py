@@ -7,20 +7,6 @@ import socket
 from enum import StrEnum
 from pygame.math import Vector2 as Vec
 
-# TODO
-# shooting improvements
-# mobs
-# sounds
-# pause screen
-# background music
-# character selection
-# item collecting
-# crafting
-# days
-# effects
-# takımlar birbiine saldırabilecek
-# aynı takımdakiler birbirine saldıramayacak
-
 # Colors
 Black = (0, 0, 0)
 White = (255, 255, 255)

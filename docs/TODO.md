@@ -1,0 +1,12 @@
+# TODO LIST
+- Add shoot, take damage sfx for more feedback and fun.
+- Add a lobby chat for players to communicate before the game starts.
+- Make better maps, and maybe preview map to see other player positions.
+- Wave manager
+- background music
+- return lobby and join gamae in pause menu and death screen
+- character specific weapons and stats
+- item collecting / crafting
+- days
+- effects
+- takımlar birbiine saldırabilecek && aynı takımdakiler birbirine saldıramayacak
