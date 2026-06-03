@@ -89,10 +89,9 @@ class LobbyScene(Scene):
 
         self._load_panels()
         self._build_dynamic_objects()
-        # Pre-fill the SERVER menu with the current defaults (editable by the user).
+        # Pre-fill the CONNECT menu with the current defaults (editable by the user).
         self._connecting = False
         self._connect_deadline = 0
-        self._on_connected = None  # continuation run once an async dial succeeds
         self._auto_joined = False  # one auto-join per browser visit (single room)
         self._text_input_on = False  # whether the soft keyboard is currently up
         self.panel_manager["server_menu"]["ip_input"].set_text(CLIENT_IP)
@@ -100,7 +99,8 @@ class LobbyScene(Scene):
         self.handlers = {
             "main_menu": self._handle_main_menu,
             "player_menu": self._handle_player_menu,
-            "game_type_menu": self._handle_game_type_menu,
+            "mode_menu": self._handle_mode_menu,
+            "server_lobby_menu": self._handle_server_lobby_menu,
             "create_room_menu": self._handle_create_room_menu,
             "connect_menu": self._handle_connect_menu,
             "server_menu": self._handle_server_menu,
@@ -199,12 +199,10 @@ class LobbyScene(Scene):
 
     def open_panel(self, name: str) -> None:
         self.panel_manager.current_panel = name
-        if name == "game_type_menu":
-            connected = self.game.client.is_connected
-            self.panel_manager[name]["create_room"].set_enabled(connected)
-            self.panel_manager[name]["connect"].set_enabled(connected)
+        if name == "mode_menu":
             # The Android build is client-only (no inbound sockets), so it can't
-            # host — grey the button there. Desktop can always host.
+            # host — grey the button there. Desktop can always host. The room
+            # actions no longer live here, so there's nothing else to gate.
             self.panel_manager[name]["host"].set_enabled(not is_android())
         elif name == "server_menu":
             # Reflect the live state when entering (e.g. already connected locally).
@@ -245,9 +243,9 @@ class LobbyScene(Scene):
     def update(self) -> None:
         self.panel_manager.update()
         self._sync_soft_keyboard()
-        # Both the SERVER menu (remote dial) and the HOST flow (loopback dial,
-        # which leaves us on game_type_menu) wait on an async connect.
-        if self.panel_manager.current_panel in ("server_menu", "game_type_menu"):
+        # Both the CONNECT menu (remote dial) and the HOST flow (loopback dial,
+        # which leaves us on mode_menu) wait on an async connect.
+        if self.panel_manager.current_panel in ("server_menu", "mode_menu"):
             self._poll_connection()
 
     def _sync_soft_keyboard(self) -> None:
@@ -279,10 +277,21 @@ class LobbyScene(Scene):
         current = self.panel_manager.current_panel
         if current == "player_menu":
             self.open_panel("main_menu")
-        elif current == "game_type_menu":
+        elif current == "mode_menu":
             self.open_panel("player_menu")
-        elif current in ("create_room_menu", "connect_menu", "server_menu"):
-            self.open_panel("game_type_menu")
+        elif current == "server_menu":
+            # Backing out before the dial completes — just cancel and return.
+            self.open_panel("mode_menu")
+        elif current == "server_lobby_menu":
+            # Leaving the server lobby means leaving the server.
+            self._disconnect_and_return()
+        elif current == "connect_menu":
+            self.open_panel("server_lobby_menu")
+        elif current == "create_room_menu":
+            # Offline reaches this straight from mode_menu; online via the lobby.
+            self.open_panel(
+                "server_lobby_menu" if self.game.mode == Mode.ONLINE else "mode_menu"
+            )
         elif current == "main_menu":
             self.game.exit()
 
@@ -309,34 +318,47 @@ class LobbyScene(Scene):
             self.set_player(
                 panel["name_input"].text, CHARACTER_LIST[self.selected_character]
             )
-            self.open_panel("game_type_menu")
+            self.open_panel("mode_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("main_menu")
 
-    def _handle_game_type_menu(self, event) -> None:
-        panel = self.panel_manager["game_type_menu"]
-        if self._clicked(panel["new_game"], event):
+    def _handle_mode_menu(self, event) -> None:
+        # Stage 1: pick how to play. PLAY OFFLINE goes straight to room creation;
+        # HOST and CONNECT establish a server connection and (on success) land on
+        # the server lobby, where the room actions live.
+        panel = self.panel_manager["mode_menu"]
+        if self._clicked(panel["play_offline"], event):
             self.game.mode = Mode.OFFLINE
             self.open_panel("create_room_menu")
         elif self._clicked(panel["host"], event):
             self._host_game()
-        elif self._clicked(panel["server"], event):
-            self.open_panel("server_menu")
-        elif self._clicked(panel["create_room"], event):
-            self.game.mode = Mode.ONLINE
-            self.open_panel("create_room_menu")
         elif self._clicked(panel["connect"], event):
-            self.game.mode = Mode.ONLINE
-            self.open_panel("connect_menu")
+            self.open_panel("server_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("player_menu")
+
+    def _handle_server_lobby_menu(self, event) -> None:
+        # Stage 2: we're on a server. mode is already ONLINE (set when we
+        # connected/hosted), so the room actions just navigate.
+        panel = self.panel_manager["server_lobby_menu"]
+        if self._clicked(panel["create_room"], event):
+            self.open_panel("create_room_menu")
+        elif self._clicked(panel["join_room"], event):
+            self.open_panel("connect_menu")
+        elif self._clicked(panel["disconnect"], event):
+            self._disconnect_and_return()
+
+    def _disconnect_and_return(self) -> None:
+        """Leave the server (and stop hosting if we were the host), back to stage 1."""
+        self.game.disconnect_from_server()
+        self.open_panel("mode_menu")
 
     def _handle_server_menu(self, event) -> None:
         panel = self.panel_manager["server_menu"]
         if self._clicked(panel["connect"], event):
             self._connect_to_server(panel["ip_input"].text, panel["port_input"].text)
         elif self._clicked(panel["back"], event):
-            self.open_panel("game_type_menu")
+            self.open_panel("mode_menu")
 
     def _connect_to_server(self, ip: str, port: str) -> None:
         # Fall back to the defaults for blank/garbage fields so a mistyped port
@@ -350,25 +372,23 @@ class LobbyScene(Scene):
 
     def _host_game(self) -> None:
         # Desktop only (gated in open_panel); start an in-process server and dial
-        # our own client at it, then drop into room creation as the ruler once
-        # the loopback connect lands. The dial is async like the SERVER menu's.
+        # our own client at it. The loopback connect is async like CONNECT's, and
+        # lands on the server lobby on success (see _poll_connection).
         if not self.game.host_server():
             return  # bind failed (port busy); the reason is in the debug log
         self.game.mode = Mode.ONLINE
-        self._begin_connect(then=lambda: self.open_panel("create_room_menu"))
+        self._begin_connect()
 
-    def _begin_connect(self, then=None) -> None:
-        """Arm the async-connect poll. `then` (if given) runs once on success,
-        replacing the default 'back to the SERVER menu' behaviour."""
+    def _begin_connect(self) -> None:
+        """Arm the async-connect poll. HOST and CONNECT both converge on the
+        server lobby once the dial lands."""
         self._connecting = True
-        self._on_connected = then
         self._connect_deadline = pygame.time.get_ticks() + 4000
 
     def _poll_connection(self) -> None:
         # Connecting is off-thread, so watch is_connected for the result and give
         # up after the deadline. On success, re-announce our player (a fresh
-        # connection doesn't know our name) and run the continuation, or fall back
-        # to returning to the now-enabled SERVER menu.
+        # connection doesn't know our name) and enter the server lobby.
         if not self._connecting:
             return
         if self.game.client.is_connected:
@@ -378,15 +398,10 @@ class LobbyScene(Scene):
                     Command.SET_PLAYER,
                     [self.game.player_info.name, self.game.player_info.character_name],
                 )
-            then, self._on_connected = self._on_connected, None
-            if then is not None:
-                then()
-            else:
-                self._set_server_status("Connected!", Green)
-                self.open_panel("game_type_menu")
+            self._set_server_status("Connected!", Green)
+            self.open_panel("server_lobby_menu")
         elif pygame.time.get_ticks() > self._connect_deadline:
             self._connecting = False
-            self._on_connected = None
             self._set_server_status("Could not connect", Red)
 
     def _set_server_status(self, text: str, color) -> None:
@@ -399,7 +414,9 @@ class LobbyScene(Scene):
         if self._clicked(panel["create"], event):
             self.create_room("level2")
         elif self._clicked(panel["back"], event):
-            self.open_panel("game_type_menu")
+            self.open_panel(
+                "server_lobby_menu" if self.game.mode == Mode.ONLINE else "mode_menu"
+            )
 
     def _handle_connect_menu(self, event) -> None:
         panel = self.panel_manager["connect_menu"]
@@ -413,7 +430,7 @@ class LobbyScene(Scene):
             text = panel["room_id_input"].text
             self.join_room(int(text) if text.isnumeric() else 0)
         elif self._clicked(panel["back"], event):
-            self.open_panel("game_type_menu")
+            self.open_panel("server_lobby_menu")
 
     def show_room_list(self, rooms) -> None:
         """Render a LIST_ROOMS reply into the row pool. `rooms` is a list of

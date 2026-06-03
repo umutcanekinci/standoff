@@ -62,15 +62,29 @@ panels:
       confirm:  { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CONFIRM" }
       back:     { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
 
-  game_type_menu:
+  # Stage 1: how/where to play. The room actions (create/join) used to live here
+  # too but were greyed out until you'd connected; they now live on
+  # server_lobby_menu, reached only once you're actually on a server — so this
+  # screen has no disabled buttons and the connection prerequisite is a real
+  # navigation step instead of an invisible one.
+  mode_menu:
     extends: [menu_chrome]
     objects:
-      new_game:    { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "NEW GAME" }
-      host:        { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "HOST GAME" }
-      server:      { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "SERVER" }
-      create_room: { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREATE ROOM" }
-      connect:     { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "CONNECT" }
-      back:        { extends: pill, parent: panel_bg, position: [CENTER, 430], text: "BACK" }
+      play_offline: { extends: pill, parent: panel_bg, position: [CENTER, 110], text: "PLAY OFFLINE" }
+      host:         { extends: pill, parent: panel_bg, position: [CENTER, 180], text: "HOST GAME" }
+      connect:      { extends: pill, parent: panel_bg, position: [CENTER, 250], text: "CONNECT" }
+      back:         { extends: pill, parent: panel_bg, position: [CENTER, 320], text: "BACK" }
+
+  # Stage 2: you are on a server (reached after HOST or CONNECT succeeds). Create
+  # a room or browse/join one; DISCONNECT drops the server (and stops hosting if
+  # we were the host) and returns to mode_menu.
+  server_lobby_menu:
+    extends: [menu_chrome]
+    objects:
+      lobby_label: { type: text, parent: panel_bg, position: [CENTER, 40], font_size: 40, text: "MULTIPLAYER" }
+      create_room: { extends: pill, parent: panel_bg, position: [CENTER, 130], text: "CREATE ROOM" }
+      join_room:   { extends: pill, parent: panel_bg, position: [CENTER, 200], text: "JOIN ROOM" }
+      disconnect:  { extends: pill, parent: panel_bg, position: [CENTER, 300], color: [0, 0, 255], hover_color: [255, 0, 0], text: "DISCONNECT" }
 
   server_menu:
     extends: [menu_chrome]

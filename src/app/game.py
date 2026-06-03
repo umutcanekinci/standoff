@@ -155,6 +155,19 @@ class Game(Application):
             self.server.close()
             self.server = None
 
+    def disconnect_from_server(self) -> None:
+        """Leave the current server from the lobby (the DISCONNECT button).
+
+        Politely tell the server we're going, drop our socket, then tear down the
+        embedded server if we were the host. stop_hosting() runs last so that
+        while the socket closes self.server is still set — that makes
+        _on_server_lost treat it as our own teardown and ignore it.
+        """
+        if self.client.is_connected:
+            self.client.send(Command.DISCONNECT)
+        self.client.disconnect()
+        self.stop_hosting()
+
     def _connect(self, address) -> None:
         # The transport client is game-unaware: it just pumps decoded messages
         # to get_data and connection status to debug_log. Connect off-thread so a
@@ -199,7 +212,8 @@ class Game(Application):
         if online and self.client.is_connected:
             self.client.send(Command.LEAVE_ROOM)
             if to_lobby:
-                self.lobby.open_panel("game_type_menu")
+                # Still on the server, just out of the room -> the server lobby.
+                self.lobby.open_panel("server_lobby_menu")
                 return
         self.lobby.open_panel("main_menu")
 
@@ -234,7 +248,7 @@ class Game(Application):
         # When LEAVE_ROOM was instead part of quitting a match (leave_match), we've
         # already chosen our destination, so don't let this async reply override it.
         if self.lobby.panel_manager.current_panel == "room_menu":
-            self.lobby.open_panel("game_type_menu")
+            self.lobby.open_panel("server_lobby_menu")
 
     def _on_update_player(self, value) -> None:
         if self.gameplay:
