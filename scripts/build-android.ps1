@@ -1,5 +1,5 @@
-# Build the Android debug APK via WSL (Ubuntu). Run from the project root:
-#   ./build-android.ps1
+# Build the Android debug APK via WSL (Ubuntu). Run from anywhere:
+#   ./scripts/build-android.ps1
 # Thin wrapper around tools/build_android.sh — see that script (and docs/android.md)
 # for what it does. Pass -InstallDeps the first time (or after changing build deps)
 # to (re)install the apt packages + buildozer venv.
@@ -15,8 +15,9 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
 $env:WSLENV = "INSTALL_DEPS"
 $installDeps = if ($InstallDeps) { "1" } else { "0" }
 
-# Run from the repo root so the script's `pwd` is this project under /mnt/c/...
-Push-Location $PSScriptRoot
+# cd to the repo root (one level up from scripts/) so the script's `pwd` is this
+# project under /mnt/c/... and tools/build_android.sh resolves.
+Push-Location (Split-Path $PSScriptRoot -Parent)
 try {
     wsl env INSTALL_DEPS=$installDeps bash tools/build_android.sh
 } finally {

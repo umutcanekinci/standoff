@@ -414,3 +414,9 @@ bin/
 
 # Server run logs
 logs/
+
+# Bundled tools — fetch separately, do not commit (see README)
+ngrok.exe
+
+# Build / run logs
+*.log

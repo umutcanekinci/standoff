@@ -32,10 +32,10 @@ Players and zombies start with **100 HP**. Zombies home in on the nearest player
 The host runs a dedicated server window:
 
 ```bash
-uv run python server.py     # or: server.bat
+uv run python server.py     # or: scripts/server.bat
 ```
 
-Clients launch the game, **Create Room** (host) or **Connect** by room ID (others). For play over the internet, the bundled `ngrok.exe` can expose the local server as a public endpoint; on the same LAN, clients connect directly.
+Clients launch the game, **Create Room** (host) or **Connect** by room ID (others). On the same LAN, clients connect directly to the host's IP. For play over the internet you'll need to reach the server's TCP port from outside — a mesh VPN like [Tailscale](https://tailscale.com/) (stable, encrypted, no port‑forwarding), a game‑oriented tunnel like [playit.gg](https://playit.gg/), or router port‑forwarding. (A TCP tunnel such as `ngrok` works too, but its free tier hands out a new address each session — fetch it yourself; it's no longer committed to the repo.)
 
 ## Requirements
 
@@ -54,7 +54,7 @@ uv run python __main__.py
 
 If you forgot `--recurse-submodules`: `git submodule update --init`.
 
-Without `uv`: `pip install .` then `python __main__.py` (Windows: `Standoff.bat`).
+Without `uv`: `pip install .` then `python __main__.py` (Windows: `scripts/Standoff.bat`).
 
 ## Project layout
 
@@ -74,6 +74,8 @@ config/                YAML: assets, panels
 assets/                Images, Tiled maps
 tests/                 Test suite — protocol/transport/game-server, unit → e2e
 bench/                 Headless performance benchmarks (mob capacity)
+scripts/               Windows launchers (Standoff.bat, server.bat, build-android.ps1)
+tools/                 Build helpers (build_android.sh)
 ```
 
 ## Architecture

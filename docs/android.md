@@ -74,7 +74,7 @@ rewrite.
      the Linux fs (faster + symlink-safe), builds, and copies the APK back to
      `bin/`:
      ```powershell
-     ./build-android.ps1                 # first run: ./build-android.ps1 -InstallDeps
+     ./scripts/build-android.ps1         # first run: ./scripts/build-android.ps1 -InstallDeps
      ```
      (or directly: `wsl bash tools/build_android.sh`). Then
      `adb install -r bin/standoff-*-debug.apk`.
