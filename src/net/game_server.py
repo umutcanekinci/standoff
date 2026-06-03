@@ -66,6 +66,7 @@ class GameServer:
             Command.LEAVE_ROOM: self._cmd_leave_room,
             Command.GET_READY: self._cmd_get_ready,
             Command.GET_UNREADY: self._cmd_get_unready,
+            Command.JOIN_GAME: self._cmd_join_game,
             Command.START_GAME: self._cmd_start_game,
             Command.SHOOT: self._cmd_shoot,
             Command.UPDATE_PLAYER: self._cmd_update_player,
@@ -202,10 +203,28 @@ class GameServer:
         self._update_room_mates(player)
 
     def _cmd_start_game(self, player: PlayerInfo, _value, _connection) -> None:
-        self._send(player.room, Command.START_GAME)
-        threading.Thread(
-            target=self.handle_room, args=(player.room,), daemon=True
-        ).start()
+        room = player.room
+        if room is None:
+            return
+        room.started = True  # lets late joiners drop straight in (see _cmd_join_game)
+        self._send(room, Command.START_GAME)
+        threading.Thread(target=self.handle_room, args=(room,), daemon=True).start()
+
+    def _cmd_join_game(self, player: PlayerInfo, _value, _connection) -> None:
+        # "Join Game" button. If the match is already running, drop this player in:
+        # START_GAME builds their scene, then one SPAWN per live mob seeds the mobs
+        # they missed (ongoing UPDATE_MOBS / UPDATE_PLAYER keep them in sync from
+        # there). If it hasn't started, just ready up and wait for the ruler.
+        room = player.room
+        if room is None:
+            return
+        if room.started:
+            self._send(player, Command.START_GAME)
+            for mob in self._room_mobs(room):
+                self._send(player, Command.SPAWN, mob)
+        else:
+            player.is_ready = True
+            self._update_room_mates(player)
 
     def _cmd_shoot(self, player: PlayerInfo, value, _connection) -> None:
         self._send(player.room, Command.SHOOT, value)
@@ -220,14 +239,26 @@ class GameServer:
     def _cmd_hit_mob(self, _player: PlayerInfo, value, _connection) -> None:
         # The server owns mob HP: apply the reported damage, and if the mob dies,
         # drop it from the sim and tell the room so every client removes it.
+        #
+        # HIT_MOB arrives on a per-connection thread, so two clients reporting hits
+        # on the same mob run this concurrently. Without the lock the read-modify-
+        # write on mob.hp drops a hit (the mob shrugs off damage it took) and both
+        # can `del` the same id. Guard the lookup+mutate+remove; the mob dict is
+        # also mutated/iterated by the sim thread (spawn_mob / _room_mobs), all
+        # under the same lock. Send KILL_MOB outside the lock to avoid holding it
+        # across the network.
         mob_id, damage = value
-        mob = self.mobs.get(mob_id)
-        if mob is None:
-            return  # already dead (another bullet got it, or stale report)
-        mob.hp -= damage
-        if mob.hp <= 0:
-            del self.mobs[mob_id]
-            self._send(mob.room, Command.KILL_MOB, mob_id)
+        killed = False
+        with self._lock:
+            mob = self.mobs.get(mob_id)
+            if mob is None:
+                return  # already dead (another bullet got it, or a stale report)
+            mob.hp -= damage
+            if mob.hp <= 0:
+                del self.mobs[mob_id]
+                killed, room = True, mob.room
+        if killed:
+            self._send(room, Command.KILL_MOB, mob_id)
 
     def _cmd_disconnect(
         self, _player: PlayerInfo, _value, connection: Connection
@@ -285,9 +316,12 @@ class GameServer:
         # The room numbers its own mobs from 0, which would collide across rooms in
         # the shared self.mobs / id-keyed messages. Reassign a server-global id
         # before storing and sending, so every live mob is uniquely addressable.
-        self._next_mob_id += 1
-        mob.id = self._next_mob_id
-        self.mobs[mob.id] = mob
+        # Locked: the id counter and the dict are also touched by other rooms'
+        # sim threads and by HIT_MOB on connection threads.
+        with self._lock:
+            self._next_mob_id += 1
+            mob.id = self._next_mob_id
+            self.mobs[mob.id] = mob
         self._send(room, Command.SPAWN, mob)
 
     def handle_room(self, room: Room) -> None:
@@ -306,7 +340,10 @@ class GameServer:
             self._broadcast_mobs(room)
 
     def _room_mobs(self, room: Room) -> list:
-        return [mob for mob in self.mobs.values() if mob.room is room]
+        # Snapshot under the lock: HIT_MOB can `del` from self.mobs on another
+        # thread mid-iteration ("dictionary changed size during iteration").
+        with self._lock:
+            return [mob for mob in self.mobs.values() if mob.room is room]
 
     def _simulate_mobs(self, room: Room, dt: float) -> None:
         players = [p for p in room if p.alive]  # dead players stop attracting mobs

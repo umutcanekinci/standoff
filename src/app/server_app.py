@@ -9,6 +9,8 @@ net.game_server / net.transport / net.protocol.
 from __future__ import annotations
 
 import threading
+from datetime import datetime
+from pathlib import Path
 from tkinter import Tk, Label, Text, Button, Frame, Entry, END
 from ctypes import windll
 
@@ -101,6 +103,16 @@ class Application(Tk):
     def __init__(self):
         super().__init__()
 
+        # Persist every log line to a timestamped file (one per run). print_log is
+        # called from server threads, so the file write is guarded by a lock. The
+        # Clear Log button wipes only the on-screen Text widget — the file keeps
+        # the full history, so a past session or a pre-clear crash is never lost.
+        self._log_lock = threading.Lock()
+        logs_dir = Path("logs")
+        logs_dir.mkdir(exist_ok=True)
+        self._log_path = logs_dir / f"server-{datetime.now():%Y%m%d-%H%M%S}.log"
+        self._log_file = open(self._log_path, "a", encoding="utf-8")
+
         # GUI is game-unaware beyond this: it hands the server a log callback and
         # then only calls serve()/close()/broadcast().
         self.server = GameServer(on_status=self.print_log)
@@ -180,6 +192,19 @@ class Application(Tk):
             x=self.width - 120, y=230, anchor="nw", width=100, height=50
         )
 
+        # Clears the on-screen log only; the file log (self._log_file) is untouched.
+        self.clear_log_button = Button(
+            main_frame,
+            bg="orange",
+            fg="white",
+            font=(FONT_NAME, 12),
+            text="CLEAR LOG",
+            command=self.clear_log,
+        )
+        self.clear_log_button.place(
+            x=self.width - 120, y=290, anchor="nw", width=100, height=50
+        )
+
         Label(main_frame, text="Command Entry", font=(FONT_NAME, 13)).place(
             x=20, y=self.height - 120, anchor="nw"
         )
@@ -241,6 +266,8 @@ class Application(Tk):
 
     def exit(self):
         self.close_server()
+        with self._log_lock:
+            self._log_file.close()
         self.destroy()
 
     def start_server(self):
@@ -279,10 +306,22 @@ class Application(Tk):
         self.send_button["state"] = "disabled"
 
     def print_log(self, text):
+        line = "[SERVER] => " + text
+        # On-screen view (transient — Clear Log wipes this).
         self.command_log.config(state="normal")
-        self.command_log.insert(END, "[SERVER] => " + text + "\n")
+        self.command_log.insert(END, line + "\n")
         self.command_log.config(state="disabled")
         self.command_log.yview(END)
+        # Persistent file (survives Clear Log, restarts, and crashes).
+        with self._log_lock:
+            self._log_file.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} {line}\n")
+            self._log_file.flush()
+
+    def clear_log(self):
+        # Wipe only the on-screen log; the file log keeps the full history.
+        self.command_log.config(state="normal")
+        self.command_log.delete("1.0", END)
+        self.command_log.config(state="disabled")
 
 
 if __name__ == "__main__":

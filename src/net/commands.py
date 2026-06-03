@@ -20,6 +20,9 @@ class Command:
     JOIN_ROOM = "!JOIN_ROOM"
     GET_READY = "!GET_READY"
     GET_UNREADY = "!GET_UNREADY"
+    # "Join Game": ready up if the match hasn't started, or drop straight into a
+    # match already in progress (server replies with START_GAME + the live mobs).
+    JOIN_GAME = "!JOIN_GAME"
     HIT_MOB = "!HIT_MOB"  # a client's bullet hit a mob; server owns the HP/kill
 
     # Server -> Client (state pushes)

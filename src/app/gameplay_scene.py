@@ -538,13 +538,32 @@ class GameplayScene(Scene):
         if mob:
             mob.kill()  # alive = False; pruned from the list next frame
 
+    def _ensure_remote_player(self, player_id):
+        # A player who joined the match in progress is invisible to those already
+        # in-world unless we add them on first sight. Their PlayerInfo rides in our
+        # synced room copy (server pushes UPDATE_ROOM on join); build a remote,
+        # network-driven Player from it the first time a message names their id.
+        existing = self.players.get_player_with_id(player_id)
+        if existing is not None or player_id == self.player.id:
+            return existing
+        info = next((p for p in self.game.player_info.room if p.id == player_id), None)
+        if info is None:
+            return None
+        player = self.players.add_player(info, Yellow)
+        self._alive_by_id.setdefault(player_id, True)
+        return player
+
     def update_player_position(self, player_id, position: tuple) -> None:
-        player = self.players.get_player_with_id(player_id)
+        player = self.players.get_player_with_id(
+            player_id
+        ) or self._ensure_remote_player(player_id)
         if player:  # may have just left; server can still relay stale updates
             player.target_position = Vec(position)
 
     def update_player_angle(self, player_id, angle) -> None:
-        player = self.players.get_player_with_id(player_id)
+        player = self.players.get_player_with_id(
+            player_id
+        ) or self._ensure_remote_player(player_id)
         if player:
             player.angle = angle
 
@@ -555,7 +574,16 @@ class GameplayScene(Scene):
         self._alive_by_id[player_id] = alive
         player = self.players.get_player_with_id(player_id)
         if player and not player.is_local:
+            was_alive = player.alive
             player.set_alive(alive)  # also swaps to a grey corpse / back on respawn
+            if alive and not was_alive:
+                # Respawn edge: the owner is back at full HP, but UPDATE_PLAYER
+                # carries no HP and remotes track it from their own local hit
+                # detection — so without this the health bar would keep reading its
+                # death-time value (0) on every other client. Reset only on the
+                # dead->alive transition, not every frame (which would pin remote
+                # HP to full and hide live damage).
+                player.set_hp(player.max_hp)
 
     def remove_player(self, player_id) -> None:
         player = self.players.get_player_with_id(player_id)

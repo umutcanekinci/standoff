@@ -411,3 +411,6 @@ bin/
 
 # Claude Code (local agent settings, scheduled-task locks, etc.)
 .claude/
+
+# Server run logs
+logs/

@@ -350,6 +350,7 @@ class LobbyScene(Scene):
             # toggle, the plain click for starting the game.
             command, sound_key = {
                 "start": (Command.START_GAME, "click"),
+                "join": (Command.JOIN_GAME, "switch_ready"),
                 "ready": (Command.GET_READY, "switch_ready"),
                 "unready": (Command.GET_UNREADY, "switch_unready"),
             }[self.room_action]
@@ -423,11 +424,9 @@ class LobbyScene(Scene):
             self.room_action = "start"
             self.room_action_button.set_label("START GAME")
             self.room_action_button.set_enabled(all_ready)
-        elif me.is_ready:
-            self.room_action = "unready"
-            self.room_action_button.set_label("UNREADY")
-            self.room_action_button.set_enabled(True)
         else:
-            self.room_action = "ready"
-            self.room_action_button.set_label("READY")
+            # One button for guests: ready up before the match, or drop into a
+            # match already in progress. The server picks which, per room.started.
+            self.room_action = "join"
+            self.room_action_button.set_label("JOIN GAME")
             self.room_action_button.set_enabled(True)

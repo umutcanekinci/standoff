@@ -283,6 +283,54 @@ def test_broadcast_mobs_sends_id_position_and_hp():
     assert entries == [(mob.id, (5, 6), mob.hp)]
 
 
+# ── Join in progress ────────────────────────────────────────────────────────
+
+
+def test_start_game_marks_room_started(monkeypatch):
+    gs = GameServer()
+    host = _host_in_room(gs)
+    # Don't spin up the real mob-sim thread; we only care about the flag + message.
+    monkeypatch.setattr(gs, "handle_room", lambda room: None)
+
+    gs._on_message(host, {"command": "!START_GAME"})
+
+    assert gs.room_list[1].started is True
+    assert host.last_with("!START_GAME") is not None
+
+
+def test_join_game_in_progress_sends_start_and_live_mobs():
+    gs = GameServer()
+    _host_in_room(gs)
+    room = gs.room_list[1]
+    room.started = True  # match already running
+    # Mobs spawn while only the host is in the room, so the late joiner never saw
+    # these SPAWNs — exactly the case that left them in an empty world.
+    gs.spawn_mob(room, MobInfo(1, room, (0, 0), (5, 6)))
+    gs.spawn_mob(room, MobInfo(2, room, (0, 0), (7, 8)))
+
+    joiner = _connect(gs)
+    gs._on_message(joiner, {"command": "!JOIN_ROOM", "value": 1})
+    gs._on_message(joiner, {"command": "!JOIN_GAME"})
+
+    assert joiner.last_with("!START_GAME") is not None  # builds their scene
+    spawns = [m for m in joiner.sent if m["command"] == "!SPAWN"]
+    assert len(spawns) == 2  # seeded with both live mobs they'd missed
+
+
+def test_join_game_before_start_just_readies_player():
+    gs = GameServer()
+    _host_in_room(gs)
+    joiner = _connect(gs)
+    gs._on_message(joiner, {"command": "!JOIN_ROOM", "value": 1})
+    joiner_player = gs._players_by_connection[joiner]
+    assert joiner_player.is_ready is False
+
+    gs._on_message(joiner, {"command": "!JOIN_GAME"})
+
+    assert joiner_player.is_ready is True
+    assert joiner.last_with("!START_GAME") is None  # not started -> no drop-in
+
+
 def test_simulate_mobs_separates_stacked_mobs():
     gs = GameServer()
     _host_in_room(gs)

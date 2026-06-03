@@ -19,6 +19,10 @@ class Room(list[PlayerInfo]):
         self.map_name = map_name
         self.base_points = base_points
         self.is_online = is_online
+        # True once the match has started, so a player who joins (or readies up)
+        # afterwards can be dropped straight into the game in progress instead of
+        # being stranded in the lobby. Server-authoritative; not serialised.
+        self.started = False
 
         # Mob spawner
         self.mob_id = 0
