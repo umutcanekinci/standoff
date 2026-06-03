@@ -78,6 +78,44 @@ def test_join_full_room_is_rejected():
     assert joiner.last_with("!UPDATE_ROOM")["value"] is False
 
 
+def test_list_rooms_returns_public_room_summaries():
+    gs = GameServer()
+    host = _connect(gs)
+    gs._on_message(
+        host, {"command": "!CREATE_ROOM", "value": ("map", {0: (0, 0), 1: (10, 10)})}
+    )
+
+    asker = _connect(gs)
+    gs._on_message(asker, {"command": "!LIST_ROOMS"})
+
+    rooms = asker.last_with("!LIST_ROOMS")["value"]
+    assert len(rooms) == 1
+    summary = rooms[0]
+    assert summary["id"] == 1
+    assert summary["map_name"] == "map"
+    assert summary["players"] == 1  # the host
+    assert summary["size"] == 2
+    assert summary["started"] is False
+
+
+def test_list_rooms_excludes_private_rooms():
+    gs = GameServer()
+    host = _connect(gs)
+    # A private room (is_public=False) must not surface in the browser.
+    gs._on_message(
+        host,
+        {"command": "!CREATE_ROOM", "value": ("map", {0: (0, 0), 1: (10, 10)}, False)},
+    )
+
+    asker = _connect(gs)
+    gs._on_message(asker, {"command": "!LIST_ROOMS"})
+
+    assert asker.last_with("!LIST_ROOMS")["value"] == []
+    # ...but it's still joinable by id (room 1 was created).
+    gs._on_message(asker, {"command": "!JOIN_ROOM", "value": 1})
+    assert len(gs.room_list[1]) == 2
+
+
 def test_leaving_last_player_deletes_room():
     gs = GameServer()
     host = _connect(gs)

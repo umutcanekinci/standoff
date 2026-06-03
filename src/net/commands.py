@@ -18,6 +18,9 @@ class Command:
     SET_PLAYER = "!SET_PLAYER"
     CREATE_ROOM = "!CREATE_ROOM"
     JOIN_ROOM = "!JOIN_ROOM"
+    # Room browser: client sends with no value, server replies with the same
+    # command name carrying a list of public-room summaries (see _cmd_list_rooms).
+    LIST_ROOMS = "!LIST_ROOMS"
     GET_READY = "!GET_READY"
     GET_UNREADY = "!GET_UNREADY"
     # "Join Game": ready up if the match hasn't started, or drop straight into a

@@ -62,6 +62,7 @@ class GameServer:
         self._handlers = {
             Command.SET_PLAYER: self._cmd_set_player,
             Command.JOIN_ROOM: self._cmd_join_room,
+            Command.LIST_ROOMS: self._cmd_list_rooms,
             Command.CREATE_ROOM: self._cmd_create_room,
             Command.LEAVE_ROOM: self._cmd_leave_room,
             Command.GET_READY: self._cmd_get_ready,
@@ -185,6 +186,27 @@ class GameServer:
     def _cmd_join_room(self, player: PlayerInfo, value, _connection) -> None:
         self._join_room(player, value)
 
+    def _cmd_list_rooms(self, player: PlayerInfo, _value, _connection) -> None:
+        # Reply with a lightweight summary of every public room (private rooms are
+        # reachable only by id). The client renders these as the room browser; it
+        # never needs the heavy Room payload (players, base_points) just to list.
+        rooms = [
+            self._room_summary(room)
+            for room in self.room_list.values()
+            if room.is_public
+        ]
+        self._send(player, Command.LIST_ROOMS, rooms)
+
+    @staticmethod
+    def _room_summary(room: Room) -> dict:
+        return {
+            "id": room.id,
+            "map_name": room.map_name,
+            "players": len(room),
+            "size": room.size,
+            "started": room.started,
+        }
+
     def _cmd_create_room(self, player: PlayerInfo, value, _connection) -> None:
         self.create_room(*value)
         player.join_room(self.room_list[self._next_room_id], True)
@@ -274,7 +296,7 @@ class GameServer:
         else:
             self._send(player, Command.UPDATE_ROOM, False)
 
-    def create_room(self, map_name, base_points) -> None:
+    def create_room(self, map_name, base_points, is_public=True) -> None:
         # base_points arrives from the client as {base_number: (x, y)}, but JSON
         # turns the int keys into strings and the points into lists. Normalise back
         # so base numbers stay ints (used to index spawn points) and points stay
@@ -285,7 +307,9 @@ class GameServer:
         with self._lock:
             self._next_room_id += 1
             room_id = self._next_room_id
-        self.room_list[room_id] = Room(room_id, map_name, base_points)
+        self.room_list[room_id] = Room(
+            room_id, map_name, base_points, is_public=is_public
+        )
 
     def leave_room(self, player: PlayerInfo) -> None:
         room = player.room

@@ -26,7 +26,12 @@ from util.constants import (
     Green,
     Yellow,
     White,
+    Blue,
 )
+
+# How many room rows the browser shows at once (no scrolling yet); extra public
+# rooms are reported in the status line.
+BROWSER_ROWS = 4
 from pygame_core.asset_path import AssetPath
 from pygame_core.panel_manager import PanelManager
 from pygame_core.panel_loader_ext import PanelLoaderExt
@@ -61,6 +66,8 @@ class LobbyScene(Scene):
     character_name_text: TextObject
     room_slots: list
     room_action_button: ShapeButton
+    room_rows: list  # clickable room-browser rows (connect_menu)
+    room_row_ids: list  # room id behind each row, parallel to room_rows
 
     def __init__(self, game: "Game") -> None:
         super().__init__(game)
@@ -85,6 +92,8 @@ class LobbyScene(Scene):
         # Pre-fill the SERVER menu with the current defaults (editable by the user).
         self._connecting = False
         self._connect_deadline = 0
+        self._on_connected = None  # continuation run once an async dial succeeds
+        self._auto_joined = False  # one auto-join per browser visit (single room)
         self._text_input_on = False  # whether the soft keyboard is currently up
         self.panel_manager["server_menu"]["ip_input"].set_text(CLIENT_IP)
         self.panel_manager["server_menu"]["port_input"].set_text(str(CLIENT_PORT))
@@ -167,12 +176,36 @@ class LobbyScene(Scene):
         self.room_action_button.plays_click = False
         pm.add_object("room_menu", "action_button", self.room_action_button)
 
+        # Room-browser rows (connect_menu): a pool of buttons, each a clickable
+        # room. Filled/hidden by show_room_list; the room id behind each lives in
+        # the parallel room_row_ids list. Built inactive (no rooms yet).
+        browser_bg = pm["connect_menu"]["panel_bg"].rect
+        self.room_rows = []
+        self.room_row_ids = []
+        for i in range(BROWSER_ROWS):
+            row = ShapeButton(
+                browser_bg,
+                ("CENTER", round((66 + i * 48) * k)),
+                (round(360 * k), round(42 * k)),
+                normal_color=Blue,
+                hover_color=Green,
+                text="",
+                text_size=round(24 * k),
+            )
+            row.active = False
+            pm.add_object("connect_menu", f"room_row_{i}", row)
+            self.room_rows.append(row)
+            self.room_row_ids.append(None)
+
     def open_panel(self, name: str) -> None:
         self.panel_manager.current_panel = name
         if name == "game_type_menu":
             connected = self.game.client.is_connected
             self.panel_manager[name]["create_room"].set_enabled(connected)
             self.panel_manager[name]["connect"].set_enabled(connected)
+            # The Android build is client-only (no inbound sockets), so it can't
+            # host — grey the button there. Desktop can always host.
+            self.panel_manager[name]["host"].set_enabled(not is_android())
         elif name == "server_menu":
             # Reflect the live state when entering (e.g. already connected locally).
             self._connecting = False
@@ -180,6 +213,14 @@ class LobbyScene(Scene):
                 self._set_server_status("Connected", Green)
             else:
                 self._set_server_status("", White)
+        elif name == "connect_menu":
+            # Open the browser empty and ask the server for its public rooms; the
+            # reply lands in show_room_list. Reset the one-shot auto-join.
+            self._auto_joined = False
+            for row in self.room_rows:
+                row.active = False
+            self._set_browser_status("Loading rooms...", White)
+            self.game.client.send(Command.LIST_ROOMS)
 
     @staticmethod
     def _display_name(name: str) -> str:
@@ -204,7 +245,9 @@ class LobbyScene(Scene):
     def update(self) -> None:
         self.panel_manager.update()
         self._sync_soft_keyboard()
-        if self.panel_manager.current_panel == "server_menu":
+        # Both the SERVER menu (remote dial) and the HOST flow (loopback dial,
+        # which leaves us on game_type_menu) wait on an async connect.
+        if self.panel_manager.current_panel in ("server_menu", "game_type_menu"):
             self._poll_connection()
 
     def _sync_soft_keyboard(self) -> None:
@@ -275,6 +318,8 @@ class LobbyScene(Scene):
         if self._clicked(panel["new_game"], event):
             self.game.mode = Mode.OFFLINE
             self.open_panel("create_room_menu")
+        elif self._clicked(panel["host"], event):
+            self._host_game()
         elif self._clicked(panel["server"], event):
             self.open_panel("server_menu")
         elif self._clicked(panel["create_room"], event):
@@ -300,14 +345,30 @@ class LobbyScene(Scene):
         port = int(port) if port.strip().isdigit() else CLIENT_PORT
         self.game.mode = Mode.ONLINE
         self.game.connect_to_server(ip, port)
-        self._connecting = True
-        self._connect_deadline = pygame.time.get_ticks() + 4000
         self._set_server_status(f"Connecting to {ip}:{port}...", Yellow)
+        self._begin_connect()
+
+    def _host_game(self) -> None:
+        # Desktop only (gated in open_panel); start an in-process server and dial
+        # our own client at it, then drop into room creation as the ruler once
+        # the loopback connect lands. The dial is async like the SERVER menu's.
+        if not self.game.host_server():
+            return  # bind failed (port busy); the reason is in the debug log
+        self.game.mode = Mode.ONLINE
+        self._begin_connect(then=lambda: self.open_panel("create_room_menu"))
+
+    def _begin_connect(self, then=None) -> None:
+        """Arm the async-connect poll. `then` (if given) runs once on success,
+        replacing the default 'back to the SERVER menu' behaviour."""
+        self._connecting = True
+        self._on_connected = then
+        self._connect_deadline = pygame.time.get_ticks() + 4000
 
     def _poll_connection(self) -> None:
         # Connecting is off-thread, so watch is_connected for the result and give
         # up after the deadline. On success, re-announce our player (a fresh
-        # connection doesn't know our name) and return to the now-enabled menu.
+        # connection doesn't know our name) and run the continuation, or fall back
+        # to returning to the now-enabled SERVER menu.
         if not self._connecting:
             return
         if self.game.client.is_connected:
@@ -317,10 +378,15 @@ class LobbyScene(Scene):
                     Command.SET_PLAYER,
                     [self.game.player_info.name, self.game.player_info.character_name],
                 )
-            self._set_server_status("Connected!", Green)
-            self.open_panel("game_type_menu")
+            then, self._on_connected = self._on_connected, None
+            if then is not None:
+                then()
+            else:
+                self._set_server_status("Connected!", Green)
+                self.open_panel("game_type_menu")
         elif pygame.time.get_ticks() > self._connect_deadline:
             self._connecting = False
+            self._on_connected = None
             self._set_server_status("Could not connect", Red)
 
     def _set_server_status(self, text: str, color) -> None:
@@ -337,11 +403,64 @@ class LobbyScene(Scene):
 
     def _handle_connect_menu(self, event) -> None:
         panel = self.panel_manager["connect_menu"]
+        # A click on a listed room joins it directly (public rooms).
+        for i, row in enumerate(self.room_rows):
+            if row.active and self._clicked(row, event):
+                self.join_room(self.room_row_ids[i])
+                return
+        # The text field is for private rooms, which aren't listed.
         if self._clicked(panel["join"], event):
             text = panel["room_id_input"].text
             self.join_room(int(text) if text.isnumeric() else 0)
         elif self._clicked(panel["back"], event):
             self.open_panel("game_type_menu")
+
+    def show_room_list(self, rooms) -> None:
+        """Render a LIST_ROOMS reply into the row pool. `rooms` is a list of
+        {id, map_name, players, size, started}. Auto-joins a lone open room once
+        per visit so a local listen-server (one room) needs no clicks."""
+        # Ignore a reply that lands after the player left the browser, so a stale
+        # single-room list can't auto-join (or repaint) them elsewhere.
+        if self.panel_manager.current_panel != "connect_menu":
+            return
+        for i, row in enumerate(self.room_rows):
+            if i < len(rooms):
+                room = rooms[i]
+                full = room["players"] >= room["size"]
+                tag = " (in game)" if room["started"] else ""
+                row.set_label(
+                    f"Room {room['id']}  {room['players']}/{room['size']}{tag}"
+                )
+                row.set_enabled(not full)  # can't join a full room
+                row.active = True
+                self.room_row_ids[i] = room["id"]
+            else:
+                row.active = False
+                self.room_row_ids[i] = None
+
+        if not rooms:
+            self._set_browser_status("No public rooms — create one", White)
+        elif len(rooms) > len(self.room_rows):
+            self._set_browser_status(
+                f"Showing {len(self.room_rows)} of {len(rooms)} rooms", White
+            )
+        else:
+            self._set_browser_status("", White)
+
+        # One open room: drop straight in (the listen-server case). Guarded so a
+        # later refresh with the same single room doesn't yank a browsing player.
+        if (
+            not self._auto_joined
+            and len(rooms) == 1
+            and rooms[0]["players"] < rooms[0]["size"]
+        ):
+            self._auto_joined = True
+            self.join_room(rooms[0]["id"])
+
+    def _set_browser_status(self, text: str, color) -> None:
+        status = self.panel_manager["connect_menu"]["status_text"]
+        status.set_text(text)
+        status.set_color(color)
 
     def _handle_room_menu(self, event) -> None:
         panel = self.panel_manager["room_menu"]

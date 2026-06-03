@@ -8,7 +8,7 @@ from net.player_info import PlayerInfo, MobInfo
 
 
 class Room(list[PlayerInfo]):
-    def __init__(self, room_id, map_name, base_points, is_online=True):
+    def __init__(self, room_id, map_name, base_points, is_online=True, is_public=True):
         super().__init__()
 
         if not pygame.get_init():
@@ -19,6 +19,10 @@ class Room(list[PlayerInfo]):
         self.map_name = map_name
         self.base_points = base_points
         self.is_online = is_online
+        # Public rooms appear in the room browser (LIST_ROOMS); private ones are
+        # reachable only by typing their id. Listen-server games default public so
+        # a LAN friend who connects sees the host's room without knowing its id.
+        self.is_public = is_public
         # True once the match has started, so a player who joins (or readies up)
         # afterwards can be dropped straight into the game in progress instead of
         # being stranded in the lobby. Server-authoritative; not serialised.
@@ -68,6 +72,7 @@ class Room(list[PlayerInfo]):
             "map_name": self.map_name,
             "size": self.size,
             "is_online": self.is_online,
+            "is_public": self.is_public,
             "base_points": [
                 [number, list(point)] for number, point in self.base_points.items()
             ],
@@ -80,7 +85,11 @@ class Room(list[PlayerInfo]):
             int(number): tuple(point) for number, point in data.get("base_points", [])
         }
         room = cls(
-            data["id"], data["map_name"], base_points, data.get("is_online", True)
+            data["id"],
+            data["map_name"],
+            base_points,
+            data.get("is_online", True),
+            data.get("is_public", True),
         )
         for player in data.get("players", []):  # already PlayerInfo (object_hook)
             player.room = room

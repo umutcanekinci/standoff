@@ -66,10 +66,11 @@ panels:
     extends: [menu_chrome]
     objects:
       new_game:    { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "NEW GAME" }
-      server:      { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "SERVER" }
-      create_room: { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "CREATE ROOM" }
-      connect:     { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CONNECT" }
-      back:        { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
+      host:        { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "HOST GAME" }
+      server:      { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "SERVER" }
+      create_room: { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREATE ROOM" }
+      connect:     { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "CONNECT" }
+      back:        { extends: pill, parent: panel_bg, position: [CENTER, 430], text: "BACK" }
 
   server_menu:
     extends: [menu_chrome]
@@ -89,23 +90,17 @@ panels:
       create: { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREATE" }
       back:   { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "BACK" }
 
+  # Room browser. The clickable room rows are added in code (LobbyScene
+  # ._build_dynamic_objects) like the room_menu slots; the static chrome below is
+  # the title, a status line, and the private "join by id" controls.
   connect_menu:
     extends: [menu_chrome]
     objects:
-      join_label:
-        type: text
-        parent: panel_bg
-        position: [CENTER, 100]
-        font_size: 40
-        text: "JOIN A ROOM"
-      room_id_input:
-        type: input
-        parent: panel_bg
-        position: [CENTER, 150]
-        size: [300, 40]
-        placeholder: "Please enter a room ID..."
-      join: { extends: pill, parent: panel_bg, position: [CENTER, 250], text: "JOIN" }
-      back: { extends: pill, parent: panel_bg, position: [CENTER, 320], text: "BACK" }
+      browser_label: { type: text, parent: panel_bg, position: [CENTER, 18],  font_size: 38, text: "ROOMS" }
+      status_text:   { type: text, parent: panel_bg, position: [CENTER, 256], font_size: 22, text: "" }
+      room_id_input: { type: input, parent: panel_bg, position: [CENTER, 296], size: [300, 40], placeholder: "Private room ID..." }
+      join:          { extends: pill, parent: panel_bg, position: [CENTER, 350], text: "JOIN BY ID" }
+      back:          { extends: pill, parent: panel_bg, position: [CENTER, 420], text: "BACK" }
 
   room_menu:
     extends: [menu_chrome]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from typing import override
 
 import pygame
@@ -11,6 +12,7 @@ from util.constants import (
     BACKGROUND_COLORS,
     FPS,
     CLIENT_ADDR,
+    SERVER_PORT,
     Mode,
 )
 from pygame_core.application import Application
@@ -18,6 +20,7 @@ from pygame_core.asset_manager import AssetManager
 from pygame_core.debug import Debug
 
 from pygame_core.net.transport import BaseClient
+from net.game_server import GameServer
 from net.wire import make_protocol
 from app.lobby_scene import LobbyScene
 from app.gameplay_scene import GameplayScene
@@ -62,6 +65,11 @@ class Game(Application):
         self.mode: Mode | None = None
         self.player_info = None
 
+        # When the player hosts from the menu we run a GameServer in-process (a
+        # "listen server"); the host plays through the same loopback socket as a
+        # remote client, so it's never privileged. None when we're a pure client.
+        self.server: GameServer | None = None
+
         # Game owns the active scene and forwards the loop to it. The lobby is
         # persistent (kept across a play session so we can return to it); the
         # gameplay scene is created on start() and dropped on back-to-menu.
@@ -75,6 +83,7 @@ class Game(Application):
         # self.gameplay (and safely no-op when not in-world).
         self._message_handlers = {
             Command.SET_PLAYER_COUNT: self.lobby.update_player_count,
+            Command.LIST_ROOMS: self._on_list_rooms,
             Command.UPDATE_ROOM: self._on_update_room,
             Command.LEAVE_ROOM: self._on_leave_room,
             Command.START_GAME: self._on_start_game,
@@ -111,6 +120,41 @@ class Game(Application):
             self.client.disconnect()
         self._connect((ip, port))
 
+    def host_server(self, port: int = SERVER_PORT) -> bool:
+        """Start an in-process server on this machine, then dial our own client
+        at it. Returns whether the server came up.
+
+        Binds to 0.0.0.0 ("") so LAN friends (or an ngrok tunnel on the same
+        port) can reach it, while our local client always connects via loopback.
+        Idempotent: calling it again while already hosting is a no-op.
+        """
+        if self.server is not None and self.server.is_running:
+            return True
+
+        self.server = GameServer(on_status=self.debug_log)
+        threading.Thread(
+            target=self.server.serve, args=(("", port),), daemon=True
+        ).start()
+
+        # serve() binds+listens before flipping is_running; wait briefly so our
+        # client doesn't dial the loopback port before accept() is up (which
+        # would just fail the connect). A local bind needs only a few ms.
+        deadline = time.time() + 1.0
+        while not self.server.is_running and time.time() < deadline:
+            time.sleep(0.01)
+        if not self.server.is_running:
+            self.debug_log("[HOST] server did not start (port already in use?)")
+            self.server = None
+            return False
+
+        self.connect_to_server("127.0.0.1", port)
+        return True
+
+    def stop_hosting(self) -> None:
+        if self.server is not None:
+            self.server.close()
+            self.server = None
+
     def _connect(self, address) -> None:
         # The transport client is game-unaware: it just pumps decoded messages
         # to get_data and connection status to debug_log. Connect off-thread so a
@@ -140,6 +184,9 @@ class Game(Application):
         handler = self._message_handlers.get(command)
         if handler:
             handler(value)
+
+    def _on_list_rooms(self, value) -> None:
+        self.lobby.show_room_list(value or [])
 
     def _on_update_room(self, value) -> None:
         if value:
@@ -250,4 +297,5 @@ class Game(Application):
         if self.client.is_connected:
             self.client.send(Command.DISCONNECT)
         self.client.disconnect()
+        self.stop_hosting()  # tear down the embedded server if we were hosting
         super().exit()
