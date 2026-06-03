@@ -209,7 +209,7 @@ class GameServer:
 
     def _cmd_create_room(self, player: PlayerInfo, value, _connection) -> None:
         self.create_room(*value)
-        player.join_room(self.room_list[self._next_room_id], True)
+        self.room_list[self._next_room_id].add_player(player, True)
         self._send(player, Command.UPDATE_ROOM, player)
         self._log(f"{player.name} ({player.id}) created room {self._next_room_id}.")
 
@@ -290,7 +290,7 @@ class GameServer:
     def _join_room(self, player: PlayerInfo, room_id: int) -> None:
         room = self.room_list.get(room_id)
         if room is not None and len(room) < room.size:
-            player.join_room(room, False)
+            room.add_player(player, False)
             self._log(f"{player.name} ({player.id}) joined room {room_id}.")
             self._update_room_mates(player)
         else:
@@ -316,7 +316,7 @@ class GameServer:
         if not room:
             return
 
-        player.leave_room()
+        room.remove_player(player)
         self._log(f"{player.name} ({player.IP}) left room {room.id}.")
         self._log(f"Room {room.id} now has {len(room)} players.")
 

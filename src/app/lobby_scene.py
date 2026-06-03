@@ -496,7 +496,9 @@ class LobbyScene(Scene):
         if self.game.mode == Mode.ONLINE:
             self.game.client.send(Command.CREATE_ROOM, (map_name, base_points))
         elif self.game.mode == Mode.OFFLINE:
-            self.game.player_info.join_room(Room(1, map_name, base_points, False), True)
+            Room(1, map_name, base_points, False).add_player(
+                self.game.player_info, True
+            )
             self.game.start()
 
     def join_room(self, room_id):

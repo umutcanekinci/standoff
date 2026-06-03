@@ -14,9 +14,12 @@ Building the Protocol from net.wire.make_protocol() (not a hand-rolled codec)
 means these also guard that WIRE_TYPES stays in sync with the classes.
 """
 
+import pytest
+
 from net.wire import make_protocol, WIRE_TYPES
 from net.player_info import PlayerInfo, MobInfo
 from net.room import Room
+from pygame_core.net.protocol import ProtocolError
 from _util import FakeSocket
 
 
@@ -32,8 +35,8 @@ def _populated_room() -> tuple[Room, PlayerInfo, PlayerInfo]:
     room = Room(7, "dust", {0: (10, 20), 1: (30, 40)})
     ruler = PlayerInfo(1, ("1.2.3.4", 5000), name="alice", character_name="red")
     guest = PlayerInfo(2, ("5.6.7.8", 6000), name="bob", character_name="blue")
-    ruler.join_room(room, is_ruler=True)
-    guest.join_room(room, is_ruler=False)
+    room.add_player(ruler, is_ruler=True)
+    room.add_player(guest, is_ruler=False)
     return room, ruler, guest
 
 
@@ -127,3 +130,56 @@ def test_mobinfo_round_trip_drops_server_only_fields():
     assert out.target_base == (10, 20) and isinstance(out.target_base, tuple)
     assert out.hp == 50
     assert out.room is None
+
+
+# from_dict decodes bytes from a possibly hostile peer. It must turn every
+# malformed payload into a ValueError, which Protocol.recv maps to ProtocolError
+# (a cleanly dropped message). A raw KeyError/TypeError would instead escape
+# json.loads and crash the connection's decode thread — the failure these guard.
+# A __type__-tagged dict is plain JSON, so the real codec frames it untouched on
+# send and only rebuilds it via from_dict on recv: exactly the hostile path.
+@pytest.mark.parametrize(
+    "label, payload",
+    [
+        ("PlayerInfo missing id", {"__type__": "PlayerInfo", "position": [1, 2]}),
+        (
+            "PlayerInfo non-numeric point",
+            {"__type__": "PlayerInfo", "id": 1, "position": ["x", 2]},
+        ),
+        (
+            "PlayerInfo bool as coord",
+            {"__type__": "PlayerInfo", "id": 1, "position": [True, 2]},
+        ),
+        (
+            "PlayerInfo room is not a Room",
+            {"__type__": "PlayerInfo", "id": 1, "room": {"not": "a room"}},
+        ),
+        ("MobInfo missing position", {"__type__": "MobInfo", "id": 9}),
+        ("Room missing map_name", {"__type__": "Room", "id": 3}),
+        (
+            "Room non-numeric base_point",
+            {
+                "__type__": "Room",
+                "id": 3,
+                "map_name": "m",
+                "base_points": [[0, [1, "y"]]],
+            },
+        ),
+        (
+            "Room base_point wrong arity",
+            {
+                "__type__": "Room",
+                "id": 3,
+                "map_name": "m",
+                "base_points": [[0, [1, 2, 3]]],
+            },
+        ),
+    ],
+)
+def test_malformed_payload_is_dropped_not_crashed(label, payload):
+    proto = make_protocol()
+    writer = FakeSocket()
+    proto.send(writer, {"command": "!X", "value": payload})
+
+    with pytest.raises(ProtocolError):
+        proto.recv(FakeSocket(writer.sent))

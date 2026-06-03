@@ -4,7 +4,7 @@ import pygame
 import random
 
 from util.constants import MAX_ROOM_SIZE, SPAWN_RATE, TILE_WIDTH, TILE_HEIGHT
-from net.player_info import PlayerInfo, MobInfo
+from net.player_info import PlayerInfo, MobInfo, _require, _as_point
 
 
 class Room(list[PlayerInfo]):
@@ -31,6 +31,30 @@ class Room(list[PlayerInfo]):
         # Mob spawner
         self.mob_id = 0
         self.last_spawn = 0
+
+    # Roster management. The room owns base-slot assignment because it owns
+    # base_points; PlayerInfo just carries the resulting back-ref. Callers guard
+    # capacity (len(room) < room.size) before add_player, so the slot search
+    # below always finds a free number.
+    def add_player(self, player: PlayerInfo, is_ruler: bool) -> None:
+        player.is_ready = is_ruler
+        player.is_ruler = is_ruler
+        player.room = self
+        # Take the first base point not already claimed by a room mate (len()-based
+        # numbering breaks when a player leaves and another joins). Compute over
+        # the current members before appending, so the new player can't exclude
+        # its own (still-unset) slot.
+        used = {mate.base_number for mate in self if mate.base_number is not None}
+        player.base_number = next(
+            number for number in self.base_points if number not in used
+        )
+        player.base_point = self.base_points[player.base_number]
+        player.position = player.base_point
+        self.append(player)
+
+    def remove_player(self, player: PlayerInfo) -> None:
+        self.remove(player)
+        player.room = None
 
     def handle_spawner(self, spawn_func):
         now = pygame.time.get_ticks()
@@ -81,17 +105,30 @@ class Room(list[PlayerInfo]):
 
     @classmethod
     def from_dict(cls, data: dict) -> "Room":
-        base_points = {
-            int(number): tuple(point) for number, point in data.get("base_points", [])
-        }
+        # Decodes bytes from a possibly hostile peer: every malformed shape must
+        # degrade to ValueError (a dropped message), never KeyError/TypeError
+        # (a crashed decode thread). See the guards in player_info.py.
+        base_points = {}
+        for entry in data.get("base_points", []):
+            try:
+                number, point = entry
+                number = int(number)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"malformed base_points entry {entry!r}") from exc
+            base_points[number] = _as_point(point)
+
         room = cls(
-            data["id"],
-            data["map_name"],
+            _require(data, "id"),
+            _require(data, "map_name"),
             base_points,
             data.get("is_online", True),
             data.get("is_public", True),
         )
         for player in data.get("players", []):  # already PlayerInfo (object_hook)
+            if not isinstance(player, PlayerInfo):
+                raise ValueError(
+                    f"room players must be PlayerInfo, got {type(player).__name__}"
+                )
             player.room = room
             room.append(player)
         return room

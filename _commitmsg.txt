@@ -1,0 +1,20 @@
+net: harden wire decode + move room membership off the DTO
+
+from_dict runs inside the codec's json.loads on bytes from an untrusted
+peer. Raw data[id] / tuple(data[position]) raised KeyError/TypeError,
+which json.loads propagates up; Protocol.recv only catches ValueError, so
+one malformed packet crashed the connection's decode thread. Route every
+from_dict (PlayerInfo, MobInfo, Room) through _require/_as_point guards so
+malformed payloads degrade to ValueError -> ProtocolError (a dropped
+message), making wire.py's "bad data, never code" promise actually hold.
+
+Move PlayerInfo.join_room/leave_room (server-side slot allocation and room
+mutation) onto Room.add_player/remove_player, where base_points lives. The
+DTO no longer carries game logic that rode along to clients via from_dict.
+Slot search now uses base_number-is-not-None (correctly handles base 0)
+instead of the always-true hasattr check.
+
+Add a parametrized test pinning the malformed-payload -> ProtocolError
+contract for both PlayerInfo/MobInfo and Room.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

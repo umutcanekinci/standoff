@@ -3,6 +3,49 @@ from __future__ import annotations
 from util.constants import MOB_MAX_HP
 
 
+# --- Wire-decoding guards ------------------------------------------------------
+# from_dict runs inside the codec's json.loads(object_hook=...) on bytes from a
+# possibly hostile peer. A raw data["id"] / tuple(data["position"]) would raise
+# KeyError/TypeError, which json.loads propagates straight up and crashes the
+# decode thread. Protocol.recv only catches ValueError (-> ProtocolError, a
+# cleanly dropped message), so these helpers funnel every "malformed payload"
+# case into ValueError. The promise in wire.py ("a peer can send bad data but
+# never run code") only holds if bad data degrades to a dropped message.
+
+
+def _require(data: dict, key: str):
+    """Return a mandatory wire field, or raise ValueError if it's absent."""
+    if not isinstance(data, dict) or key not in data:
+        raise ValueError(f"wire payload missing required field {key!r}")
+    return data[key]
+
+
+def _as_point(value) -> tuple:
+    """Coerce a wire ``[x, y]`` back into a numeric ``(x, y)`` tuple.
+
+    JSON has no tuples, so points arrive as 2-element lists; a hostile/buggy peer
+    could send the wrong shape or non-numbers, so validate rather than trust.
+    """
+    try:
+        x, y = value
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"expected an [x, y] point, got {value!r}") from exc
+    # bool is an int subclass; reject it so True/False can't masquerade as coords.
+    if (
+        isinstance(x, bool)
+        or isinstance(y, bool)
+        or not isinstance(x, (int, float))
+        or not isinstance(y, (int, float))
+    ):
+        raise ValueError(f"point coordinates must be numbers, got {value!r}")
+    return (x, y)
+
+
+def _opt_point(value):
+    """_as_point, but a nullable field: None passes through untouched."""
+    return None if value is None else _as_point(value)
+
+
 class PlayerInfo:
     name: str  # set via set_name(), which __init__ calls
     character_name: str  # set via set_character_name(), which __init__ calls
@@ -15,11 +58,13 @@ class PlayerInfo:
         self.set_character_name(character_name)
 
         # Latest center the client reported (UPDATE_PLAYER); the server reads it
-        # to steer mobs toward players. Seeded to the spawn base in join_room.
+        # to steer mobs toward players. Seeded to the spawn base by Room.add_player.
         self.position = (0, 0)
         self.alive = True  # client reports this; mobs ignore dead players
 
-        # Room membership — populated by join_room(), cleared by leave_room().
+        # Room membership — populated by Room.add_player(), cleared by
+        # Room.remove_player(). PlayerInfo just holds the back-ref; the room owns
+        # the roster logic (base-slot assignment, ruler handover).
         self.room = None
         self.is_ready = False
         self.is_ruler = False
@@ -31,28 +76,6 @@ class PlayerInfo:
 
     def set_character_name(self, name: str):
         self.character_name = name
-
-    def join_room(self, room, is_ruler):
-        self.is_ready = is_ruler
-        self.is_ruler = is_ruler
-        self.room = room
-        room.append(self)
-        # Take the first base point not already claimed by a room mate (len()-based
-        # numbering breaks when a player leaves and another joins).
-        used = {
-            mate.base_number
-            for mate in room
-            if mate is not self and hasattr(mate, "base_number")
-        }
-        self.base_number = next(
-            number for number in room.base_points if number not in used
-        )
-        self.base_point = self.room.base_points[self.base_number]
-        self.position = self.base_point
-
-    def leave_room(self):
-        self.room.remove(self)
-        self.room = None
 
     # Wire form (TypedJSONCodec). Tuples become lists and dict keys become strings
     # over JSON, so to_dict/from_dict coerce back. `include_room` breaks the
@@ -81,19 +104,30 @@ class PlayerInfo:
     @classmethod
     def from_dict(cls, data: dict) -> "PlayerInfo":
         player = cls(
-            data["id"],
+            _require(data, "id"),
             name=data.get("name", ""),
             character_name=data.get("character_name", ""),
         )
         player.base_number = data.get("base_number")
-        base_point = data.get("base_point")
-        player.base_point = tuple(base_point) if base_point is not None else None
-        player.is_ready = data.get("is_ready", False)
-        player.is_ruler = data.get("is_ruler", False)
+        player.base_point = _opt_point(data.get("base_point"))
+        player.is_ready = bool(data.get("is_ready", False))
+        player.is_ruler = bool(data.get("is_ruler", False))
         player.size = data.get("size", 1)
-        player.position = tuple(data.get("position", (0, 0)))
-        player.alive = data.get("alive", True)
-        player.room = data.get("room")  # already a Room (object_hook) or absent
+        player.position = _as_point(data.get("position", (0, 0)))
+        player.alive = bool(data.get("alive", True))
+        # Already a Room (object_hook ran on the nested dict) or absent. A peer
+        # could send a dict that isn't a tagged Room; reject it rather than store
+        # a half-object the game logic will choke on later. Local import to dodge
+        # the room <-> player_info import cycle.
+        room = data.get("room")
+        if room is not None:
+            from net.room import Room
+
+            if not isinstance(room, Room):
+                raise ValueError(
+                    f"expected a Room for 'room', got {type(room).__name__}"
+                )
+        player.room = room
         return player
 
 
@@ -125,12 +159,11 @@ class MobInfo:
 
     @classmethod
     def from_dict(cls, data: dict) -> "MobInfo":
-        target_base = data.get("target_base")
         mob = cls(
-            data["id"],
+            _require(data, "id"),
             None,
-            tuple(target_base) if target_base is not None else None,
-            tuple(data["position"]),
+            _opt_point(data.get("target_base")),
+            _as_point(_require(data, "position")),
         )
         mob.size = data.get("size", 1)
         mob.hp = data.get("hp", mob.hp)
