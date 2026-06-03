@@ -420,3 +420,11 @@ ngrok.exe
 
 # Build / run logs
 *.log
+
+# Scratch / temp files (agent one-off commit-message files and throwaway check
+# scripts). Root-anchored with a leading slash so tracked helpers such as
+# tests/_util.py are never matched.
+/_commitmsg*.txt
+/_scratch*
+/_tmp*
+/_*_check.py
