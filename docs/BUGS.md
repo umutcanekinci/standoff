@@ -1,5 +1,17 @@
 # BUG LIST
-- The person who joint to the room after the game started, they will be in the lobby but they can't see the game and they can't play until the host player dies and the game goes back to the lobby. This is a problem because if the host player is killed by a zombie, then the other player will be stuck in the lobby and can't play until the host player dies again. This can be fixed by adding a check to see if the game has already started when a new player joins, and if it has, then send them the current game state so they can join in progress.
-- Currently, they cant enter game, because they are guest in the room, let's change ready button to "Join Game", by clicking it, they will be able to join the game if the game has already started, and if the game has not started yet, they will be marked as ready and wait for the host player to start the game. This way, we can allow players to join in progress and also allow them to prepare for the game if they join before it starts.
-- Some of the bullets didnt damge enemy even they hit them, but bullet is destroyed, but hp was same.
-- After a player is killed and respawned their hp bar becomes updated to full, however it looks like it is still 0 in other clients.
+
+No known open bugs.
+
+## Resolved
+
+- **Join-in-progress was broken.** A player who joined after the match started
+  was stuck in the lobby until the host died. Now the server drops late joiners
+  straight into the running match. (`787d85a`)
+- **Guests couldn't enter a running match.** The lobby's "Ready" button is now a
+  contextual **"Join Game"** button: it readies up before the match starts, or
+  drops the player into a match already in progress. (`net/commands.py`,
+  `app/lobby_scene.py`)
+- **Bullets occasionally hit without dealing damage.** The bullet was destroyed
+  but the target's HP was unchanged — a hit-race between clients. (`787d85a`)
+- **Respawn HP bar desync.** After respawn the player's own HP bar showed full
+  but stayed at 0 on other clients; respawn HP is now synced. (`787d85a`)
