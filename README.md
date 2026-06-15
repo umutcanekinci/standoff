@@ -2,6 +2,8 @@
 
 Standoff is a 2D networked multiplayer top-down shooter built with [pygame-ce](https://github.com/pygame-community/pygame-ce). Pick a character, host or join a room over the network (or play offline), then move, aim, and shoot your way through waves of zombies on a Tiled-authored map.
 
+![Gameplay](docs/screenshots/03_gameplay.png)
+
 ## Gameplay
 
 Enter a name, pick one of **8 characters**, then choose how to play:
@@ -11,6 +13,12 @@ Enter a name, pick one of **8 characters**, then choose how to play:
 - **Connect** — join an existing room by its room ID.
 
 Players and zombies start with **100 HP**. Zombies home in on the nearest player (falling back to your base when out of range); shooting kicks back and emits a muzzle flash. The camera follows your player around the map.
+
+### Screenshots
+
+| Main menu | Character select | Gameplay |
+|-----------|------------------|----------|
+| ![](docs/screenshots/01_main_menu.png) | ![](docs/screenshots/02_character_select.png) | ![](docs/screenshots/03_gameplay.png) |
 
 ### Characters
 
