@@ -28,7 +28,7 @@ source.exclude_dirs = tests,bench,tools,docs,.venv,.git,.github,__pycache__,bin,
 # Desktop server entry points (tkinter) and the desktop launcher.
 source.exclude_patterns = server.py,__main__.py,src/app/server_app.py
 
-version = 0.1.0
+version = 0.1.1
 
 # python3 + the libs the client imports. NOTE: this uses python-for-android's
 # `pygame` recipe (SDL2). The project targets pygame-ce, which is API-compatible;
