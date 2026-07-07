@@ -13,7 +13,10 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       # Runs buildozer in its prepared container, reading buildozer.spec at the
       # repo root. The first run downloads the Android SDK/NDK and cross-compiles

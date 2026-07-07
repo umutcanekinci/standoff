@@ -18,7 +18,10 @@ jobs:
       # Headless SDL so pygame.init() (via Room) works with no display.
       SDL_VIDEODRIVER: dummy
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
