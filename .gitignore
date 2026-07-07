@@ -327,6 +327,10 @@ paket-files/
 __pycache__/
 *.pyc
 
+# PyInstaller build output (standoff.spec)
+/build/
+/dist/
+
 # Python virtual environments (uv)
 .venv/
 venv/
