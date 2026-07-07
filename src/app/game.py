@@ -43,7 +43,10 @@ class Game(Application):
         self._debug_text = ""
         self.debug_font = pygame.font.Font(None, 25)
 
-        self.window.fill(BACKGROUND_COLORS["menu"])
+        # self.window is the offscreen logical render target -- only
+        # Application._present() (run() loop) blits it onto the real screen,
+        # which hasn't started yet here, so fill the real display directly.
+        self.display_surface.fill(BACKGROUND_COLORS["menu"])
         pygame.display.update()
 
         # UI sound effects, loaded once (the mixer is up via Application). Each
@@ -299,7 +302,11 @@ class Game(Application):
             if event.key == pygame.K_F1:
                 self._is_in_debug_mode = not self._is_in_debug_mode
             elif event.key == pygame.K_F11:
-                self.minimize() if self.size != self.minimized_size else self.full_screen()
+                # `self.size` is always `self.minimized_size` -- both
+                # minimize() and full_screen() set it to the logical/design
+                # resolution -- so it can't distinguish the two modes; the
+                # base class tracks that in `_is_fullscreen` instead.
+                self.minimize() if self._is_fullscreen else self.full_screen()
 
     def _handle_back(self) -> None:
         if self.is_game_started:
