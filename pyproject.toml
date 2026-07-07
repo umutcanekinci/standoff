@@ -14,6 +14,8 @@ pygame-core = { path = "src/pygame_core", editable = true }
 
 [dependency-groups]
 dev = ["pytest>=8", "pre-commit>=4"]
+# Tooling for producing distributable desktop builds (see standoff.spec / CI).
+build = ["pyinstaller>=6.0"]
 
 [tool.pytest.ini_options]
 # Put the source roots on sys.path so tests can `import net.*` / `app.*`

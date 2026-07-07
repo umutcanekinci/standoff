@@ -64,6 +64,28 @@ If you forgot `--recurse-submodules`: `git submodule update --init`.
 
 Without `uv`: `pip install .` then `python __main__.py` (Windows: `scripts/Standoff.bat`).
 
+## Building a standalone desktop bundle
+
+Desktop builds are produced by [PyInstaller](https://pyinstaller.org/) from `standoff.spec`, which bundles `assets/` and `config/` alongside the executable (onedir) and excludes the tkinter-based server. To build locally for your current OS:
+
+```bash
+uv sync --group build
+uv run pyinstaller standoff.spec --noconfirm
+```
+
+The result lands in `dist/standoff/` (`dist/Standoff.app` on macOS).
+
+### Cutting a desktop release
+
+Per-OS bundles for Windows, macOS, and Linux are built and published automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) when a version tag is pushed:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The same tag also triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds a debug APK as a separate CI artifact (not attached to the Release). Use either workflow's **Run workflow** button to test a build without publishing.
+
 ## Project layout
 
 ```
