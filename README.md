@@ -58,6 +58,8 @@ Grab a ready-to-play desktop build for your OS from [itch.io](https://umutcaneki
 | Linux | Extract `standoff-linux.zip`, run `./standoff/standoff` |
 
 > macOS Gatekeeper: the app is unsigned, so the first launch needs **right-click → Open** (or `xattr -dr com.apple.quarantine Standoff.app`).
+>
+> Windows SmartScreen: the app is unsigned, so the first launch shows **"Windows protected your PC."** Click **More info → Run anyway**. This is Microsoft's download-reputation check, not a virus warning — brand-new unsigned executables always trigger it.
 
 An Android debug APK is also built on every release — see [`.github/workflows/android.yml`](.github/workflows/android.yml) — but it's a CI artifact only, not yet attached to Releases or itch.io.
 
