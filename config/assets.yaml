@@ -3,6 +3,9 @@
 # Keys are looked up in code as f"char_{name}_idle" / f"char_{name}_gun" / f"muzzle_{n}".
 
 images:
+  # ── Branding (startup splash) ──────────────────────────────────────────
+  pygame_logo: {folder: branding, name: pygame_logo}
+
   # ── Character idle sprites (mob + menu preview) ───────────────────────
   char_hitman_idle:      {folder: characters/hitman,      name: idle}
   char_man_blue_idle:    {folder: characters/man_blue,    name: idle}

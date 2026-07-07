@@ -13,11 +13,14 @@ from util.constants import (
     FPS,
     CLIENT_ADDR,
     SERVER_PORT,
+    SPLASH_FADE_MS,
+    SPLASH_HOLD_MS,
     Mode,
 )
 from pygame_core.application import Application
 from pygame_core.asset_manager import AssetManager
 from pygame_core.debug import Debug
+from pygame_core.splash_screen import SplashScreen
 
 from pygame_core.net.transport import BaseClient
 from net.game_server import GameServer
@@ -39,6 +42,11 @@ class Game(Application):
         missing = self.assets.validate()
         if missing:
             raise FileNotFoundError("Missing assets:\n  " + "\n  ".join(missing))
+
+        self._splash = SplashScreen(
+            [self.assets.image_path("pygame_logo")],
+            fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS,
+        )
 
         self._debug_text = ""
         self.debug_font = pygame.font.Font(None, 25)
@@ -289,6 +297,15 @@ class Game(Application):
             self.gameplay.remove_player(value)
 
     # Application overrides
+
+    @override
+    def run(self) -> None:
+        # SplashScreen runs its own loop with direct pygame.display.update()
+        # calls, bypassing Application._present()'s scale step -- draw it
+        # straight onto the real display surface rather than the offscreen
+        # logical canvas, or it would never actually reach the screen.
+        self._splash.run(self.display_surface, self.clock, self._fps)
+        super().run()
 
     @override
     def _handle_core_event(self, event: pygame.event.Event) -> None:

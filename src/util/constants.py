@@ -27,11 +27,12 @@ WINDOW_TITLE = "Standoff"
 # logical resolution.
 UI_REFERENCE_SIZE = (1920, 1080)
 
-# Logical render resolution (the surface every frame is composited onto; the SDL
-# SCALED display then GPU-upscales it to the device — cheap). On touch devices we
-# render at 720p instead of 1080p: ~44% of the pixels, so the per-frame software
-# blits (the in-game bottleneck) roughly halve. Trade-off: the camera viewport is
-# the logical size, so 720p shows a tighter slice of the arena (a ~1.5x zoom).
+# Logical render resolution (the fixed offscreen surface every frame is
+# composited onto; Application._present() scales it onto the real window
+# each frame — cheap). On touch devices we render at 720p instead of 1080p:
+# ~44% of the pixels, so the per-frame software blits (the in-game
+# bottleneck) roughly halve. Trade-off: the camera viewport is the logical
+# size, so 720p shows a tighter slice of the arena (a ~1.5x zoom).
 # Dial this up (e.g. 1600x900) for less zoom at the cost of some FPS.
 _TOUCH = bool(os.environ.get("ANDROID_ARGUMENT")) or bool(
     os.environ.get("STANDOFF_TOUCH")
@@ -40,6 +41,10 @@ WINDOW_SIZE = WINDIW_WIDTH, WINDOW_HEIGHT = (1280, 720) if _TOUCH else (1920, 10
 WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
 
 BACKGROUND_COLORS = {"menu": CustomBlue}
+
+# Startup splash (pygame_core.SplashScreen): fade-in then hold, per image
+SPLASH_FADE_MS = 1500
+SPLASH_HOLD_MS = 1000
 
 # Game
 DEVELOP_MODE = False
