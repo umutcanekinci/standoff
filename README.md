@@ -45,7 +45,23 @@ uv run python server.py     # or: scripts/server.bat
 
 Clients launch the game, **Create Room** (host) or **Connect** by room ID (others). On the same LAN, clients connect directly to the host's IP. For play over the internet you'll need to reach the server's TCP port from outside — a mesh VPN like [Tailscale](https://tailscale.com/) (stable, encrypted, no port‑forwarding), a game‑oriented tunnel like [playit.gg](https://playit.gg/), or router port‑forwarding. (A TCP tunnel such as `ngrok` works too, but its free tier hands out a new address each session — fetch it yourself; it's no longer committed to the repo.)
 
-## Requirements
+## Download
+
+[![Available on itch.io](https://jessemillar.github.io/available-on-itchio-badge/badge-color.png)](https://umutcanekinci.itch.io/standoff)
+
+Grab a ready-to-play desktop build for your OS from [itch.io](https://umutcanekinci.itch.io/standoff) or the [latest GitHub release](https://github.com/umutcanekinci/standoff/releases/latest) — no Python required. Unzip and run:
+
+| OS | Run |
+|----|-----|
+| Windows | Extract `standoff-windows.zip`, run `standoff.exe` |
+| macOS | Extract `standoff-macos.zip`, open `Standoff.app` |
+| Linux | Extract `standoff-linux.zip`, run `./standoff/standoff` |
+
+> macOS Gatekeeper: the app is unsigned, so the first launch needs **right-click → Open** (or `xattr -dr com.apple.quarantine Standoff.app`).
+
+An Android debug APK is also built on every release — see [`.github/workflows/android.yml`](.github/workflows/android.yml) — but it's a CI artifact only, not yet attached to Releases or itch.io.
+
+## Requirements (from source)
 
 - Python 3.12+
 - [pygame-ce](https://github.com/pygame-community/pygame-ce), colorama, pyyaml, pytmx (resolved automatically from `pyproject.toml` / `uv.lock`)
@@ -84,7 +100,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The same tag also triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds a debug APK as a separate CI artifact (not attached to the Release). Use either workflow's **Run workflow** button to test a build without publishing.
+The desktop workflow also pushes each OS build to its [itch.io](https://umutcanekinci.itch.io/standoff) channel via [Butler](https://itch.io/docs/butler/). The same tag also triggers [`.github/workflows/android.yml`](.github/workflows/android.yml), which builds a debug APK as a separate CI artifact (not attached to the Release or to itch.io). Use either workflow's **Run workflow** button to test a build without publishing.
 
 ## Project layout
 
@@ -154,7 +170,7 @@ Bypass a hook run with `git commit --no-verify`; run all hooks manually with `uv
 
 ## Credits
 
-Character and tile art from [Kenney](https://www.kenney.nl/) — [Topdown Shooter](https://www.kenney.nl/assets/topdown-shooter).
+Character and tile art from [Kenney](https://www.kenney.nl/) — [Topdown Shooter](https://www.kenney.nl/assets/topdown-shooter). UI button sounds from [Kenney UI Pack](https://www.kenney.nl/assets/ui-pack).
 
 ## Contributing
 
