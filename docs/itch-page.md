@@ -77,18 +77,17 @@ Tiled-authored map.
 
 ---
 
-## 4. Uploading builds without the browser (optional — butler)
+## 4. Uploading builds without the browser (automated — butler)
 
-butler is itch's CLI for pushing builds. It couldn't be installed in this repo's
-environment (its CDN host `broth.itch.ovh` didn't resolve), but you can install
-it yourself and then pushing a new build is one command:
+CI now handles this: `.github/workflows/android.yml`'s `publish-itch` job runs
+`butler push` to the `android` channel automatically on every `v*` tag push,
+using the same `BUTLER_API_KEY` secret release.yml's desktop channels use — see
+that job for the exact invocation. No manual step needed for new releases.
+
+To push a one-off build by hand instead (e.g. testing before a real tag):
 
 ```bash
 # install: https://itch.io/docs/butler/installing.html  (or via the itch app)
 butler login
 butler push bin/standoff-0.1.0-arm64-v8a_armeabi-v7a-debug.apk umutcanekinci/standoff:android
 ```
-
-Each later release is just another `butler push` to the same `android` channel —
-itch versions them automatically. Until then, drag-and-drop in the browser does
-the same job.

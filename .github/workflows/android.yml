@@ -4,6 +4,9 @@ name: build-android
 # get an installable artifact without setting up WSL + the Android SDK/NDK locally.
 # Heavy build (~20-40 min the first time, cached after), so it does NOT run on
 # every push — trigger it by hand from the Actions tab, or by pushing a v* tag.
+# A v* tag push also publishes the APK to itch.io's `android` channel (see
+# publish-itch below); workflow_dispatch runs build-only, for testing the build
+# itself without cutting a release.
 on:
   workflow_dispatch:
   push:
@@ -66,3 +69,33 @@ jobs:
           name: standoff-debug-apk
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
+
+  # Mirrors release.yml's publish-itch job (windows/linux/osx channels) for the
+  # `android` channel — see docs/itch-page.md, which previously described this
+  # as a manual `butler push` step. Only runs on real tag pushes, not
+  # workflow_dispatch test runs, same as release.yml.
+  publish-itch:
+    name: Publish to itch.io
+    needs: apk
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: standoff-debug-apk
+          path: itch
+
+      - name: Locate downloaded APK
+        id: apk
+        run: echo "path=$(ls itch/*.apk | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Push Android build
+        uses: yeslayla/butler-publish-itchio-action@v1.2.0
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_USER: umutcanekinci
+          ITCH_GAME: standoff
+          CHANNEL: android
+          VERSION: ${{ github.ref_name }}
+          PACKAGE: ${{ steps.apk.outputs.path }}
