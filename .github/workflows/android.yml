@@ -18,20 +18,42 @@ jobs:
         with:
           submodules: recursive
 
-      # Runs buildozer in its prepared container, reading buildozer.spec at the
+      # Runs buildozer straight from kivy's official image (same one
+      # tools/build_android.sh uses under WSL), reading buildozer.spec at the
       # repo root. The first run downloads the Android SDK/NDK and cross-compiles
       # Python + SDL2 + pygame for ARM — this is where a recipe problem (e.g.
       # pygame-ce vs the p4a `pygame` recipe) would surface in the logs.
+      #
+      # NOTE: this replaced ArtemSBulgakov/buildozer-action@v1, whose own
+      # Dockerfile builds on top of this same image but then adds openjdk-17-jdk
+      # again via the ppa:openjdk-r/ppa Launchpad PPA — redundant, since the base
+      # image already installs openjdk-17-jdk from Ubuntu's own repos — and that
+      # PPA step is what started failing the `docker build`, breaking the action
+      # before checkout even ran. Going straight to the base image skips it.
       - name: Build debug APK
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: stable
+        run: |
+          mkdir -p "$HOME/.buildozer"
+          # p4a's "Installing pure Python modules" step runs `pip install -U pip`
+          # in a throwaway venv; current pip's vendored resolvelib is broken, so
+          # pin older pip the same way tools/build_android.sh does. p4a copies
+          # the environment into that venv's build env, so PIP_CONSTRAINT reaches
+          # it. Kept out of source.dir (which bundles *.txt into the APK) by
+          # writing it into the .buildozer cache mount instead.
+          echo 'pip<25' > "$HOME/.buildozer/pip-constraint.txt"
+          yes | docker run --rm --interactive \
+            --volume "$HOME/.buildozer":/home/user/.buildozer \
+            --volume "$PWD":/home/user/hostcwd \
+            --env PIP_CONSTRAINT=/home/user/.buildozer/pip-constraint.txt \
+            ghcr.io/kivy/buildozer:latest \
+            -v android debug
+
+      - name: Locate APK
+        id: apk
+        run: echo "path=$(ls -t bin/*.apk | head -n1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: standoff-debug-apk
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
