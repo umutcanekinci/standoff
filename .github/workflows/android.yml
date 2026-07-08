@@ -40,12 +40,21 @@ jobs:
           # it. Kept out of source.dir (which bundles *.txt into the APK) by
           # writing it into the .buildozer cache mount instead.
           echo 'pip<25' > "$HOME/.buildozer/pip-constraint.txt"
+          # recipes/python3/__init__.py's create_python_bundle() shells out to
+          # `patchelf` (to fix DT_NEEDED on the bundled stdlib .so files — see
+          # that file's docstring). tools/build_android.sh pip-installs it
+          # alongside buildozer under WSL; the kivy/buildozer image doesn't
+          # ship it, so install it via apt before handing off to the image's
+          # own entrypoint (which does the UID-mapping + sudo dance down to
+          # the unprivileged build user — apt packages land in /usr/bin, on
+          # PATH for every user, so installing as root here is enough).
           yes | docker run --rm --interactive \
             --volume "$HOME/.buildozer":/home/user/.buildozer \
             --volume "$PWD":/home/user/hostcwd \
             --env PIP_CONSTRAINT=/home/user/.buildozer/pip-constraint.txt \
+            --entrypoint bash \
             ghcr.io/kivy/buildozer:latest \
-            -v android debug
+            -c 'apt-get update -qq && apt-get install -qq -y --no-install-recommends patchelf && exec /usr/local/bin/entrypoint.sh -v android debug'
 
       - name: Locate APK
         id: apk
