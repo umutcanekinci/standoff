@@ -27,18 +27,26 @@ WINDOW_TITLE = "Standoff"
 # logical resolution.
 UI_REFERENCE_SIZE = (1920, 1080)
 
-# Logical render resolution (the fixed offscreen surface every frame is
-# composited onto; Application._present() scales it onto the real window
-# each frame — cheap). On touch devices we render at 720p instead of 1080p:
-# ~44% of the pixels, so the per-frame software blits (the in-game
-# bottleneck) roughly halve. Trade-off: the camera viewport is the logical
-# size, so 720p shows a tighter slice of the arena (a ~1.5x zoom).
-# Dial this up (e.g. 1600x900) for less zoom at the cost of some FPS.
 _TOUCH = bool(os.environ.get("ANDROID_ARGUMENT")) or bool(
     os.environ.get("STANDOFF_TOUCH")
 )
-WINDOW_SIZE = WINDIW_WIDTH, WINDOW_HEIGHT = (1280, 720) if _TOUCH else (1920, 1080)
-WINDOW_RECT = pygame.Rect((0, 0), WINDOW_SIZE)
+
+# No longer a design/render resolution -- Application's canvas is always
+# sized off the real display now (see RENDER_SCALE for the actual
+# render-resolution knob). This is just the preferred *windowed* size,
+# relevant on desktop only (Android has no windowing concept; F11 never
+# fires there).
+WINDOW_SIZE = (1920, 1080)
+
+# Fraction of the real display's pixels Application actually renders at
+# (self.window), upscaled for free in _present(). On touch devices this
+# renders at ~2/3 linear resolution (~44% of the pixels), roughly halving
+# the per-frame software-blit cost -- the in-game bottleneck -- at the cost
+# of a softer/more zoomed-in image (the camera viewport is the logical
+# render size, so a lower RENDER_SCALE shows a tighter slice of the arena).
+# Desktop renders 1:1. Raise this (e.g. 0.8) for less zoom at the cost of
+# some FPS on weaker devices.
+RENDER_SCALE = 2 / 3 if _TOUCH else 1.0
 
 BACKGROUND_COLORS = {"menu": CustomBlue}
 

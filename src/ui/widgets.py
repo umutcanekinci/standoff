@@ -13,6 +13,7 @@ import pygame
 
 from util.constants import Red, Blue, Gray, Black, White
 from pygame_core.ecs.state_object import StateObject, HoverableStateObject
+from pygame_core.ecs.game_audio import SFX_CHANNEL
 from pygame_core.ui_widgets.text_object import TextObject
 
 _RADIUS = 25  # pill corner radius (matches the old EllipseButton)
@@ -154,7 +155,7 @@ class ShapeButton(HoverableStateObject):
             self._is_pressed = True
             self._renderer.set_image(self._pressed_image)
             if self.plays_click and ShapeButton.click_sound is not None:
-                ShapeButton.click_sound.play()
+                pygame.mixer.Channel(SFX_CHANNEL).play(ShapeButton.click_sound)
         elif event.type == pygame.MOUSEBUTTONUP and self._is_pressed:
             self._is_pressed = False
             self._renderer.set_image(self._active_surface)

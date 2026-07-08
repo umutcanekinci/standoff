@@ -9,6 +9,7 @@ import pygame
 from util.constants import (
     WINDOW_TITLE,
     WINDOW_SIZE,
+    RENDER_SCALE,
     BACKGROUND_COLORS,
     FPS,
     CLIENT_ADDR,
@@ -21,6 +22,8 @@ from pygame_core.application import Application
 from pygame_core.asset_manager import AssetManager
 from pygame_core.debug import Debug
 from pygame_core.splash_screen import SplashScreen
+from pygame_core.save_store import SaveStore
+from pygame_core.ecs.game_audio import GameAudio, SFX_CHANNEL
 
 from pygame_core.net.transport import BaseClient
 from net.game_server import GameServer
@@ -35,7 +38,11 @@ class Game(Application):
     client: BaseClient  # created in start_client(), which __init__ calls
 
     def __init__(self) -> None:
-        super().__init__(WINDOW_SIZE, WINDOW_TITLE, FPS)
+        super().__init__(WINDOW_SIZE, WINDOW_TITLE, FPS, render_scale=RENDER_SCALE)
+
+        self.settings_store = SaveStore("settings")
+        self._saved_settings = self.settings_store.load()
+        self._restore_window_mode(self._saved_settings)
 
         self.assets = AssetManager()
         self.assets.load_manifest("config/assets.yaml")
@@ -57,10 +64,19 @@ class Game(Application):
         self.display_surface.fill(BACKGROUND_COLORS["menu"])
         pygame.display.update()
 
+        # GameAudio owns the music/sfx channel volumes (Settings menu controls
+        # these); there's no music asset yet, so it never gets a music_path --
+        # set_music_volume() still works, it just has nothing to apply to
+        # until a track exists.
+        self.audio = GameAudio()
+        self.audio.set_music_volume(self._saved_settings.get("music_volume", 1.0))
+        self.audio.set_sfx_volume(self._saved_settings.get("sfx_volume", 1.0))
+
         # UI sound effects, loaded once (the mixer is up via Application). Each
         # load is guarded so a missing/disabled audio device degrades to silence
-        # instead of crashing. Scenes play these by key off self.sounds; the
-        # shared button click is also handed to ShapeButton.
+        # instead of crashing. Scenes play these by key off self.sounds, via the
+        # SFX channel (SFX_CHANNEL) so GameAudio's volume control reaches them;
+        # the shared button click is also handed to ShapeButton the same way.
         self.sounds: dict[str, pygame.mixer.Sound] = {}
         for key in ("click", "switch_ready", "switch_unready"):
             try:
@@ -112,6 +128,41 @@ class Game(Application):
     @property
     def is_game_started(self) -> bool:
         return self.gameplay is not None and self.active_scene is self.gameplay
+
+    # Settings persistence (SaveStore-backed; mirrors chokepoint's pattern)
+
+    def _restore_window_mode(self, saved_settings: dict) -> None:
+        """Applies a saved window mode/size on top of Application.__init__'s
+        default (always exclusive fullscreen). set_resolution() only resizes
+        immediately if already windowed (mode and resolution are independent
+        settings) -- called here while still in the just-constructed default
+        fullscreen, it just remembers the size for whichever mode is applied
+        next, below. Harmless on Android: it just re-affirms fullscreen,
+        since there's no windowing concept there."""
+        if "window_size" in saved_settings:
+            self.set_resolution(tuple(saved_settings["window_size"]))
+        mode = saved_settings.get("window_mode", "fullscreen")
+        mode_methods = {"fullscreen": self.full_screen, "borderless": self.borderless_full_screen, "windowed": self.minimize}
+        mode_methods.get(mode, self.full_screen)()
+
+    def _save_settings(self) -> None:
+        self.settings_store.save({
+            "window_mode":  self._window_mode,
+            "window_size":  list(self.resolution),
+            "sfx_volume":   self.audio.sfx_volume(),
+            "music_volume": self.audio.music_volume(),
+        })
+
+    def _reset_settings(self) -> None:
+        """Restores window mode/size and both volumes to the shipped
+        defaults, then persists immediately -- Reset is a deliberate
+        action, not a live drag, so it shouldn't wait for the player to
+        also press Back."""
+        self.clear_resolution_override()
+        self.full_screen()
+        self.audio.set_sfx_volume(1.0)
+        self.audio.set_music_volume(1.0)
+        self._save_settings()
 
     # Networking / game flow (called by the lobby + client callbacks)
 
@@ -299,6 +350,19 @@ class Game(Application):
     # Application overrides
 
     @override
+    def on_canvas_resized(self, new_size: tuple[int, int]) -> None:
+        # Fires during Application.__init__ (via _restore_window_mode(), called
+        # before self.lobby is built) as well as later from the settings menu's
+        # window mode/resolution picker or F11 -- only the latter needs a reflow;
+        # __init__ builds the lobby fresh against the already-current size anyway.
+        if not hasattr(self, "lobby"):
+            return
+        self.lobby.reflow()
+        # GameplayScene doesn't reflow (out of scope for the settings menu --
+        # it has its own camera/HUD layout this doesn't touch), so a resize
+        # mid-match may leave it visually stale until the next leave_match().
+
+    @override
     def run(self) -> None:
         # SplashScreen runs its own loop with direct pygame.display.update()
         # calls, bypassing Application._present()'s scale step -- draw it
@@ -319,11 +383,7 @@ class Game(Application):
             if event.key == pygame.K_F1:
                 self._is_in_debug_mode = not self._is_in_debug_mode
             elif event.key == pygame.K_F11:
-                # `self.size` is always `self.minimized_size` -- both
-                # minimize() and full_screen() set it to the logical/design
-                # resolution -- so it can't distinguish the two modes; the
-                # base class tracks that in `_is_fullscreen` instead.
-                self.minimize() if self._is_fullscreen else self.full_screen()
+                self.cycle_window_mode()  # fullscreen -> borderless -> windowed -> ...
 
     def _handle_back(self) -> None:
         if self.is_game_started:
@@ -364,6 +424,7 @@ class Game(Application):
 
     @override
     def exit(self) -> None:
+        self._save_settings()  # safety net -- normally already saved on leaving settings_menu
         # Best-effort notify the server, then always tear down the socket and exit -
         # don't depend on the server echoing !DISCONNECT back to close the window.
         if self.client.is_connected:

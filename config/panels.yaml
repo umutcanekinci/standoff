@@ -38,7 +38,7 @@ panels:
     objects:
       play:        { extends: pill, parent: panel_bg, position: [CENTER, 80],  text: "PLAY" }
       achievments: { extends: pill, parent: panel_bg, position: [CENTER, 150], text: "ACHIEVMENTS", is_active: false }
-      settings:    { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "SETTINGS", is_active: false }
+      settings:    { extends: pill, parent: panel_bg, position: [CENTER, 220], text: "SETTINGS" }
       credits:     { extends: pill, parent: panel_bg, position: [CENTER, 290], text: "CREDITS", is_active: false }
       exit:        { extends: pill, parent: panel_bg, position: [CENTER, 360], text: "EXIT" }
 
@@ -126,3 +126,32 @@ panels:
         font_size: 40
         text: "ROOM 0"
       leave_room: { extends: pill, parent: panel_bg, position: [CENTER, 300], color: [0, 0, 255], hover_color: [255, 0, 0], text: "LEAVE ROOM" }
+
+  # Window mode/size are desktop-only (Android has no windowing concept) --
+  # LobbyScene.open_panel() greys those four triangle buttons out on
+  # is_android(), matching how mode_menu's "host" button is gated.
+  settings_menu:
+    extends: [menu_chrome]
+    objects:
+      settings_label: { type: text, parent: panel_bg, position: [CENTER, 20], font_size: 34, text: "SETTINGS" }
+
+      window_mode_label: { type: text, parent: panel_bg, position: [CENTER, 62], font_size: 18, text: "WINDOW MODE" }
+      window_mode_back:  { type: triangle_button, parent: panel_bg, position: [50, 84],  size: [36, 36], rotation: LEFT }
+      window_mode_value: { type: text, parent: panel_bg, position: [CENTER, 92], font_size: 22, text: "FULLSCREEN" }
+      window_mode_next:  { type: triangle_button, parent: panel_bg, position: [314, 84], size: [36, 36], rotation: RIGHT }
+
+      window_size_label: { type: text, parent: panel_bg, position: [CENTER, 130], font_size: 18, text: "WINDOW SIZE" }
+      window_size_back:  { type: triangle_button, parent: panel_bg, position: [50, 152],  size: [36, 36], rotation: LEFT }
+      window_size_value: { type: text, parent: panel_bg, position: [CENTER, 160], font_size: 22, text: "1920x1080" }
+      window_size_next:  { type: triangle_button, parent: panel_bg, position: [314, 152], size: [36, 36], rotation: RIGHT }
+
+      sfx_volume_label: { type: text, parent: panel_bg, position: [CENTER, 200], font_size: 18, text: "SFX VOLUME" }
+      sfx_volume_value: { type: text, parent: panel_bg, position: [CENTER, 220], font_size: 18, text: "100%" }
+      sfx_volume_slider: { type: slider, parent: panel_bg, position: [CENTER, 244], size: [300, 18], value: 1.0 }
+
+      music_volume_label: { type: text, parent: panel_bg, position: [CENTER, 274], font_size: 18, text: "BGM VOLUME" }
+      music_volume_value: { type: text, parent: panel_bg, position: [CENTER, 294], font_size: 18, text: "100%" }
+      music_volume_slider: { type: slider, parent: panel_bg, position: [CENTER, 318], size: [300, 18], value: 1.0 }
+
+      reset: { extends: pill, parent: panel_bg, position: [CENTER, 356], size: [260, 46], text_size: 26, text: "RESET TO DEFAULT" }
+      back:  { extends: pill, parent: panel_bg, position: [CENTER, 414], size: [260, 46], text_size: 26, text: "BACK" }

@@ -32,12 +32,19 @@ from util.constants import (
 # How many room rows the browser shows at once (no scrolling yet); extra public
 # rooms are reported in the status line.
 BROWSER_ROWS = 4
+
+WINDOW_MODE_LABELS = {
+    "fullscreen": "FULLSCREEN",
+    "borderless": "BORDERLESS",
+    "windowed":   "WINDOWED",
+}
 from pygame_core.asset_path import AssetPath
 from pygame_core.panel_manager import PanelManager
 from pygame_core.panel_loader_ext import PanelLoaderExt
 from pygame_core import panel_factory
 from pygame_core.ecs.components.transform import Transform
 from pygame_core.ecs.state_object import StateObject
+from pygame_core.ecs.game_audio import SFX_CHANNEL
 from pygame_core.ui_widgets.text_object import TextObject
 
 from app.scene import Scene
@@ -77,12 +84,7 @@ class LobbyScene(Scene):
         # little on touch devices for fat-finger targets. Applied to the YAML
         # panels via the loader in _load_panels AND to the objects built in code
         # below, so static chrome and the dynamic preview/name/slots stay aligned.
-        touch = is_android() or os.environ.get("STANDOFF_TOUCH")
-        self._ui_scale = (self.game.size[1] / UI_REFERENCE_SIZE[1]) * (
-            1.35 if touch else 1.0
-        )
-        self._menu_font = pygame.font.Font(None, round(40 * self._ui_scale))
-        self._slot_font = pygame.font.Font(None, round(25 * self._ui_scale))
+        self._recompute_ui_scale()
 
         self.selected_character = 0
         self.room_action = None  # 'start' | 'ready' | 'unready'
@@ -105,9 +107,53 @@ class LobbyScene(Scene):
             "connect_menu": self._handle_connect_menu,
             "server_menu": self._handle_server_menu,
             "room_menu": self._handle_room_menu,
+            "settings_menu": self._handle_settings_menu,
         }
 
     # Panel / menu setup
+
+    def _recompute_ui_scale(self) -> None:
+        touch = is_android() or os.environ.get("STANDOFF_TOUCH")
+        self._ui_scale = (self.game.size[1] / UI_REFERENCE_SIZE[1]) * (
+            1.35 if touch else 1.0
+        )
+        self._menu_font = pygame.font.Font(None, round(40 * self._ui_scale))
+        self._slot_font = pygame.font.Font(None, round(25 * self._ui_scale))
+
+    def reflow(self) -> None:
+        """Rebuilds the whole panel UI against the current self.game.size --
+        called from Game.on_canvas_resized() (the settings menu's window
+        mode/resolution picker, or F11) changes the canvas size. Panels and
+        the dynamic objects built in _build_dynamic_objects are positioned
+        once at construction time; without this they'd stay anchored to the
+        canvas size from whenever they were last built and visibly drift
+        off-screen after a resize.
+
+        _load_panels() replaces self.panel_manager outright (a fresh
+        PanelManager per rebuild, not an in-place merge), so anything with
+        state living outside the YAML/dynamic-object definitions needs to
+        be captured before and restored after: which panel was open, the
+        server-menu text fields (the player may have edited them away from
+        the CLIENT_IP/CLIENT_PORT defaults), the selected character, and
+        (if a room is joined) the room roster.
+        """
+        current_panel = self.panel_manager.current_panel
+        ip_text = self.panel_manager["server_menu"]["ip_input"].text
+        port_text = self.panel_manager["server_menu"]["port_input"].text
+
+        self._recompute_ui_scale()
+        self._load_panels()
+        self._build_dynamic_objects()
+
+        self.panel_manager["server_menu"]["ip_input"].set_text(ip_text)
+        self.panel_manager["server_menu"]["port_input"].set_text(port_text)
+        self._refresh_character()
+        self.panel_manager.current_panel = current_panel
+
+        if current_panel == "settings_menu":
+            self._bind_settings_ui()
+        elif current_panel == "room_menu" and self.game.player_info and self.game.player_info.room:
+            self.update_players_in_room(self.game.player_info.room)
 
     def _load_panels(self) -> None:
         self.panel_manager = PanelManager(starting_tab="main_menu")
@@ -123,6 +169,7 @@ class LobbyScene(Scene):
         loader.register("ellipse_button", make_ellipse_button_factory())
         loader.register("triangle_button", make_triangle_button_factory())
         loader.register("input", make_input_factory())
+        loader.register("slider", panel_factory.make_slider_factory(self.game.assets))
         loader.load("config/panels.yaml")
 
     def _build_dynamic_objects(self) -> None:
@@ -204,6 +251,14 @@ class LobbyScene(Scene):
             # host — grey the button there. Desktop can always host. The room
             # actions no longer live here, so there's nothing else to gate.
             self.panel_manager[name]["host"].set_enabled(not is_android())
+        elif name == "settings_menu":
+            self._bind_settings_ui()
+            # Android has no windowing concept (always fullscreen, no F11) --
+            # grey the mode/resolution pickers there, same gating as "host".
+            desktop_only = not is_android()
+            panel = self.panel_manager[name]
+            for key in ("window_mode_back", "window_mode_next", "window_size_back", "window_size_next"):
+                panel[key].set_enabled(desktop_only)
         elif name == "server_menu":
             # Reflect the live state when entering (e.g. already connected locally).
             self._connecting = False
@@ -292,6 +347,9 @@ class LobbyScene(Scene):
             self.open_panel(
                 "server_lobby_menu" if self.game.mode == Mode.ONLINE else "mode_menu"
             )
+        elif current == "settings_menu":
+            self.game._save_settings()
+            self.open_panel("main_menu")
         elif current == "main_menu":
             self.game.exit()
 
@@ -301,8 +359,71 @@ class LobbyScene(Scene):
         panel = self.panel_manager["main_menu"]
         if self._clicked(panel["play"], event):
             self.open_panel("player_menu")
+        elif self._clicked(panel["settings"], event):
+            self.open_panel("settings_menu")
         elif self._clicked(panel["exit"], event):
             self.game.exit()
+
+    def _handle_settings_menu(self, event) -> None:
+        panel = self.panel_manager["settings_menu"]
+        if self._clicked(panel["back"], event):
+            self.game._save_settings()
+            self.open_panel("main_menu")
+        elif self._clicked(panel["reset"], event):
+            self.game._reset_settings()
+            self._bind_settings_ui()
+        elif self._clicked(panel["window_mode_back"], event):
+            self.game.cycle_window_mode(-1)
+            self._refresh_window_mode_label()
+            self._refresh_window_size_label()
+        elif self._clicked(panel["window_mode_next"], event):
+            self.game.cycle_window_mode(1)
+            self._refresh_window_mode_label()
+            self._refresh_window_size_label()
+        elif self._clicked(panel["window_size_back"], event):
+            self.game.cycle_resolution(-1)
+            self._refresh_window_size_label()
+        elif self._clicked(panel["window_size_next"], event):
+            self.game.cycle_resolution(1)
+            self._refresh_window_size_label()
+
+    def _bind_settings_ui(self) -> None:
+        """(Re-)applies live audio/window state to the settings panel's
+        sliders and labels -- called every time settings_menu is opened."""
+        panel = self.panel_manager["settings_menu"]
+        panel["sfx_volume_slider"].set_value(self.game.audio.sfx_volume())
+        panel["sfx_volume_slider"].on_change = self._on_sfx_volume_changed
+        panel["music_volume_slider"].set_value(self.game.audio.music_volume())
+        panel["music_volume_slider"].on_change = self._on_music_volume_changed
+        self._refresh_window_mode_label()
+        self._refresh_window_size_label()
+        self._refresh_sfx_volume_label()
+        self._refresh_music_volume_label()
+
+    def _refresh_window_mode_label(self) -> None:
+        self.panel_manager["settings_menu"]["window_mode_value"].set_text(
+            WINDOW_MODE_LABELS[self.game._window_mode]
+        )
+
+    def _refresh_window_size_label(self) -> None:
+        w, h = self.game.resolution
+        self.panel_manager["settings_menu"]["window_size_value"].set_text(f"{w}x{h}")
+
+    def _refresh_sfx_volume_label(self) -> None:
+        value = round(self.game.audio.sfx_volume() * 100)
+        self.panel_manager["settings_menu"]["sfx_volume_value"].set_text(f"{value}%")
+
+    def _refresh_music_volume_label(self) -> None:
+        value = round(self.game.audio.music_volume() * 100)
+        self.panel_manager["settings_menu"]["music_volume_value"].set_text(f"{value}%")
+
+    def _on_sfx_volume_changed(self, value: float) -> None:
+        self.game.audio.set_sfx_volume(value)
+        self._refresh_sfx_volume_label()
+
+    def _on_music_volume_changed(self, value: float) -> None:
+        self.game.audio.set_music_volume(value)
+        self._refresh_music_volume_label()
 
     def _handle_player_menu(self, event) -> None:
         panel = self.panel_manager["player_menu"]
@@ -493,7 +614,7 @@ class LobbyScene(Scene):
             self.game.client.send(command)
             sound = self.game.sounds.get(sound_key)
             if sound is not None:
-                sound.play()
+                pygame.mixer.Channel(SFX_CHANNEL).play(sound)
         if self._clicked(panel["leave_room"], event):
             self.game.client.send(Command.LEAVE_ROOM)
 
