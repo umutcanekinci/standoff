@@ -102,6 +102,7 @@ class LobbyScene(Scene):
             "main_menu": self._handle_main_menu,
             "player_menu": self._handle_player_menu,
             "mode_menu": self._handle_mode_menu,
+            "host_warning_menu": self._handle_host_warning_menu,
             "server_lobby_menu": self._handle_server_lobby_menu,
             "create_room_menu": self._handle_create_room_menu,
             "connect_menu": self._handle_connect_menu,
@@ -171,6 +172,49 @@ class LobbyScene(Scene):
         loader.register("input", make_input_factory())
         loader.register("slider", panel_factory.make_slider_factory(self.game.assets))
         loader.load("config/panels.yaml")
+        if is_android():
+            self._apply_android_settings_layout()
+
+    def _hide(self, widget) -> None:
+        """Removes a widget from play entirely: not drawn/updated (.active,
+        checked by GameObject.draw/update/handle_event) AND not clickable
+        (.visible, checked by MouseInteractive.is_clicked/is_mouse_over --
+        the two are independent, and _handle_*_menu's click dispatch goes
+        through is_clicked directly, bypassing .active). set_enabled(False)
+        alone only greys a button's own look via the first path; a tap over
+        its old position would still fire through the second."""
+        widget.active = False
+        widget.visible = False
+
+    def _apply_android_settings_layout(self) -> None:
+        """Android has no windowing concept (always fullscreen, no F11) --
+        hide the window mode/size rows entirely and shift the rest of the
+        settings panel up to fill the gap they leave, since panels.yaml
+        positions everything with fixed offsets and has no reflow system of
+        its own.
+
+        Called once, right after a fresh panel_manager is built (from
+        _load_panels(), itself called from __init__ and reflow()) -- NOT
+        from open_panel(), so repeatedly opening/closing the settings menu
+        on an already-adjusted panel can't shift it a second time.
+        """
+        panel = self.panel_manager["settings_menu"]
+        # Computed from the panel's own current layout (rather than a
+        # hardcoded pixel count) so it stays correct if panels.yaml's
+        # positions ever change; both are panel_bg-parented siblings, so the
+        # delta is meaningful regardless of the parent-offset convention.
+        gap = panel["sfx_volume_label"].rect.y - panel["window_mode_label"].rect.y
+        for key in (
+            "window_mode_label", "window_mode_back", "window_mode_value", "window_mode_next",
+            "window_size_label", "window_size_back", "window_size_value", "window_size_next",
+        ):
+            self._hide(panel[key])
+        for key in (
+            "sfx_volume_label", "sfx_volume_value", "sfx_volume_slider",
+            "music_volume_label", "music_volume_value", "music_volume_slider",
+            "reset", "back",
+        ):
+            panel[key].rect.y -= gap
 
     def _build_dynamic_objects(self) -> None:
         pm = self.panel_manager
@@ -246,19 +290,8 @@ class LobbyScene(Scene):
 
     def open_panel(self, name: str) -> None:
         self.panel_manager.current_panel = name
-        if name == "mode_menu":
-            # The Android build is client-only (no inbound sockets), so it can't
-            # host — grey the button there. Desktop can always host. The room
-            # actions no longer live here, so there's nothing else to gate.
-            self.panel_manager[name]["host"].set_enabled(not is_android())
-        elif name == "settings_menu":
+        if name == "settings_menu":
             self._bind_settings_ui()
-            # Android has no windowing concept (always fullscreen, no F11) --
-            # grey the mode/resolution pickers there, same gating as "host".
-            desktop_only = not is_android()
-            panel = self.panel_manager[name]
-            for key in ("window_mode_back", "window_mode_next", "window_size_back", "window_size_next"):
-                panel[key].set_enabled(desktop_only)
         elif name == "server_menu":
             # Reflect the live state when entering (e.g. already connected locally).
             self._connecting = False
@@ -334,6 +367,8 @@ class LobbyScene(Scene):
             self.open_panel("main_menu")
         elif current == "mode_menu":
             self.open_panel("player_menu")
+        elif current == "host_warning_menu":
+            self.open_panel("mode_menu")
         elif current == "server_menu":
             # Backing out before the dial completes — just cancel and return.
             self.open_panel("mode_menu")
@@ -452,11 +487,30 @@ class LobbyScene(Scene):
             self.game.mode = Mode.OFFLINE
             self.open_panel("create_room_menu")
         elif self._clicked(panel["host"], event):
-            self._host_game()
+            # Hosting works code-wise on Android (GameServer isn't excluded
+            # from the build) but is unreliable in practice -- carrier NAT
+            # usually blocks reachability, and backgrounding can drop the
+            # socket. Rather than block it outright, warn and let the
+            # player decide; desktop skips straight to hosting as before.
+            if is_android():
+                self.open_panel("host_warning_menu")
+            else:
+                self._host_game()
         elif self._clicked(panel["connect"], event):
             self.open_panel("server_menu")
         elif self._clicked(panel["back"], event):
             self.open_panel("player_menu")
+
+    def _handle_host_warning_menu(self, event) -> None:
+        panel = self.panel_manager["host_warning_menu"]
+        if self._clicked(panel["host_anyway"], event):
+            # Land back on mode_menu before hosting: _host_game() only starts
+            # an async connect (see _poll_connection), and update() only
+            # polls it while mode_menu/server_menu is the open panel.
+            self.open_panel("mode_menu")
+            self._host_game()
+        elif self._clicked(panel["back"], event):
+            self.open_panel("mode_menu")
 
     def _handle_server_lobby_menu(self, event) -> None:
         # Stage 2: we're on a server. mode is already ONLINE (set when we

@@ -75,6 +75,23 @@ panels:
       connect:      { extends: pill, parent: panel_bg, position: [CENTER, 250], text: "CONNECT" }
       back:         { extends: pill, parent: panel_bg, position: [CENTER, 320], text: "BACK" }
 
+  # Reached only on Android, when HOST GAME is tapped (see
+  # LobbyScene._handle_mode_menu). Hosting from a phone works code-wise --
+  # GameServer isn't excluded from the Android build, only the standalone
+  # dedicated-server launcher (server.py) is -- but is unreliable in practice:
+  # carrier NAT usually blocks reachability from outside the LAN, and Android
+  # can silently kill a backgrounded app's listening socket. Rather than
+  # deciding for the player, warn them and let them choose.
+  host_warning_menu:
+    extends: [menu_chrome]
+    objects:
+      warning_title:  { type: text, parent: panel_bg, position: [CENTER, 60],  font_size: 30, text: "HOST FROM PHONE?" }
+      warning_line_1: { type: text, parent: panel_bg, position: [CENTER, 110], font_size: 18, text: "May not be reachable online (NAT)" }
+      warning_line_2: { type: text, parent: panel_bg, position: [CENTER, 140], font_size: 18, text: "Screen lock can drop the game" }
+      warning_line_3: { type: text, parent: panel_bg, position: [CENTER, 170], font_size: 18, text: "Same-WiFi play works fine" }
+      host_anyway:    { extends: pill, parent: panel_bg, position: [CENTER, 250], text: "HOST ANYWAY" }
+      back:           { extends: pill, parent: panel_bg, position: [CENTER, 320], text: "BACK" }
+
   # Stage 2: you are on a server (reached after HOST or CONNECT succeeds). Create
   # a room or browse/join one; DISCONNECT drops the server (and stops hosting if
   # we were the host) and returns to mode_menu.
@@ -128,8 +145,8 @@ panels:
       leave_room: { extends: pill, parent: panel_bg, position: [CENTER, 300], color: [0, 0, 255], hover_color: [255, 0, 0], text: "LEAVE ROOM" }
 
   # Window mode/size are desktop-only (Android has no windowing concept) --
-  # LobbyScene.open_panel() greys those four triangle buttons out on
-  # is_android(), matching how mode_menu's "host" button is gated.
+  # LobbyScene.open_panel() hides those eight widgets (labels, values, and
+  # arrow buttons) entirely on is_android().
   settings_menu:
     extends: [menu_chrome]
     objects:
