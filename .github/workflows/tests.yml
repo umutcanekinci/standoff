@@ -30,3 +30,26 @@ jobs:
 
       - name: Run tests
         run: uv run --group dev pytest -q
+
+  # testpaths above is scoped to ./tests, so the vendored submodule's own
+  # suite never runs as part of the "test" job -- exercise it separately.
+  engine-tests:
+    name: pygame_core test suite
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
+      SDL_VIDEODRIVER: dummy
+    steps:
+      - name: Checkout (with pygame_core submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run pytest
+        working-directory: src/pygame_core
+        run: uv run --group dev pytest -q
