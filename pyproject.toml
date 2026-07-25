@@ -13,7 +13,7 @@ dependencies = [
 pygame-core = { path = "src/pygame_core", editable = true }
 
 [dependency-groups]
-dev = ["pytest>=8", "pre-commit>=4"]
+dev = ["pytest>=8", "pytest-cov>=5", "pre-commit>=4"]
 # Tooling for producing distributable desktop builds (see standoff.spec / CI).
 build = ["pyinstaller>=6.0"]
 
@@ -28,6 +28,15 @@ markers = [
     "integration: real-socket loopback tests (slower)",
     "e2e: full-stack end-to-end tests (slowest)",
 ]
+
+[tool.coverage.run]
+# pygame_core is a vendored submodule with its own separate test suite
+# (engine-tests in CI) -- the coverage badge should reflect only this app's
+# own code. Listed as explicit leaf directories rather than "src" itself:
+# coverage.py's static discovery of *unexecuted* files (needed so untested
+# modules show as 0% instead of being silently excluded from the total)
+# doesn't reliably recurse into subdirectories of a single top-level entry.
+source = ["src/app", "src/gameplay", "src/net", "src/ui", "src/util"]
 
 [tool.ruff]
 # pygame_core is a vendored sub-package with its own tooling — don't lint it here.

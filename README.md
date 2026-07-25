@@ -1,5 +1,7 @@
 # Standoff
 
+![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/umutcanekinci/standoff/main/.github/badges/coverage.json)
+
 Standoff is a 2D networked multiplayer top-down shooter built with [pygame-ce](https://github.com/pygame-community/pygame-ce). Pick a character, host or join a room over the network (or play offline), then move, aim, and shoot your way through waves of zombies on a Tiled-authored map.
 
 ![Gameplay](docs/screenshots/03_gameplay.png)
