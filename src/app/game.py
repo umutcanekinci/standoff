@@ -50,7 +50,7 @@ class Game(Application):
         if missing:
             raise FileNotFoundError("Missing assets:\n  " + "\n  ".join(missing))
 
-        self._splash = SplashScreen(
+        self.splash = SplashScreen(
             [self.assets.image_path("pygame_logo")],
             fade_ms=SPLASH_FADE_MS, hold_ms=SPLASH_HOLD_MS,
         )
@@ -361,15 +361,6 @@ class Game(Application):
         # GameplayScene doesn't reflow (out of scope for the settings menu --
         # it has its own camera/HUD layout this doesn't touch), so a resize
         # mid-match may leave it visually stale until the next leave_match().
-
-    @override
-    def run(self) -> None:
-        # SplashScreen runs its own loop with direct pygame.display.update()
-        # calls, bypassing Application._present()'s scale step -- draw it
-        # straight onto the real display surface rather than the offscreen
-        # logical canvas, or it would never actually reach the screen.
-        self._splash.run(self.display_surface, self.clock, self._fps)
-        super().run()
 
     @override
     def _handle_core_event(self, event: pygame.event.Event) -> None:
