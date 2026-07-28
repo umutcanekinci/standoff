@@ -42,7 +42,7 @@ class Game(Application):
 
         self.settings_store = SaveStore("settings")
         self._saved_settings = self.settings_store.load()
-        self._restore_window_mode(self._saved_settings)
+        self.restore_window_settings(self._saved_settings)
 
         self.assets = AssetManager()
         self.assets.load_manifest("config/assets.yaml")
@@ -129,26 +129,14 @@ class Game(Application):
     def is_game_started(self) -> bool:
         return self.gameplay is not None and self.active_scene is self.gameplay
 
-    # Settings persistence (SaveStore-backed; mirrors chokepoint's pattern)
-
-    def _restore_window_mode(self, saved_settings: dict) -> None:
-        """Applies a saved window mode/size on top of Application.__init__'s
-        default (always exclusive fullscreen). set_resolution() only resizes
-        immediately if already windowed (mode and resolution are independent
-        settings) -- called here while still in the just-constructed default
-        fullscreen, it just remembers the size for whichever mode is applied
-        next, below. Harmless on Android: it just re-affirms fullscreen,
-        since there's no windowing concept there."""
-        if "window_size" in saved_settings:
-            self.set_resolution(tuple(saved_settings["window_size"]))
-        mode = saved_settings.get("window_mode", "fullscreen")
-        mode_methods = {"fullscreen": self.full_screen, "borderless": self.borderless_full_screen, "windowed": self.minimize}
-        mode_methods.get(mode, self.full_screen)()
+    # Settings persistence (SaveStore-backed). Window mode/resolution
+    # persistence itself lives in Application now (restore_window_settings/
+    # window_settings/reset_window_settings) -- these just merge that with
+    # this project's own audio settings.
 
     def _save_settings(self) -> None:
         self.settings_store.save({
-            "window_mode":  self._window_mode,
-            "window_size":  list(self.resolution),
+            **self.window_settings(),
             "sfx_volume":   self.audio.sfx_volume(),
             "music_volume": self.audio.music_volume(),
         })
@@ -158,8 +146,7 @@ class Game(Application):
         defaults, then persists immediately -- Reset is a deliberate
         action, not a live drag, so it shouldn't wait for the player to
         also press Back."""
-        self.clear_resolution_override()
-        self.full_screen()
+        self.reset_window_settings()
         self.audio.set_sfx_volume(1.0)
         self.audio.set_music_volume(1.0)
         self._save_settings()
@@ -351,7 +338,7 @@ class Game(Application):
 
     @override
     def on_canvas_resized(self, new_size: tuple[int, int]) -> None:
-        # Fires during Application.__init__ (via _restore_window_mode(), called
+        # Fires during Application.__init__ (via restore_window_settings(), called
         # before self.lobby is built) as well as later from the settings menu's
         # window mode/resolution picker or F11 -- only the latter needs a reflow;
         # __init__ builds the lobby fresh against the already-current size anyway.
