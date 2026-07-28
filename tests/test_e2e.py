@@ -13,7 +13,7 @@ import pytest
 
 from net.game_server import GameServer
 from net.wire import make_protocol
-from pygame_core.net.transport import BaseClient
+from pygamine.net.transport import BaseClient
 from _util import wait_until, start_in_thread
 
 # Full-stack, slowest tier — CI only; the pre-commit hook skips via `-m "not e2e"`.

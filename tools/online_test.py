@@ -29,7 +29,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-sys.path.insert(0, str(ROOT / "src" / "pygame_core"))
+sys.path.insert(0, str(ROOT / "src" / "pygamine"))
 
 MAP_NAME = "level2"
 ROOM_ID = 1  # the server numbers the first created room 1
@@ -59,7 +59,7 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
     faulthandler.enable()
     _dpi_aware()
     import pygame
-    from pygame_core.application import Application
+    from pygamine.application import Application
     from app.game import Game
     from util.constants import WINDOW_TITLE, CHARACTER_LIST, Mode
     from net.commands import Command

@@ -13,9 +13,9 @@ import pygame
 from typing import cast
 from pygame.math import Vector2
 
-from pygame_core.ecs.game_object import GameObject
-from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
-from pygame_core.image import load_image
+from pygamine.ecs.game_object import GameObject
+from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+from pygamine.image import load_image
 
 # Rotating a surface every frame is expensive. Quantize the angle and cache the
 # result, keyed by (source-surface identity, angle bucket). Shared across all

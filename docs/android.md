@@ -5,7 +5,7 @@ hosts the server; `server_app.py`'s tkinter admin never ships to Android).
 
 **Toolchain:** [buildozer] + [python-for-android] with the **SDL2 bootstrap**.
 Chosen over pygbag (web/WASM) so raw **TCP sockets keep working** — the existing
-`pygame_core/net/transport.py` survives nearly unchanged. The cost is build
+`pygamine/net/transport.py` survives nearly unchanged. The cost is build
 fiddliness (the pygame-ce recipe on p4a is the weak link), not an architecture
 rewrite.
 

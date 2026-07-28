@@ -16,7 +16,7 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v4
         with:
           submodules: recursive

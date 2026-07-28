@@ -25,7 +25,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "src"))
-sys.path.insert(0, str(_ROOT / "src" / "pygame_core"))
+sys.path.insert(0, str(_ROOT / "src" / "pygamine"))
 
 import pygame  # noqa: E402
 from pygame.math import Vector2 as Vec  # noqa: E402

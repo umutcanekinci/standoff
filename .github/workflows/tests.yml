@@ -24,7 +24,7 @@ jobs:
       # Headless SDL so pygame.init() (via Room) works with no display.
       SDL_VIDEODRIVER: dummy
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v7
         with:
           submodules: recursive
@@ -53,13 +53,13 @@ jobs:
   # testpaths above is scoped to ./tests, so the vendored submodule's own
   # suite never runs as part of the "test" job -- exercise it separately.
   engine-tests:
-    name: pygame_core test suite
+    name: pygamine test suite
     runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.12"
       SDL_VIDEODRIVER: dummy
     steps:
-      - name: Checkout (with pygame_core submodule)
+      - name: Checkout (with pygamine submodule)
         uses: actions/checkout@v7
         with:
           submodules: recursive
@@ -70,5 +70,5 @@ jobs:
           enable-cache: true
 
       - name: Run pytest
-        working-directory: src/pygame_core
+        working-directory: src/pygamine
         run: uv run --group dev pytest -q

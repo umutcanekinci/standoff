@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 
 from gameplay.map import Map
-from pygame_core.ecs.components.sprite_renderer2d import SpriteRenderer2D
+from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
 
 
 class Camera:

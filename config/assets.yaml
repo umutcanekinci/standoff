@@ -1,5 +1,5 @@
 # config/assets.yaml
-# Manifest-driven asset registry (loaded by pygame_core.AssetManager).
+# Manifest-driven asset registry (loaded by pygamine.AssetManager).
 # Keys are looked up in code as f"char_{name}_idle" / f"char_{name}_gun" / f"muzzle_{n}".
 
 images:

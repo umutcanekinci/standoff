@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 
-from pygame_core.tilemap import TiledMap
+from pygamine.tilemap import TiledMap
 from util.constants import TILE_WIDTH, TILE_HEIGHT, Gray
 from gameplay.tiles import Obstacle
 
@@ -10,7 +10,7 @@ from gameplay.tiles import Obstacle
 class Map(TiledMap):
     """A Tiled .tmx for Standoff: parses base/spawn points + wall obstacles,
     and renders the tile layers (with a grid overlay) into a surface the custom
-    Camera blits. Generic tmx loading / pre-render comes from pygame_core.TiledMap."""
+    Camera blits. Generic tmx loading / pre-render comes from pygamine.TiledMap."""
 
     camera: object = None  # set by Camera.__init__
     image: pygame.Surface  # built by render()

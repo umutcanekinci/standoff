@@ -1,6 +1,6 @@
 """Project UI widgets for the panel system.
 
-These are Standoff-specific widgets that plug into pygame_core's panel
+These are Standoff-specific widgets that plug into pygamine's panel
 loader (each `make_*_factory()` returns a `(cfg, parent) -> object` callable to
 register with PanelLoaderExt). The engine has no button/input widget — buttons
 there are image assets — so we vector-draw the pill/triangle look the project
@@ -12,9 +12,9 @@ from __future__ import annotations
 import pygame
 
 from util.constants import Red, Blue, Gray, Black, White
-from pygame_core.ecs.state_object import StateObject, HoverableStateObject
-from pygame_core.ecs.game_audio import SFX_CHANNEL
-from pygame_core.ui_widgets.text_object import TextObject
+from pygamine.ecs.state_object import StateObject, HoverableStateObject
+from pygamine.ecs.game_audio import SFX_CHANNEL
+from pygamine.ui_widgets.text_object import TextObject
 
 _RADIUS = 25  # pill corner radius (matches the old EllipseButton)
 _DEPTH = 5  # 3D "lip" height (matches the old EllipseButton/TriangleButton)

@@ -109,7 +109,7 @@ The desktop workflow also pushes each OS build to its [itch.io](https://umutcane
 ## Project layout
 
 ```
-__main__.py            Entry point — injects src/ + src/pygame_core/ into sys.path
+__main__.py            Entry point — injects src/ + src/pygamine/ into sys.path
 server.py              Dedicated multiplayer server (Tk window)
 src/app/game.py        Game class — owns the active scene + network client, drives the loop
 src/app/scene.py       Scene base — the per-frame handle_event/update/draw contract
@@ -119,7 +119,7 @@ src/gameplay/          Entities (player, mob, bullet), map, camera, collision
 src/net/               Client + server networking, room / player state, protocol commands
 src/ui/                Panel widgets (vector buttons, text input)
 src/util/              Constants, database helper
-src/pygame_core/       Engine submodule (Application, GameObject/ECS, PanelLoaderExt, ...)
+src/pygamine/       Engine submodule (Application, GameObject/ECS, PanelLoaderExt, ...)
 config/                YAML: assets, panels
 assets/                Images, Tiled maps
 tests/                 Test suite — protocol/transport/game-server, unit → e2e
@@ -130,7 +130,7 @@ tools/                 Build helpers (build_android.sh)
 
 ## Architecture
 
-Standoff runs on the shared [`pygame_core`](https://github.com/umutcanekinci/pygame-core) engine: `Game` extends `pygame_core.Application`, the menus are panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
+Standoff runs on the shared [`pygamine`](https://github.com/umutcanekinci/pygamine) engine: `Game` extends `pygamine.Application`, the menus are panel-driven (`config/panels.yaml` + `PanelManager`), and in-world entities are `GameObject`s with `SpriteRenderer2D` components.
 
 - **Scenes.** `Game` is a thin shell that holds the *active scene* and forwards `handle_event`/`update`/`draw` to it. `LobbyScene` owns all menu/panel state and the pre-game flow; `GameplayScene` owns the in-world phase. Switching phases swaps the active scene instead of branching on flags — a pause screen or game-over screen is a new `Scene` subclass, not another `if`.
 - **The World.** `GameplayScene` *is* the world that entities depend on: `Player`, `Mob`, `Bullet`, `MuzzleFlash`, `Map` and `Obstacle` read their surroundings (walls, players, mobs, `delta_time`, camera, the mob grid, …) off that narrow surface rather than reaching into the whole `Game`.

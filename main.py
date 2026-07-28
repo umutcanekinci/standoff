@@ -15,7 +15,7 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT / "src"))
-sys.path.insert(0, str(_ROOT / "src" / "pygame_core"))
+sys.path.insert(0, str(_ROOT / "src" / "pygamine"))
 
 from app.game import Game
 

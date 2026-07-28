@@ -18,14 +18,14 @@ from util.constants import (
     SPLASH_HOLD_MS,
     Mode,
 )
-from pygame_core.application import Application
-from pygame_core.asset_manager import AssetManager
-from pygame_core.debug import Debug
-from pygame_core.splash_screen import SplashScreen
-from pygame_core.save_store import SaveStore
-from pygame_core.ecs.game_audio import GameAudio, SFX_CHANNEL
+from pygamine.application import Application
+from pygamine.asset_manager import AssetManager
+from pygamine.debug import Debug
+from pygamine.splash_screen import SplashScreen
+from pygamine.save_store import SaveStore
+from pygamine.ecs.game_audio import GameAudio, SFX_CHANNEL
 
-from pygame_core.net.transport import BaseClient
+from pygamine.net.transport import BaseClient
 from net.game_server import GameServer
 from net.wire import make_protocol
 from app.lobby_scene import LobbyScene

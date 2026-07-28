@@ -4,7 +4,7 @@
 #   Bypass once:       git commit --no-verify
 
 # Don't touch the vendored sub-package (it has its own tooling).
-exclude: '^src/pygame_core/'
+exclude: '^src/pygamine/'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -38,14 +38,14 @@ WINDOW_MODE_LABELS = {
     "borderless": "BORDERLESS",
     "windowed":   "WINDOWED",
 }
-from pygame_core.asset_path import AssetPath
-from pygame_core.panel_manager import PanelManager
-from pygame_core.panel_loader_ext import PanelLoaderExt
-from pygame_core import panel_factory
-from pygame_core.ecs.components.transform import Transform
-from pygame_core.ecs.state_object import StateObject
-from pygame_core.ecs.game_audio import SFX_CHANNEL
-from pygame_core.ui_widgets.text_object import TextObject
+from pygamine.asset_path import AssetPath
+from pygamine.panel_manager import PanelManager
+from pygamine.panel_loader_ext import PanelLoaderExt
+from pygamine import panel_factory
+from pygamine.ecs.components.transform import Transform
+from pygamine.ecs.state_object import StateObject
+from pygamine.ecs.game_audio import SFX_CHANNEL
+from pygamine.ui_widgets.text_object import TextObject
 
 from app.scene import Scene
 from gameplay.controls import is_android

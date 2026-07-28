@@ -32,7 +32,7 @@ datas = [
 
 a = Analysis(
     ["__main__.py"],
-    pathex=[str(ROOT / "src"), str(ROOT / "src" / "pygame_core")],
+    pathex=[str(ROOT / "src"), str(ROOT / "src" / "pygamine")],
     binaries=[],
     datas=datas,
     # pytmx's pygame loader is imported through a string in the base tilemap;

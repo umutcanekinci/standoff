@@ -1,4 +1,4 @@
-# Player-local settings/save data (pygame_core SaveStore)
+# Player-local settings/save data (pygamine SaveStore)
 /saves/
 
 ## Ignore Visual Studio temporary files, build results, and

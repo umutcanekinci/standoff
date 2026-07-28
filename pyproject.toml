@@ -7,11 +7,11 @@ dependencies = [
     "colorama",
     "pyyaml",
     "pytmx",
-    "pygame-core",
+    "pygamine",
 ]
 
 [tool.uv.sources]
-pygame-core = { path = "src/pygame_core", editable = true }
+pygamine = { path = "src/pygamine", editable = true }
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=5", "pre-commit>=4"]
@@ -21,7 +21,7 @@ build = ["pyinstaller>=6.0"]
 [tool.pytest.ini_options]
 # Put the source roots on sys.path so tests can `import net.*` / `app.*`
 # without per-file path hacks.
-pythonpath = ["src", "src/pygame_core"]
+pythonpath = ["src", "src/pygamine"]
 testpaths = ["tests"]
 # Categories so the pre-commit hook can run the fast (unit) tests only, leaving
 # the socket-backed tests to CI:  pytest -m "not integration and not e2e"
@@ -31,7 +31,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-# pygame_core is a vendored submodule with its own separate test suite
+# pygamine is a vendored submodule with its own separate test suite
 # (engine-tests in CI) -- the coverage badge should reflect only this app's
 # own code. Listed as explicit leaf directories rather than "src" itself:
 # coverage.py's static discovery of *unexecuted* files (needed so untested
@@ -40,8 +40,8 @@ markers = [
 source = ["src/app", "src/gameplay", "src/net", "src/ui", "src/util"]
 
 [tool.ruff]
-# pygame_core is a vendored sub-package with its own tooling — don't lint it here.
-extend-exclude = ["src/pygame_core"]
+# pygamine is a vendored sub-package with its own tooling — don't lint it here.
+extend-exclude = ["src/pygamine"]
 
 [tool.ruff.lint]
 # conftest imports after a sys.path tweak, so allow module-level imports below

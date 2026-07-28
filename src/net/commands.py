@@ -7,7 +7,7 @@ renamed command is a one-line change, and a typo is an ``AttributeError`` at
 import time instead of a message that's quietly ignored on the wire.
 
 These are this game's protocol, so they live in ``net`` (the game's network
-layer), not in the game-agnostic ``pygame_core`` engine.
+layer), not in the game-agnostic ``pygamine`` engine.
 """
 
 from __future__ import annotations

@@ -15,9 +15,9 @@ from util.constants import (
 )
 from gameplay.game_sprite import GameSprite
 from gameplay.collision import collide
-from pygame_core.image import load_image
-from pygame_core.ui_widgets.text_object import TextObject
-from pygame_core.ecs.components.transform import Transform
+from pygamine.image import load_image
+from pygamine.ui_widgets.text_object import TextObject
+from pygamine.ecs.components.transform import Transform
 
 _NAME_FONT = None
 
