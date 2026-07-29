@@ -1,7 +1,7 @@
 """standoff's camera: pygamine.Camera plus a follow() that recenters the
 viewport on a target rect, and a batch draw() (accepts one object or an
 iterable, with viewport culling) -- neither of which the base Camera
-provides on its own. See pygamine.camera for the shared world<->screen
+provides on its own. See pygamine.app.camera for the shared world<->screen
 transform, edge-scroll, and zoom machinery this builds on.
 """
 

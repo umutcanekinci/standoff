@@ -14,7 +14,7 @@ Not used by ``main.py`` (the Android/buildozer entry point) — python-for-andro
 runs from the packaged app directory directly, so cwd-relative paths already
 resolve there without help.
 
-Implementation lives in ``pygamine.paths`` -- shared with every sibling
+Implementation lives in ``pygamine.assets.paths`` -- shared with every sibling
 project, since the logic has nothing project-specific in it. Re-exported
 here so existing ``from util.paths import resource_root`` call sites don't
 need to change.

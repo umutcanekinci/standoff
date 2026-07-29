@@ -59,7 +59,7 @@ def run_client(idx: int, role: str, rect: tuple[int, int, int, int], t0: float) 
     faulthandler.enable()
     _dpi_aware()
     import pygame
-    from pygamine.application import Application
+    from pygamine import Application
     from app.game import Game
     from util.constants import WINDOW_TITLE, CHARACTER_LIST, Mode
     from net.commands import Command
