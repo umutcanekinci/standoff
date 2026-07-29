@@ -41,7 +41,7 @@ WINDOW_MODE_LABELS = {
 from pygamine import AssetPath
 from pygamine import PanelManager
 from pygamine import PanelLoaderExt
-from pygamine import panel_factory
+from pygamine import make_factory, make_slider_factory
 from pygamine import Transform
 from pygamine import StateObject
 from pygamine import SFX_CHANNEL
@@ -164,13 +164,13 @@ class LobbyScene(Scene):
         loader.scale = self._ui_scale
         loader.authored_size = UI_REFERENCE_SIZE
         loader.register(
-            "object", panel_factory.make_factory(self.game.assets), default=True
+            "object", make_factory(self.game.assets), default=True
         )
         loader.register("text", make_text_factory())
         loader.register("ellipse_button", make_ellipse_button_factory())
         loader.register("triangle_button", make_triangle_button_factory())
         loader.register("input", make_input_factory())
-        loader.register("slider", panel_factory.make_slider_factory(self.game.assets))
+        loader.register("slider", make_slider_factory(self.game.assets))
         loader.load("config/panels.yaml")
         if is_android():
             self._apply_android_settings_layout()

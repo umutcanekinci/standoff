@@ -19,7 +19,7 @@ import pytest
 from net.wire import make_protocol, WIRE_TYPES
 from net.player_info import PlayerInfo, MobInfo
 from net.room import Room
-from pygamine.net.protocol import ProtocolError
+from pygamine import ProtocolError
 from _util import FakeSocket
 
 
