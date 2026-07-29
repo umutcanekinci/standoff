@@ -6,15 +6,10 @@ list-of-objects draw with viewport culling).
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pygame
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
-from gameplay.camera import Camera  # noqa: E402
+from gameplay.camera import Camera
 
 
 class _FakeMap:
