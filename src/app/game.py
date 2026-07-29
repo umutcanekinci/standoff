@@ -18,14 +18,14 @@ from util.constants import (
     SPLASH_HOLD_MS,
     Mode,
 )
-from pygamine.application import Application
-from pygamine.asset_manager import AssetManager
-from pygamine.debug import Debug
-from pygamine.splash_screen import SplashScreen
-from pygamine.save_store import SaveStore
-from pygamine.ecs.game_audio import GameAudio, SFX_CHANNEL
+from pygamine import Application
+from pygamine import AssetManager
+from pygamine import Debug
+from pygamine import SplashScreen
+from pygamine import SaveStore
+from pygamine import GameAudio, SFX_CHANNEL
 
-from pygamine.net.transport import BaseClient
+from pygamine import BaseClient
 from net.game_server import GameServer
 from net.wire import make_protocol
 from app.lobby_scene import LobbyScene

@@ -12,9 +12,9 @@ from __future__ import annotations
 import pygame
 
 from util.constants import Red, Blue, Gray, Black, White
-from pygamine.ecs.state_object import StateObject, HoverableStateObject
-from pygamine.ecs.game_audio import SFX_CHANNEL
-from pygamine.ui_widgets.text_object import TextObject
+from pygamine import StateObject, HoverableStateObject
+from pygamine import SFX_CHANNEL
+from pygamine import TextObject
 
 _RADIUS = 25  # pill corner radius (matches the old EllipseButton)
 _DEPTH = 5  # 3D "lip" height (matches the old EllipseButton/TriangleButton)

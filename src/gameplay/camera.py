@@ -10,8 +10,8 @@ from __future__ import annotations
 import pygame
 
 from gameplay.map import Map
-from pygamine.camera import Camera as _Camera
-from pygamine.ecs.components.sprite_renderer2d import SpriteRenderer2D
+from pygamine import Camera as _Camera
+from pygamine import SpriteRenderer2D
 
 
 class Camera(_Camera):

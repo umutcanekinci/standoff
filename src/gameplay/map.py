@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pygame
 
-from pygamine.tilemap import TiledMap
+from pygamine import TiledMap
 from util.constants import TILE_WIDTH, TILE_HEIGHT, Gray
 from gameplay.tiles import Obstacle
 

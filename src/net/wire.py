@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from net.player_info import PlayerInfo, MobInfo
 from net.room import Room
-from pygamine.net.protocol import Protocol, TypedJSONCodec
+from pygamine import Protocol, TypedJSONCodec
 
 # Type tag (the "__type__" each to_dict writes) -> class. Both ends must agree.
 WIRE_TYPES = {

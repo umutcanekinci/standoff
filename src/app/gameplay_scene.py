@@ -32,11 +32,11 @@ from util.constants import (
 import pygame
 from pygame.math import Vector2 as Vec
 
-from pygamine.asset_path import AssetPath
-from pygamine.spatial_grid import SpatialGrid
-from pygamine.panel_manager import PanelManager
-from pygamine.ecs.components.transform import Transform
-from pygamine.ui_widgets.text_object import TextObject
+from pygamine import AssetPath
+from pygamine import SpatialGrid
+from pygamine import PanelManager
+from pygamine import Transform
+from pygamine import TextObject
 
 from app.scene import Scene
 from gameplay.map import Map

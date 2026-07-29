@@ -25,7 +25,7 @@ from net.commands import Command
 from net.player_info import PlayerInfo
 from net.room import Room
 from net.wire import make_protocol
-from pygamine.net.transport import BaseServer, Connection
+from pygamine import BaseServer, Connection
 
 # How often the server pushes authoritative mob positions to a room (seconds).
 MOB_SYNC_INTERVAL = 0.05
