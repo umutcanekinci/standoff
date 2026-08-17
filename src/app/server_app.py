@@ -8,21 +8,30 @@ net.game_server / net.transport / net.protocol.
 
 from __future__ import annotations
 
+import sys
 import threading
 from datetime import datetime
 from pathlib import Path
 from tkinter import Tk, Label, Text, Button, Frame, Entry, END
-from ctypes import windll
 
 from util.constants import SERVER_TITLE, SERVER_SIZE, SERVER_ADDR
 from net.game_server import GameServer
 
 FONT_NAME = "Comic Sans MS"
 
-# Window-chrome helpers (borderless drag + taskbar registration). The constants
-# below mirror Win32 API names (hence the spell-check suppressions), and the
-# user32 functions are resolved dynamically by ctypes, so static analysers can't
-# see them — those are false positives, not missing references.
+# Window-chrome helpers (borderless drag + taskbar registration). windll is
+# Windows-only (ctypes has no such attribute on Linux/macOS) -- imported
+# lazily, only on win32, so the module itself still imports everywhere; the
+# taskbar-registration workaround below is skipped on other platforms
+# instead. The constants mirror Win32 API names (hence the spell-check
+# suppressions), and the user32 functions are resolved dynamically by
+# ctypes, so static analysers can't see them -- those are false positives,
+# not missing references.
+if sys.platform == "win32":
+    from ctypes import windll
+else:
+    windll = None
+
 # noinspection SpellCheckingInspection
 GWL_EXSTYLE = -20
 # noinspection SpellCheckingInspection
@@ -249,7 +258,11 @@ class Application(Tk):
         self.deiconify()
 
     def show_in_task_bar(self):
-        self.after(10, set_app_window, self)
+        # set_app_window works around Windows hiding overrideredirect(True)
+        # windows from the taskbar -- other window managers don't have that
+        # problem, and windll doesn't exist to call it with off win32 anyway.
+        if sys.platform == "win32":
+            self.after(10, set_app_window, self)
 
     def set_window_title(self, text: str):
         self.wm_title(text)
