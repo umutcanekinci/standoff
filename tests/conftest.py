@@ -12,7 +12,25 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 # Make the helper module in this directory importable as `import _util`.
 sys.path.insert(0, os.path.dirname(__file__))
 
+import pygame
 import pytest
+
+from pygamine import AssetManager
+
+pygame.init()
+# Entity/Player/Mob load images via convert_alpha(), which raises without a
+# display surface. GameplayScene normally provides one; these tests construct
+# game objects directly, with no Scene/Game involved, so they need their own.
+pygame.display.set_mode((1, 1))
+
+
+@pytest.fixture(scope="session")
+def assets() -> AssetManager:
+    manager = AssetManager()
+    manager.load_manifest("config/assets.yaml")
+    missing = manager.validate()
+    assert not missing, f"Missing assets: {missing}"
+    return manager
 
 
 @pytest.fixture
