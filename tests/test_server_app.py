@@ -14,12 +14,14 @@ were verified manually (see the commit message) rather than via an
 importlib.reload-based test, which would be fragile for the value gained.
 """
 import threading
-from tkinter import END
 
 import pytest
 
-from app.server_app import Application, Grip
-from util.constants import SERVER_ADDR
+tk = pytest.importorskip("tkinter")
+END = tk.END
+
+from app.server_app import Application, Grip  # noqa: E402 -- see importorskip above
+from util.constants import SERVER_ADDR  # noqa: E402
 
 
 class Spy:

@@ -34,6 +34,12 @@ jobs:
         with:
           enable-cache: true
 
+      # Ubuntu splits tkinter out of the base python3 package -- needed for
+      # tests/test_server_app.py, which imports (but never opens a real
+      # window for) app.server_app.
+      - name: Install tkinter
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
       - name: Run tests with coverage
         run: uv run --group dev pytest -q --cov --cov-report=json --cov-report=term
 
